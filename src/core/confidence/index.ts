@@ -1,0 +1,1 @@
+export { calculateConfidence } from './score';

@@ -1,0 +1,214 @@
+[
+    {
+        "message": "Rs.450.00 spent on HDFC Bank Card xx1234 at AMAZON on 15-05-26",
+        "expected": {
+            "amount": 450,
+            "merchant": "AMAZON",
+            "transactionType": "debit",
+            "paymentMode": "unknown",
+            "account": "1234"
+        }
+    },
+    {
+        "message": "Dear Customer, your A/c X1234 debited by Rs.200.00 on 15May26 transfer to SWIGGY Ref No 412345678",
+        "expected": {
+            "amount": 200,
+            "merchant": "SWIGGY",
+            "transactionType": "debit",
+            "paymentMode": "unknown",
+            "account": "1234"
+        }
+    },
+    {
+        "message": "Acct XX123 debited with Rs 5000 on 15-May-26 IMPS to JOHN Ref 312345678",
+        "expected": {
+            "amount": 5000,
+            "merchant": "JOHN",
+            "transactionType": "debit",
+            "paymentMode": "unknown",
+            "account": null
+        }
+    },
+    {
+        "message": "Paid Rs. 150 to Zomato from Paytm Wallet",
+        "expected": {
+            "amount": 150,
+            "merchant": "Zomato",
+            "transactionType": "debit",
+            "paymentMode": "wallet",
+            "account": null
+        }
+    },
+    {
+        "message": "Rs.25000.00 credited to your A/c XX1234",
+        "expected": {
+            "amount": 25000,
+            "merchant": null,
+            "transactionType": "credit",
+            "paymentMode": "unknown",
+            "account": "1234"
+        }
+    },
+    {
+        "message": "INR 1,500.50 debited from A/c 9876 on 14-05-26 to FLIPKART via UPI Ref 987654321",
+        "expected": {
+            "amount": 1500.50,
+            "merchant": "FLIPKART",
+            "transactionType": "debit",
+            "paymentMode": "upi",
+            "account": "9876"
+        }
+    },
+    {
+        "message": "Your OTP for transaction is 123456. Do not share with anyone.",
+        "expected": null
+    },
+    {
+        "message": "Congratulations! You have won cashback of Rs.50 on your last transaction",
+        "expected": null
+    },
+    {
+        "message": "Your available balance in A/c XX4567 is Rs.12,345.67",
+        "expected": null
+    },
+    {
+        "message": "₹899 paid to Netflix via HDFC Bank Card xx5678 on 15-05-26",
+        "expected": {
+            "amount": 899,
+            "merchant": "Netflix",
+            "transactionType": "debit",
+            "paymentMode": "unknown",
+            "account": "5678"
+        }
+    },
+    {
+        "message": "NEFT transfer of Rs.10,000 to LANDLORD from A/c XX2345 successful. Ref NEFT123456",
+        "expected": {
+            "amount": 10000,
+            "merchant": "LANDLORD",
+            "transactionType": "debit",
+            "paymentMode": "unknown",
+            "account": "2345"
+        }
+    },
+    {
+        "message": "Rs.75.00 spent at STARBUCKS INDIA using ICICI Card ending 4321",
+        "expected": {
+            "amount": 75,
+            "merchant": "STARBUCKS INDIA",
+            "transactionType": "debit",
+            "paymentMode": "unknown",
+            "account": null
+        }
+    },
+    {
+        "message": "A/c No **2540 Credited with Rs 50000--UPI/CR/534765332543/GANGA SAGAR/BARB/7930010000 (CLR BAL 100120CR)(13-12-2025 22:27:02)-Punjab&Sind Bank",
+        "expected": {
+            "amount": 50000,
+            "merchant": "GANGA SAGAR",
+            "transactionType": "credit",
+            "paymentMode": "upi",
+            "account": "2540"
+        }
+    },
+    {
+        "message": "PSB UPI - Your a/c no. XX2540 is credited for Rs. 1.00 on 17-May-26 from hrnharshit-1@okicici (UPI Ref no 613757557792)-Punjab&Sind Bank",
+        "expected": {
+            "amount": 1,
+            "merchant": "hrnharshit-1",
+            "transactionType": "credit",
+            "paymentMode": "upi",
+            "account": "2540"
+        }
+    },
+    {
+        "message": "UPI-VPA harshithrn@ybl linked to Punjab and Sind Bank a/c no. XX2540 is debited Rs.1.00 and credited to 8957298560@ybl (Ref no 501099216248)-P&SB",
+        "expected": {
+            "amount": 1,
+            "merchant": "8957298560@ybl",
+            "transactionType": "debit",
+            "paymentMode": "upi",
+            "account": "2540"
+        }
+    },
+    {
+        "message": "Dear BOB UPI User: Your account is credited with INR 1.00 on 2026-05-17 03:16:35 AM by UPI Ref No 380133147553; AvlBal: Rs1015.58 - BOB",
+        "expected": {
+            "amount": 1,
+            "merchant": null,
+            "transactionType": "credit",
+            "paymentMode": "upi",
+            "account": null
+        }
+    },
+    {
+        "message": "Rs.1.00 Dr. from A/C XXXXXX9132 and Cr. to harshithrn@ybl. Ref:726412060639. AvlBal:Rs1015.58(2026:05:17 03:32:18). Not you? Call 18005700/5000-BOB",
+        "expected": {
+            "amount": 1,
+            "merchant": "harshithrn@ybl",
+            "transactionType": "debit",
+            "paymentMode": "upi",
+            "account": "9132"
+        }
+    },
+    {
+        "message": "BOI -  Rs.1.00 Credited to your Ac XX0604 on 17-05-26 by UPI ref No.613709668637.Avl Bal 1121.00",
+        "expected": {
+            "amount": 1,
+            "merchant": null,
+            "transactionType": "credit",
+            "paymentMode": "upi",
+            "account": "0604"
+        }
+    },
+    {
+        "message": "Rs.120.00 debited A/cXX0604 and credited to TOBOX VENTURES PRIVATE LIMIT via UPI Ref No 606127862781 on 02Mar26. Call 18001031906, if not done by you. -BOI",
+        "expected": {
+            "amount": 120,
+            "merchant": "TOBOX VENTURES PRIVATE LIMIT",
+            "transactionType": "debit",
+            "paymentMode": "upi",
+            "account": "0604"
+        }
+    },
+    {
+        "message": "INR 665.64 spent using ICICI Bank Card XX4000 on 16-May-26 on TECHMASH SOLUTI. Avl Limit: INR 8,667.02. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+        "expected": {
+            "amount": 665.64,
+            "merchant": "TECHMASH SOLUTI",
+            "transactionType": "debit",
+            "paymentMode": "unknown",
+            "account": "4000"
+        }
+    },
+    {
+        "message": "ICICI Bank Acc XX575 debited Rs. 450.36 on 30-Apr-26 InfoBIL*INFT*0011.Avl Bal Rs. 2,667.87.To dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+        "expected": {
+            "amount": 450.36,
+            "merchant": null,
+            "transactionType": "debit",
+            "paymentMode": "unknown",
+            "account": "575"
+        }
+    },
+    {
+        "message": "ICICI Bank Account XX575 credited:Rs. 67,632.00 on 30-Mar-26. Info NEFT-HSBCN08932182457-HP PPS. Available Balance is Rs. 67,676.13.",
+        "expected": {
+            "amount": 67632,
+            "merchant": "HP PPS",
+            "transactionType": "credit",
+            "paymentMode": "unknown",
+            "account": "575"
+        }
+    },
+    {
+        "message": "Dear Customer, Payment of INR 35,115.90 has been received on your ICICI Bank Credit Card Account 4xxx4000 on 30-MAR-26.Thank you.",
+        "expected": {
+            "amount": 35115.90,
+            "merchant": null,
+            "transactionType": "credit",
+            "paymentMode": "cc",
+            "account": "4000"
+        }
+    }
+]
