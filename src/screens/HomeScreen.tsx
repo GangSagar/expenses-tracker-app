@@ -6,24 +6,37 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
+  StatusBar,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useExpenseStore } from '../hooks/useExpenses';
 import { Expense } from '../types/expense';
 import EditTransactionModal from '../components/EditTransactionModal';
 import ExpenseItem from '../components/ExpenseItem';
 import { formatAmount, getCategoryColor, getBankColor } from '../utils/formatHelpers';
+import { getSetting } from '../database/expenseRepo';
+import { generateBudgetInsights } from '../services/advisorService';
 
 export default function HomeScreen() {
   const { expenses, loading, loadExpenses, updateExpense, addManualExpense } = useExpenseStore();
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [isAddMode, setIsAddMode] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+
+  const isFocused = useIsFocused();
   const navigation = useNavigation<any>();
+  const [budgetLimit, setBudgetLimit] = useState(20000);
 
   useEffect(() => {
     loadExpenses();
   }, [loadExpenses]);
+
+  useEffect(() => {
+    if (isFocused) {
+      const saved = getSetting('monthly_budget_limit', '20000');
+      setBudgetLimit(Number(saved) || 20000);
+    }
+  }, [isFocused]);
 
   const activeExpenses = expenses.filter(e => !e.isInvalid);
 
@@ -117,10 +130,36 @@ export default function HomeScreen() {
     setModalVisible(true);
   };
 
+  const insights = generateBudgetInsights(expenses, budgetLimit);
   const recentExpenses = activeExpenses.slice(0, 5);
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a73e8" />
+      
+      {/* Fixed Header Section at the Top */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Dashboard</Text>
+        <View style={styles.totalCard}>
+          <View style={styles.balanceSection}>
+            <Text style={styles.totalLabel}>CURRENT NET BALANCE</Text>
+            <Text style={styles.totalAmount}>{formatAmount(currentBalance)}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.statsRow}>
+            <View style={styles.statCol}>
+              <Text style={styles.statLabel}>INCOME</Text>
+              <Text style={styles.incomeAmount}>+{formatAmount(totalCredits)}</Text>
+            </View>
+            <View style={styles.verticalDivider} />
+            <View style={styles.statCol}>
+              <Text style={styles.statLabel}>EXPENSES</Text>
+              <Text style={styles.expenseAmount}>-{formatAmount(totalDebits)}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
       {/* Scrollable Dashboard Context */}
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -129,27 +168,47 @@ export default function HomeScreen() {
           <RefreshControl refreshing={loading} onRefresh={loadExpenses} />
         }
       >
-        {/* Header Section */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Dashboard</Text>
-          <View style={styles.totalCard}>
-            <View style={styles.balanceSection}>
-              <Text style={styles.totalLabel}>CURRENT NET BALANCE</Text>
-              <Text style={styles.totalAmount}>{formatAmount(currentBalance)}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.statsRow}>
-              <View style={styles.statCol}>
-                <Text style={styles.statLabel}>INCOME</Text>
-                <Text style={styles.incomeAmount}>+{formatAmount(totalCredits)}</Text>
-              </View>
-              <View style={styles.verticalDivider} />
-              <View style={styles.statCol}>
-                <Text style={styles.statLabel}>EXPENSES</Text>
-                <Text style={styles.expenseAmount}>-{formatAmount(totalDebits)}</Text>
-              </View>
+
+        {/* AI Budget Insights Glassmorphic Card */}
+        <View style={styles.aiInsightsCard}>
+          <View style={styles.insightsHeader}>
+            <Text style={styles.insightsHeading}>✨ SMART AI ADVISOR</Text>
+            <View style={[
+              styles.insightsBadge,
+              insights.status === 'good' ? styles.insightsBadgeGood :
+              insights.status === 'warning' ? styles.insightsBadgeWarning :
+              styles.insightsBadgeDanger
+            ]}>
+              <Text style={[
+                styles.insightsBadgeText,
+                insights.status === 'good' ? styles.badgeTextGood :
+                insights.status === 'warning' ? styles.badgeTextWarning :
+                styles.badgeTextDanger
+              ]}>
+                {insights.status === 'good' ? 'ON TRACK' :
+                 insights.status === 'warning' ? 'WARNING' : 'CRITICAL'}
+              </Text>
             </View>
           </View>
+          <Text style={styles.insightsHeadline}>{insights.headline}</Text>
+          <Text style={styles.insightsMessage}>{insights.message}</Text>
+          
+          {budgetLimit > 0 && insights.dailyBurnRate > 0 && (
+            <View style={styles.insightsStats}>
+              <View style={styles.insightsStatItem}>
+                <Text style={styles.insightsStatLabel}>BURN RATE</Text>
+                <Text style={styles.insightsStatVal}>₹{insights.dailyBurnRate}/day</Text>
+              </View>
+              <View style={styles.insightsStatDivider} />
+              <View style={styles.insightsStatItem}>
+                <Text style={styles.insightsStatLabel}>PROJECTED</Text>
+                <Text style={[
+                  styles.insightsStatVal,
+                  insights.projectedExpense > budgetLimit ? styles.textDanger : styles.textSuccess
+                ]}>₹{insights.projectedExpense.toLocaleString('en-IN')}</Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Quick Actions Shortcuts */}
@@ -216,7 +275,7 @@ export default function HomeScreen() {
                     <View style={styles.insightHeader}>
                       <Text style={styles.insightCategory}>{cat.category}</Text>
                       <Text style={styles.insightAmount}>
-                        {formatAmount(cat.amount)} ({cat.percentage.toFixed(0)}%)
+                        ₹{cat.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({cat.percentage.toFixed(2)}%)
                       </Text>
                     </View>
                     <View style={styles.progressBg}>
@@ -381,7 +440,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 16,
     marginHorizontal: 16,
-    marginTop: 20,
+    marginTop: 12,
     padding: 16,
     borderWidth: 1,
     borderColor: '#e8eaed',
@@ -457,6 +516,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginHorizontal: 16,
     marginTop: 20,
+    marginBottom: 20,
     padding: 16,
     borderWidth: 1,
     borderColor: '#e8eaed',
@@ -653,5 +713,106 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     marginTop: -2,
+  },
+  aiInsightsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: 20,
+    marginBottom: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e8eaed',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  insightsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  insightsHeading: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#5f6368',
+    letterSpacing: 0.5,
+  },
+  insightsBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  insightsBadgeGood: {
+    backgroundColor: '#e6f4ea',
+  },
+  insightsBadgeWarning: {
+    backgroundColor: '#fef7e0',
+  },
+  insightsBadgeDanger: {
+    backgroundColor: '#fce8e6',
+  },
+  insightsBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  badgeTextGood: {
+    color: '#137333',
+  },
+  badgeTextWarning: {
+    color: '#b06000',
+  },
+  badgeTextDanger: {
+    color: '#c5221f',
+  },
+  insightsHeadline: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#202124',
+    marginBottom: 6,
+  },
+  insightsMessage: {
+    fontSize: 13,
+    color: '#5f6368',
+    lineHeight: 18,
+  },
+  insightsStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f3f4',
+  },
+  insightsStatItem: {
+    flex: 1,
+  },
+  insightsStatLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#80868b',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  insightsStatVal: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#202124',
+  },
+  insightsStatDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#dadce0',
+    marginHorizontal: 16,
+  },
+  textDanger: {
+    color: '#c5221f',
+  },
+  textSuccess: {
+    color: '#137333',
   },
 });
