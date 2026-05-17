@@ -55,4 +55,6 @@ const { NativeModules } = require('react-native');
 NativeModules.MessageModule = {
   addListener: jest.fn(),
   removeListeners: jest.fn(),
+  getPendingMessages: jest.fn(() => Promise.resolve('[]')),
+  showExpenseNotification: jest.fn(),
 };
