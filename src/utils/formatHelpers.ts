@@ -19,6 +19,7 @@ export function getCategoryColor(category: string, index: number): string {
   if (category === 'Food & Dining') return '#34a853';
   if (category === 'Shopping') return '#9c27b0';
   if (category === 'Travel') return '#fbbc05';
+  if (category === 'Games') return '#e91e63';
   return colors[index % colors.length];
 }
 
