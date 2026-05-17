@@ -20,9 +20,16 @@ describe('parseMessage', () => {
       expect(result.paymentMode).toBe(expected!.paymentMode);
       if (expected!.account) {
         expect(result.account).toBe(expected!.account);
+      } else {
+        expect(result.account).toBeNull();
+      }
+      if (expected!.bank) {
+        expect(result.bank).toBe(expected!.bank);
       }
       if (expected && 'availableBalance' in expected) {
         expect(result.availableBalance).toBe(expected.availableBalance);
+      } else {
+        expect(result.availableBalance).toBeUndefined();
       }
     },
   );
