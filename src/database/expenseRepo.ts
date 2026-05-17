@@ -5,8 +5,8 @@ export function insertExpense(expense: Omit<Expense, 'id'>): number {
   const db = getDatabase();
   const splitsStr = expense.splits ? JSON.stringify(expense.splits) : null;
   const result = db.execute(
-    `INSERT INTO expenses (amount, merchant, alias, category, confidence, timestamp, source, raw_message, transaction_type, account, bank, payment_mode, is_duplicate, available_balance, splits, reference_id, is_invalid)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO expenses (amount, merchant, alias, category, confidence, timestamp, source, raw_message, transaction_type, account, bank, payment_mode, is_duplicate, available_balance, splits, reference_id, is_invalid, trash_reason)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       expense.amount,
       expense.merchant,
@@ -25,6 +25,7 @@ export function insertExpense(expense: Omit<Expense, 'id'>): number {
       splitsStr,
       expense.referenceId || null,
       expense.isInvalid ? 1 : 0,
+      expense.trashReason || null,
     ],
   );
   return result.insertId ?? -1;
@@ -151,7 +152,7 @@ export function loadMerchantCategories(): Record<string, { category: Category, d
 
 function mapRows(rows: any[]): Expense[] {
   return rows.map(row => {
-    let splits = undefined;
+    let splits;
     if (row.splits) {
       try {
         splits = JSON.parse(row.splits);
@@ -179,6 +180,7 @@ function mapRows(rows: any[]): Expense[] {
       splits: splits,
       referenceId: row.reference_id || undefined,
       isInvalid: row.is_invalid === 1,
+      trashReason: row.trash_reason || undefined,
     };
   });
 }
@@ -192,6 +194,8 @@ export function exportAllExpensesData(): Expense[] {
 export function clearAllExpenses(): void {
   const db = getDatabase();
   db.execute('DELETE FROM expenses');
+  db.execute('DELETE FROM merchant_categories');
+  db.execute("DELETE FROM settings WHERE key LIKE 'account_type::%' OR key = 'ignored_anomalies' OR key = 'spam_ai_model'");
 }
 
 export function deleteExpense(id: number): void {
@@ -201,7 +205,66 @@ export function deleteExpense(id: number): void {
 
 export function invalidateExpense(id: number, isInvalid: boolean): void {
   const db = getDatabase();
-  db.execute('UPDATE expenses SET is_invalid = ? WHERE id = ?', [isInvalid ? 1 : 0, id]);
+  if (!isInvalid) {
+    db.execute('UPDATE expenses SET is_invalid = ?, trash_reason = NULL WHERE id = ?', [0, id]);
+  } else {
+    db.execute('UPDATE expenses SET is_invalid = ? WHERE id = ?', [1, id]);
+  }
+}
+
+export function updateTrashReason(id: number, reason: string | null): void {
+  const db = getDatabase();
+  db.execute('UPDATE expenses SET trash_reason = ? WHERE id = ?', [reason, id]);
+}
+
+export function deduplicateDatabase(): number {
+  const db = getDatabase();
+  const expenses = exportAllExpensesData().filter(e => !e.isInvalid);
+  
+  // Sort by timestamp asc
+  expenses.sort((a, b) => a.timestamp - b.timestamp);
+  
+  let duplicateCount = 0;
+  const DEDUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+
+  // Simple scan
+  for (let i = 0; i < expenses.length; i++) {
+    const current = expenses[i];
+    if (current.isInvalid) continue; // Already marked as dup in this loop
+    
+    for (let j = i + 1; j < expenses.length; j++) {
+      const next = expenses[j];
+      
+      // Stop checking if next transaction is beyond 5 mins
+      if (next.timestamp - current.timestamp > DEDUP_WINDOW_MS) {
+        break;
+      }
+      
+      if (next.isInvalid) continue;
+
+      const sameAmount = current.amount === next.amount;
+      const sameMerchant = normalizeMerchant(current.merchant) === normalizeMerchant(next.merchant);
+      const sameType = current.transactionType === next.transactionType;
+      
+      if (sameAmount && sameMerchant && sameType) {
+        // Mark next as duplicate
+        next.isInvalid = true;
+        next.trashReason = 'duplicate';
+        duplicateCount++;
+        
+        db.execute(
+          'UPDATE expenses SET is_invalid = 1, trash_reason = ? WHERE id = ?',
+          ['duplicate', next.id]
+        );
+      }
+    }
+  }
+  
+  return duplicateCount;
+}
+
+function normalizeMerchant(merchant: string): string {
+  return merchant.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 export function getSetting(key: string, defaultValue: string = ''): string {
