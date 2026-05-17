@@ -49,6 +49,7 @@ export function processTransaction(
     paymentMode: parsed.paymentMode,
     isDuplicate: false,
     availableBalance: parsed.availableBalance,
+    referenceId: parsed.referenceId || undefined,
   };
 
   return { expense, decision };

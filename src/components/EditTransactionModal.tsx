@@ -50,6 +50,7 @@ export default function EditTransactionModal({
   const [amountStr, setAmountStr] = useState('');
   const [isSplit, setIsSplit] = useState(false);
   const [splits, setSplits] = useState<ExpenseSplit[]>([]);
+  const [owedByMe, setOwedByMe] = useState(false);
 
   // Contact Picker States
   const [contacts, setContacts] = useState<any[]>([]);
@@ -136,6 +137,7 @@ export default function EditTransactionModal({
         setAmountStr(expense?.amount ? String(expense.amount) : '');
         setIsSplit(false);
         setSplits([]);
+        setOwedByMe(false);
       } else {
         // Edit existing expense
         setMerchant(expense.merchant);
@@ -145,6 +147,8 @@ export default function EditTransactionModal({
         setAmountStr(String(expense.amount));
         setIsSplit(!!expense.splits && expense.splits.length > 0);
         setSplits(expense.splits || []);
+        const initialOwedByMe = expense.splits && expense.splits.length > 0 ? !!expense.splits[0].owedByMe : false;
+        setOwedByMe(initialOwedByMe);
       }
     }
   }, [expense, visible, isAddMode]);
@@ -167,6 +171,29 @@ export default function EditTransactionModal({
           style: 'destructive',
           onPress: () => {
             useExpenseStore.getState().deleteExpense(expense.id!);
+            onClose();
+          }
+        }
+      ]
+    );
+  };
+
+  const handleTrash = () => {
+    if (!expense?.id) return;
+    const movingToTrash = !expense.isInvalid;
+    
+    Alert.alert(
+      movingToTrash ? '🗑️ Move to Trash' : '🔄 Restore Transaction',
+      movingToTrash 
+        ? 'Moving this transaction to Trash will exclude it from all active dashboard calculations, reports, and accounts. You can restore it at any time.'
+        : 'Are you sure you want to restore this transaction back to your active lists?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: movingToTrash ? 'Move to Trash' : 'Restore',
+          style: movingToTrash ? 'destructive' : 'default',
+          onPress: () => {
+            useExpenseStore.getState().invalidateExpense(expense.id!, movingToTrash);
             onClose();
           }
         }
@@ -231,7 +258,7 @@ export default function EditTransactionModal({
   };
 
   const addSplit = () => {
-    setSplits([...splits, { contactName: '', amount: 0 }]);
+    setSplits([...splits, { contactName: '', amount: 0, owedByMe }]);
   };
 
   const removeSplit = (index: number) => {
@@ -350,6 +377,27 @@ export default function EditTransactionModal({
 
             {isSplit && (
               <View style={styles.splitBox}>
+                {/* Global Direction Toggle Pill */}
+                <View style={styles.globalDirectionRow}>
+                  <Text style={styles.globalDirectionLabel}>Overall Split Direction:</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.directionPill,
+                      owedByMe ? styles.directionOwedByMe : styles.directionOwedToMe
+                    ]}
+                    onPress={() => {
+                      const val = !owedByMe;
+                      setOwedByMe(val);
+                      setSplits(splits.map(s => ({ ...s, owedByMe: val })));
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.directionText, owedByMe ? styles.textOwedByMe : styles.textOwedToMe]}>
+                      {owedByMe ? '🔴 You owe them' : '🟢 They owe you'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
                 {splits.map((s, index) => (
                   <View key={index} style={styles.splitCard}>
                     <View style={styles.splitRow}>
@@ -378,22 +426,6 @@ export default function EditTransactionModal({
                         <Text style={styles.deleteSplitText}>✕</Text>
                       </TouchableOpacity>
                     </View>
-                    
-                    {/* Direction Toggle Pill */}
-                    <View style={styles.directionRow}>
-                      <TouchableOpacity
-                        style={[
-                          styles.directionPill,
-                          s.owedByMe ? styles.directionOwedByMe : styles.directionOwedToMe
-                        ]}
-                        onPress={() => updateSplit(index, 'owedByMe', !s.owedByMe)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={[styles.directionText, s.owedByMe ? styles.textOwedByMe : styles.textOwedToMe]}>
-                          {s.owedByMe ? '🔴 You owe them' : '🟢 They owe you'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
                   </View>
                 ))}
 
@@ -420,10 +452,28 @@ export default function EditTransactionModal({
             )}
           </ScrollView>
 
-          {!isAddMode && expense && expense.source === 'manual' && (
-            <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
-              <Text style={styles.deleteText}>🗑️ Delete Transaction</Text>
-            </TouchableOpacity>
+          {!isAddMode && expense && (
+            expense.source === 'manual' ? (
+              <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
+                <Text style={styles.deleteText}>🗑️ Delete Transaction</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[
+                  styles.deleteBtn,
+                  {
+                    backgroundColor: expense.isInvalid ? '#e6f4ea' : '#fce8e6',
+                    borderColor: expense.isInvalid ? '#a3cfbb' : '#f5c2c2',
+                  }
+                ]}
+                onPress={handleTrash}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.deleteText, { color: expense.isInvalid ? '#137333' : '#c5221f' }]}>
+                  {expense.isInvalid ? '🔄 Restore from Trash' : '🗑️ Move to Trash'}
+                </Text>
+              </TouchableOpacity>
+            )
           )}
 
           <View style={styles.actions}>
@@ -636,6 +686,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
     marginTop: 4,
+  },
+  globalDirectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e8eaed',
+    paddingBottom: 10,
+  },
+  globalDirectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#5f6368',
   },
   splitRow: {
     flexDirection: 'row',
