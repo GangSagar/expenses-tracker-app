@@ -33,6 +33,13 @@ function ExpenseItem({ item, onPress }: { item: Expense, onPress: () => void }) 
         <Text style={styles.merchant}>{item.merchant}</Text>
         <Text style={styles.category}>{item.category}</Text>
         <Text style={styles.date}>{formatDate(item.timestamp)}</Text>
+        {item.splits && item.splits.length > 0 && (
+          <View style={styles.splitBadgeContainer}>
+            <Text style={styles.splitBadgeText}>
+              👥 Split: {item.splits.map(s => `${s.contactName} (₹${s.amount})`).join(', ')}
+            </Text>
+          </View>
+        )}
       </View>
       <View style={styles.expenseRight}>
         <Text style={[styles.amount, isCredit ? styles.credit : styles.debit]}>
@@ -49,8 +56,10 @@ function ExpenseItem({ item, onPress }: { item: Expense, onPress: () => void }) 
 }
 
 export default function HomeScreen() {
-  const { expenses, loading, loadExpenses, updateExpense } = useExpenseStore();
+  const { expenses, loading, loadExpenses, updateExpense, addManualExpense } = useExpenseStore();
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [isAddMode, setIsAddMode] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     loadExpenses();
@@ -65,6 +74,18 @@ export default function HomeScreen() {
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
   const currentBalance = totalCredits - totalDebits;
+
+  const handleEditExpense = (expense: Expense) => {
+    setEditingExpense(expense);
+    setIsAddMode(false);
+    setModalVisible(true);
+  };
+
+  const handleAddCash = () => {
+    setEditingExpense(null);
+    setIsAddMode(true);
+    setModalVisible(true);
+  };
 
   return (
     <View style={styles.container}>
@@ -92,7 +113,7 @@ export default function HomeScreen() {
       <FlatList
         data={expenses}
         keyExtractor={item => String(item.id)}
-        renderItem={({ item }) => <ExpenseItem item={item} onPress={() => setEditingExpense(item)} />}
+        renderItem={({ item }) => <ExpenseItem item={item} onPress={() => handleEditExpense(item)} />}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={loadExpenses} />
@@ -107,11 +128,20 @@ export default function HomeScreen() {
         }
       />
 
+      <TouchableOpacity style={styles.fab} onPress={handleAddCash}>
+        <Text style={styles.fabIcon}>+</Text>
+      </TouchableOpacity>
+
       <EditTransactionModal
         expense={editingExpense}
-        visible={!!editingExpense}
-        onClose={() => setEditingExpense(null)}
+        visible={modalVisible}
+        onClose={() => {
+          setEditingExpense(null);
+          setModalVisible(false);
+        }}
         onSave={updateExpense}
+        onAddManual={addManualExpense}
+        isAddMode={isAddMode}
       />
     </View>
   );
@@ -271,5 +301,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     marginTop: 8,
+  },
+  splitBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e6f4ea',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  splitBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#137333',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    backgroundColor: '#1a73e8',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  fabIcon: {
+    fontSize: 28,
+    color: '#fff',
+    fontWeight: '700',
+    marginTop: -2,
   },
 });
