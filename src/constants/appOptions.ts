@@ -10,6 +10,7 @@ export const CATEGORIES = [
   'Education',
   'Self-transfers',
   'Transfers',
+  'Games',
   'Other',
 ] as const;
 

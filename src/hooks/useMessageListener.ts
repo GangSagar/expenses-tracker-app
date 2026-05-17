@@ -4,9 +4,9 @@ import {
   processIncomingMessage,
   IncomingMessage,
 } from '../services/messageService';
-import { processTransaction, saveExpense } from '../services/expenseService';
+import { processTransaction } from '../services/expenseService';
 import { useExpenseStore } from './useExpenses';
-import { Expense } from '../types/expense';
+
 
 const { MessageModule } = NativeModules;
 const messageEmitter = new NativeEventEmitter(MessageModule);
@@ -36,23 +36,16 @@ export function useMessageListener() {
       console.log(`Message from ${message.sender} parsed! Decision: ${decision}`);
 
       switch (decision) {
-        case 'auto_save': {
-          const id = saveExpense(expense);
-          if (id !== null) {
-            addExpense({ ...expense, id } as Expense);
-          } else {
-            console.log('Skipped duplicate expense.');
-          }
-          break;
-        }
+        case 'auto_save':
         case 'show_popup':
           if (
             AppState.currentState === 'background' ||
             AppState.currentState === 'inactive'
           ) {
+            const displayMerchant = expense.merchant && expense.merchant !== 'Unknown' ? expense.merchant : 'Unknown';
             MessageModule.showExpenseNotification(
-              'Uncategorized Expense',
-              `₹${expense.amount} at ${expense.merchant !== 'Unknown' ? expense.merchant : 'Unknown'}. Tap to categorize.`,
+              'New Pending Transaction',
+              `₹${expense.amount} at ${displayMerchant}. Tap to approve.`,
             );
           }
           queuePendingExpense(expense);

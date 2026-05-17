@@ -13,14 +13,121 @@ import {
   Platform,
   PermissionsAndroid,
   KeyboardAvoidingView,
+  NativeModules,
 } from 'react-native';
 import { useExpenseStore } from '../hooks/useExpenses';
-import { getSetting, setSetting } from '../database/expenseRepo';
+import { getSetting, setSetting, isDuplicateTransaction, insertExpense } from '../database/expenseRepo';
+import CalendarModal from '../components/CalendarModal';
+import { processIncomingMessage } from '../services/messageService';
+import { processTransaction } from '../services/expenseService';
+
+const { MessageModule } = NativeModules;
 
 export default function SettingsScreen() {
-  const { exportExpenses, importExpenses } = useExpenseStore();
+  const { exportExpenses, importExpenses, loadExpenses } = useExpenseStore();
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [jsonInput, setJsonInput] = useState('');
+
+  // SMS History Sync State
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState('');
+  const [calendarVisible, setCalendarVisible] = useState(false);
+
+  const requestSmsPermission = async (): Promise<boolean> => {
+    if (Platform.OS !== 'android') return true;
+    try {
+      const hasPermission = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.READ_SMS
+      );
+      if (hasPermission) return true;
+
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.READ_SMS,
+        {
+          title: 'SMS Permission Required',
+          message: 'Expense Tracker needs access to your SMS to import past transactions.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        }
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn(err);
+      return false;
+    }
+  };
+
+  const handleSyncHistory = async (startTs: number | null) => {
+    setCalendarVisible(false);
+    if (!startTs) return;
+
+    // 1. Request SMS Permission
+    const hasSmsPermission = await requestSmsPermission();
+    if (!hasSmsPermission) {
+      Alert.alert(
+        'Permission Denied',
+        'SMS reading permission is required to import past transactions.'
+      );
+      return;
+    }
+
+    setSyncing(true);
+    setSyncProgress('Querying SMS messages...');
+
+    try {
+      // 2. Fetch past SMS messages
+      const messages = await MessageModule.fetchPastMessages(startTs);
+      console.log(`Fetched ${messages.length} messages from SMS inbox since ${new Date(startTs).toLocaleDateString()}`);
+
+      setSyncProgress('Processing messages...');
+      let importedCount = 0;
+
+      // 3. Process each message
+      for (const msg of messages) {
+        const parsed = processIncomingMessage({
+          body: msg.body,
+          sender: msg.sender,
+          source: 'sms',
+        });
+
+        if (parsed) {
+          // Explicitly set the timestamp to the message's original date
+          parsed.timestamp = msg.timestamp;
+
+          // Check if it is a duplicate
+          const duplicate = isDuplicateTransaction(
+            parsed.amount!,
+            parsed.timestamp,
+            parsed.referenceId || undefined
+          );
+
+          if (!duplicate) {
+            const processed = processTransaction(parsed);
+            if (processed && processed.decision !== 'discard') {
+              // Save directly to database
+              insertExpense(processed.expense);
+              importedCount++;
+            }
+          }
+        }
+      }
+
+      // 4. Reload expenses list from store
+      loadExpenses();
+
+      // 5. Done!
+      setSyncing(false);
+      Alert.alert(
+        'Sync Complete',
+        `Successfully scanned SMS records. Imported ${importedCount} new transactions!`
+      );
+    } catch (err: any) {
+      console.error('History sync failed:', err);
+      setSyncing(false);
+      Alert.alert('Sync Failed', err.message || 'An error occurred during transaction sync.');
+    }
+  };
 
   // Contacts permission, scratchpad notes, and smart budget state
   const [contactsPermission, setContactsPermission] = useState<'granted' | 'denied' | 'checking'>('checking');
@@ -263,6 +370,31 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>SMS Transaction Sync</Text>
+          <View style={styles.syncContainer}>
+            {syncing ? (
+              <View style={styles.loaderContainer}>
+                <Text style={styles.syncProgressTitle}>Syncing SMS Ledger</Text>
+                <Text style={styles.syncProgressSubtitle}>{syncProgress}</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.syncItem}
+                onPress={() => setCalendarVisible(true)}
+              >
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.itemTitle}>Sync Past Transactions</Text>
+                  <Text style={styles.itemDescription}>
+                    Scan past bank SMS messages starting from a custom date to securely backfill your ledger
+                  </Text>
+                </View>
+                <Text style={styles.actionIcon}>🔄</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data Management</Text>
 
           <TouchableOpacity
@@ -370,6 +502,23 @@ export default function SettingsScreen() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Calendar Modal for Sync Date Selection */}
+      <Modal
+        visible={calendarVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCalendarVisible(false)}
+      >
+        <CalendarModal
+          startDate={null}
+          endDate={null}
+          onClose={() => setCalendarVisible(false)}
+          onApply={(start, _end) => {
+            handleSyncHistory(start);
+          }}
+        />
       </Modal>
       </KeyboardAvoidingView>
     </View>
@@ -603,5 +752,39 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#202124',
     padding: 0,
+  },
+  syncContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e8eaed',
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  syncItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+  loaderContainer: {
+    paddingVertical: 8,
+    alignItems: 'center',
+    width: '100%',
+  },
+  syncProgressTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1a73e8',
+    marginBottom: 4,
+  },
+  syncProgressSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
   },
 });

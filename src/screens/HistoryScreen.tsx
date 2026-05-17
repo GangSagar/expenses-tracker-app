@@ -17,6 +17,14 @@ import CalendarModal from '../components/CalendarModal';
 import { getGroupedSections } from '../utils/dateHelpers';
 import { formatAmount } from '../utils/formatHelpers';
 
+const formatTime = (timestamp: number) => {
+  return new Date(timestamp).toLocaleTimeString('en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
 const CATEGORIES: (Category | 'All')[] = ['All', ...APP_CATEGORIES];
 
 const SOURCES = ['All', 'sms', 'notification', 'manual'];
@@ -30,11 +38,24 @@ export default function HistoryScreen() {
   const [selectedCategory, setSelectedCategory] = useState<'All' | Category>('All');
   const [selectedSource, setSelectedSource] = useState('All');
   const [selectedType, setSelectedType] = useState('All');
+  const [selectedBank, setSelectedBank] = useState('All');
+  const [selectedSize, setSelectedSize] = useState('All');
   const [filterStartDate, setFilterStartDate] = useState<number | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<number | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'active' | 'trash'>('active');
   const [calendarVisible, setCalendarVisible] = useState(false);
+
+  // Dynamic Banks List compiled from existing transactions
+  const uniqueBanks = useMemo(() => {
+    const banksSet = new Set<string>();
+    expenses.forEach(e => {
+      if (e.bank && !e.isInvalid) {
+        banksSet.add(e.bank);
+      }
+    });
+    return ['All', ...Array.from(banksSet)];
+  }, [expenses]);
 
   // Modal State for Editing
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -74,6 +95,19 @@ export default function HistoryScreen() {
       // Type filter
       const matchType = selectedType === 'All' || e.transactionType === selectedType;
 
+      // Bank filter
+      const matchBank = selectedBank === 'All' || e.bank === selectedBank;
+
+      // Size filter
+      let matchSize = true;
+      if (selectedSize === 'small') {
+        matchSize = e.amount < 1000;
+      } else if (selectedSize === 'medium') {
+        matchSize = e.amount >= 1000 && e.amount <= 5000;
+      } else if (selectedSize === 'large') {
+        matchSize = e.amount > 5000;
+      }
+
       // Date Range Filter
       let matchDate = true;
       if (filterStartDate !== null) {
@@ -87,9 +121,9 @@ export default function HistoryScreen() {
         matchDate = matchDate && e.timestamp <= endOfDay.getTime();
       }
 
-      return matchSearch && matchCategory && matchSource && matchType && matchDate;
+      return matchSearch && matchCategory && matchSource && matchType && matchBank && matchSize && matchDate;
     });
-  }, [expenses, searchQuery, selectedCategory, selectedSource, selectedType, filterStartDate, filterEndDate, viewMode]);
+  }, [expenses, searchQuery, selectedCategory, selectedSource, selectedType, selectedBank, selectedSize, filterStartDate, filterEndDate, viewMode]);
 
   // Grouped Sections
   const sections = useMemo(() => {
@@ -116,6 +150,8 @@ export default function HistoryScreen() {
     setSelectedCategory('All');
     setSelectedSource('All');
     setSelectedType('All');
+    setSelectedBank('All');
+    setSelectedSize('All');
     setFilterStartDate(null);
     setFilterEndDate(null);
   };
@@ -125,6 +161,8 @@ export default function HistoryScreen() {
     selectedCategory !== 'All' || 
     selectedSource !== 'All' || 
     selectedType !== 'All' ||
+    selectedBank !== 'All' ||
+    selectedSize !== 'All' ||
     filterStartDate !== null ||
     filterEndDate !== null;
 
@@ -257,6 +295,43 @@ export default function HistoryScreen() {
               </View>
             </View>
 
+            {/* Bank Filter */}
+            <Text style={styles.filterLabel}>Bank</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsScroll}>
+              {uniqueBanks.map(b => (
+                <TouchableOpacity
+                  key={b}
+                  style={[styles.pill, selectedBank === b && styles.pillActive]}
+                  onPress={() => setSelectedBank(b)}
+                >
+                  <Text style={[styles.pillText, selectedBank === b && styles.pillTextActive]}>
+                    {b === 'All' ? 'All Banks' : b.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Transaction Size Filter */}
+            <Text style={styles.filterLabel}>Transaction Size</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsScroll}>
+              {[
+                { id: 'All', label: 'All Sizes' },
+                { id: 'small', label: 'Small (< ₹1,000)' },
+                { id: 'medium', label: 'Medium (₹1,000 - ₹5,000)' },
+                { id: 'large', label: 'Large (> ₹5,000)' },
+              ].map(sz => (
+                <TouchableOpacity
+                  key={sz.id}
+                  style={[styles.pill, selectedSize === sz.id && styles.pillActive]}
+                  onPress={() => setSelectedSize(sz.id)}
+                >
+                  <Text style={[styles.pillText, selectedSize === sz.id && styles.pillTextActive]}>
+                    {sz.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
             {hasActiveFilters && (
               <TouchableOpacity style={styles.clearBtn} onPress={clearAllFilters}>
                 <Text style={styles.clearBtnText}>Clear All Filters</Text>
@@ -326,6 +401,8 @@ export default function HistoryScreen() {
                 )}
               </View>
               <View style={styles.metaRow}>
+                <Text style={styles.timeText}>{formatTime(item.timestamp)}</Text>
+                <Text style={styles.bullet}>•</Text>
                 <Text style={styles.category}>{item.category}</Text>
                 <Text style={styles.bullet}>•</Text>
                 <Text style={styles.sourceText}>
@@ -676,6 +753,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginTop: 4,
+  },
+  timeText: {
+    fontSize: 11,
+    color: '#1a73e8',
+    fontWeight: '600',
   },
   category: {
     fontSize: 12,

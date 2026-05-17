@@ -60,6 +60,44 @@ function extractReferenceId(message: string): string | null {
   return match ? match[1] : null;
 }
 
+function cleanMerchantName(name: string): string {
+  if (!name) return name;
+  let cleaned = name.trim();
+  
+  // 1. Remove leading/trailing dates (e.g. 16May26, 16-May-2026, 16 May, 16-May-26)
+  cleaned = cleaned.replace(/^\b\d{1,2}(?:\s*|-)*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z0-9]*(?:\s*|-)*\d{2,4}\b/i, '');
+  cleaned = cleaned.replace(/^\b\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b/i, '');
+  cleaned = cleaned.replace(/^\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{2,4}\b/i, '');
+  cleaned = cleaned.replace(/^\b\d{4}[-/.]\d{1,2}[-/.]\d{1,2}\b/i, '');
+  cleaned = cleaned.replace(/^\b\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}\b/i, '');
+  
+  // 2. Remove standard bank transaction words/prefixes at the start
+  // e.g. "transfer from", "transfer to", "transferred from", "transferred to", "transfer", "received from", "payment from"
+  cleaned = cleaned.replace(/^\b(?:transfer(?:red)?\s+(?:from|to)|received\s+from|payment\s+from|payment\s+to|refund\s+from|trf\s+from|trf\s+to)\b/i, '');
+  
+  // 3. Remove "your Ac XX0604 by" / "your A/c XX0604 by" / "your a/c xx0604" / "Ac XX0604"
+  // Also matches variations like "A/c XX1234", "Ac XX1234", "A/c 1234", "Ac 1234"
+  // And optional "by", "to", "from" at the end of the phrase
+  cleaned = cleaned.replace(/\b(?:your\s+)?a\/c\s*(?:xx\d+|\d+)?(?:\s+(?:by|to|from|debited|credited))?\b/i, '');
+  cleaned = cleaned.replace(/\bac\b\s*(?:xx\d+|\d+)?(?:\s+(?:by|to|from|debited|credited))?\b/i, '');
+  cleaned = cleaned.replace(/\baccount\s*(?:xx\d+|\d+)?(?:\s+(?:by|to|from|debited|credited))?\b/i, '');
+  
+  // 4. Remove leading/trailing "by", "to", "from"
+  cleaned = cleaned.trim().replace(/^(?:by|to|from)\s+/i, '').replace(/\s+(?:by|to|from)$/i, '');
+  
+  // 5. Clean personal honorifics and relations: "Mr.", "Mrs.", "Mr", "Mrs", "SO ABC", "S/O ABC", "D/O ABC"
+  cleaned = cleaned.replace(/\b(?:Mr|Mrs|Ms|Shri|Smt)\.?\s+/gi, '');
+  cleaned = cleaned.replace(/\b(?:S\/O|D\/O|W\/O|SO|DO|WO)\s+[A-Za-z0-9\s&'./\-]+$/i, '');
+  
+  // 6. Collapse multiple spaces
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  
+  // 7. Remove any trailing junk like "on", "ref", etc.
+  cleaned = cleaned.replace(/\s+(?:on|ref|at|for)$/i, '').trim();
+  
+  return cleaned;
+}
+
 function extractMerchant(message: string): string | null {
   // Clean up any dates preceded by "on" to prevent matching them as merchants
   let cleanMessage = message.replace(/\bon\s+\d{1,2}[-/.]\w+[-/.]\d{2,4}\b/gi, '');
@@ -72,7 +110,7 @@ function extractMerchant(message: string): string | null {
     /\b(?:credited|debited|spent|paid|transferred|transfer|trf|Cr\.?|Dr\.?)\s+(?:to|at|towards)\s+([A-Za-z0-9\s&'./\-@]+?)(?:\s+on\b|\s+[Rr]ef\b|\s+via\b|\s+UPI\b|\s+NEFT\b|\s+IMPS\b|\s+RTGS\b|\bAvl\s+Bal\b|\bAvailable\s+Bal\b|\bCredit\s+Limit\b|\bAvl\s+Limit\b|\.\s|\s*\(|[.\s]*$)/i
   );
   if (highSignalMatch) {
-    const name = highSignalMatch[1].trim();
+    const name = cleanMerchantName(highSignalMatch[1]);
     const isAmount = /^(?:Rs\.?|INR|₹|inr)\b/i.test(name) || /^[0-9,.]+$/.test(name);
     if (name.length >= 3 && !/^\d+$/.test(name) && !isAmount) {
       return name;
@@ -82,7 +120,7 @@ function extractMerchant(message: string): string | null {
   // 2. Primary: look for explicit "to/at/for <merchant>" phrasing
   const primaryMatch = cleanMessage.match(MERCHANT_REGEX);
   if (primaryMatch) {
-    const name = primaryMatch[1].trim();
+    const name = cleanMerchantName(primaryMatch[1]);
     const isAmount = /^(?:Rs\.?|INR|₹|inr)\b/i.test(name) || /^[0-9,.]+$/.test(name);
     if (name.length >= 3 && !/^\d+$/.test(name) && !isAmount) {
       return name;
@@ -94,7 +132,7 @@ function extractMerchant(message: string): string | null {
     /\b(?:receiver|reciever|payee)\s*[:\-]?\s*([A-Za-z0-9\s&'./\-@]+?)(?:\s+on\b|\s+[Rr]ef\b|\s+via\b|\s+UPI\b|\s+NEFT\b|\s+IMPS\b|\s+RTGS\b|\bAvl\s+Bal\b|\bAvailable\s+Bal\b|\bCredit\s+Limit\b|\bAvl\s+Limit\b|\.\s|\s*\(|[.\s]*$)/i
   );
   if (receiverMatch) {
-    const name = receiverMatch[1].trim();
+    const name = cleanMerchantName(receiverMatch[1]);
     const isAmount = /^(?:Rs\.?|INR|₹|inr)\b/i.test(name) || /^[0-9,.]+$/.test(name);
     if (name.length >= 3 && !/^\d+$/.test(name) && !isAmount) {
       return name;
@@ -104,7 +142,7 @@ function extractMerchant(message: string): string | null {
   // 4. Check for UPI reference block pattern: e.g. UPI/CR/534765332543/GANGA SAGAR/BARB/7930010000
   const upiBlockMatch = cleanMessage.match(/\bUPI\/(?:CR|DR)\/\d+\/([A-Za-z0-9\s&'./\-@]+?)(?:\/|$)/i);
   if (upiBlockMatch) {
-    const name = upiBlockMatch[1].trim();
+    const name = cleanMerchantName(upiBlockMatch[1]);
     if (name.length >= 3 && !/^\d+$/.test(name)) {
       return name;
     }
@@ -113,7 +151,7 @@ function extractMerchant(message: string): string | null {
   // 5. Check for NEFT/IMPS reference payee patterns: e.g. NEFT-HSBCN08932182457-HP PPS
   const neftImpsMatch = cleanMessage.match(/\b(?:NEFT|IMPS|RTGS|UPI)-[A-Z0-9]+-([A-Za-z0-9\s&'./\-@]+?)(?:\.|\s+Available|$)/i);
   if (neftImpsMatch) {
-    const name = neftImpsMatch[1].trim();
+    const name = cleanMerchantName(neftImpsMatch[1]);
     if (name.length >= 3 && !/^\d+$/.test(name)) {
       return name;
     }
@@ -122,7 +160,7 @@ function extractMerchant(message: string): string | null {
   // 6. Check for "on <merchant>" where merchant is not a date
   const onMatch = cleanMessage.match(/\bon\s+([A-Za-z0-9\s&'./\-@]+?)(?:\s+on\b|\s+[Rr]ef\b|\s+via\b|\s+UPI\b|\s+NEFT\b|\s+IMPS\b|\s+RTGS\b|\bAvl\s+Bal\b|\bAvailable\s+Bal\b|\bCredit\s+Limit\b|\bAvl\s+Limit\b|\.\s|\s*\(|[.\s]*$)/i);
   if (onMatch) {
-    const name = onMatch[1].trim();
+    const name = cleanMerchantName(onMatch[1]);
     const isAmount = /^(?:Rs\.?|INR|₹|inr)\b/i.test(name) || /^[0-9,.]+$/.test(name);
     const isDate = /^\d{1,2}[-/.]\w+[-/.]\d{2,4}$/i.test(name) || 
                    /^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/i.test(name) ||
@@ -137,7 +175,7 @@ function extractMerchant(message: string): string | null {
   // Skip VPA handles that are pure phone numbers (e.g. 917012345678@ybl)
   const vpaMatch = cleanMessage.match(VPA_MERCHANT_REGEX);
   if (vpaMatch) {
-    const vpaName = vpaMatch[1].trim();
+    const vpaName = cleanMerchantName(vpaMatch[1]);
     // Only use if it starts with a letter (not a phone number VPA)
     if (/^[A-Za-z]/.test(vpaName) && vpaName.length >= 3) {
       return vpaName;

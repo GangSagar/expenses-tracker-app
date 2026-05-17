@@ -59,7 +59,7 @@ export default function HomeScreen() {
     accountGroups[key].push(e);
   }
 
-  const accountsList: { bank: string; account: string; balance: number }[] = [];
+  const accountsList: { bank: string; account: string; balance: number; cardType: 'cc' | 'debit' }[] = [];
   for (const [key, list] of Object.entries(accountGroups)) {
     const [bank, account] = key.split('::');
     const sorted = [...list].sort((a, b) => a.timestamp - b.timestamp);
@@ -78,7 +78,14 @@ export default function HomeScreen() {
           balance += subsequent.amount;
         }
       }
-      accountsList.push({ bank, account, balance });
+
+      // Check persisted cardType override or auto default
+      const typeKey = `account_type::${bank}::${account}`;
+      const saved = getSetting(typeKey);
+      const hasCCMode = list.some(e => e.paymentMode === 'cc' || /credit\s*card|cc\b/i.test(e.rawMessage));
+      const cardType = (saved || (hasCCMode ? 'cc' : 'debit')) as 'cc' | 'debit';
+
+      accountsList.push({ bank, account, balance, cardType });
     }
   }
 
@@ -141,20 +148,33 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Dashboard</Text>
         <View style={styles.totalCard}>
-          <View style={styles.balanceSection}>
-            <Text style={styles.totalLabel}>CURRENT NET BALANCE</Text>
-            <Text style={styles.totalAmount}>{formatAmount(currentBalance)}</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.statsRow}>
-            <View style={styles.statCol}>
-              <Text style={styles.statLabel}>INCOME</Text>
-              <Text style={styles.incomeAmount}>+{formatAmount(totalCredits)}</Text>
+          <View style={styles.cardContainerRow}>
+            {/* Left Column: Total bank balance */}
+            <View style={styles.mainBalanceCol}>
+              <Text style={styles.totalLabel}>TOTAL BANK BALANCE</Text>
+              <Text style={styles.totalAmount}>
+                {formatAmount(
+                  accountsList.filter(acc => acc.cardType === 'debit').length > 0
+                    ? accountsList.filter(acc => acc.cardType === 'debit').reduce((sum, acc) => sum + acc.balance, 0)
+                    : currentBalance
+                )}
+              </Text>
             </View>
-            <View style={styles.verticalDivider} />
-            <View style={styles.statCol}>
-              <Text style={styles.statLabel}>EXPENSES</Text>
-              <Text style={styles.expenseAmount}>-{formatAmount(totalDebits)}</Text>
+
+            {/* Vertical Divider */}
+            <View style={styles.verticalDividerHeader} />
+
+            {/* Right Column: Spent / Received side stats */}
+            <View style={styles.statsColHeader}>
+              <View style={styles.statItemHeader}>
+                <Text style={styles.statLabelHeader}>↗ RECEIVED</Text>
+                <Text style={styles.incomeAmountHeader}>+{formatAmount(totalCredits)}</Text>
+              </View>
+              <View style={styles.statItemHeaderSpacer} />
+              <View style={styles.statItemHeader}>
+                <Text style={styles.statLabelHeader}>↘ SPENT</Text>
+                <Text style={styles.expenseAmountHeader}>-{formatAmount(totalDebits)}</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -380,55 +400,61 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
+  cardContainerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  mainBalanceCol: {
+    flex: 1.3,
+    justifyContent: 'center',
+  },
   totalLabel: {
-    fontSize: 10,
+    fontSize: 9,
     color: 'rgba(255, 255, 255, 0.8)',
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   totalAmount: {
-    fontSize: 30,
+    fontSize: 24,
     fontWeight: '800',
     color: '#fff',
     marginTop: 2,
+    letterSpacing: -0.5,
   },
-  balanceSection: {
-    marginBottom: 4,
+  verticalDividerHeader: {
+    width: 1,
+    height: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    marginHorizontal: 8,
   },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginVertical: 12,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statCol: {
+  statsColHeader: {
     flex: 1,
-    alignItems: 'center',
+    justifyContent: 'center',
   },
-  statLabel: {
-    fontSize: 9,
-    color: 'rgba(255, 255, 255, 0.7)',
+  statItemHeader: {
+    alignItems: 'flex-start',
+  },
+  statItemHeaderSpacer: {
+    height: 6,
+  },
+  statLabelHeader: {
+    fontSize: 8,
+    color: 'rgba(255, 255, 255, 0.75)',
     fontWeight: '800',
-    letterSpacing: 0.5,
-    marginBottom: 2,
+    letterSpacing: 0.2,
   },
-  incomeAmount: {
-    fontSize: 16,
+  incomeAmountHeader: {
+    fontSize: 13,
     fontWeight: '700',
     color: '#a5d6a7',
+    marginTop: 1,
   },
-  expenseAmount: {
-    fontSize: 16,
+  expenseAmountHeader: {
+    fontSize: 13,
     fontWeight: '700',
     color: '#ef9a9a',
-  },
-  verticalDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginTop: 1,
   },
   sectionHeading: {
     fontSize: 15,

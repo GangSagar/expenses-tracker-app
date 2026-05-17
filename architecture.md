@@ -56,7 +56,7 @@ flowchart TD
 
 ## Core System Subsystems
 
-### 1. Advanced Message Filtration Upgrade
+### 1. Advanced Message Filtration
 To prevent spam, messages must pass a strict two-stage filter:
 * **Source Validation:** Verify the sender ID matches bank formatting rules or contains known keywords.
 * **Signal Validation:** The message must explicitly match a debit keyword (`DEBIT_REGEX`) or a credit keyword (`CREDIT_REGEX`). General carrier reports, promotional items, OTPs, and cellular data usage alerts are discarded.
@@ -68,16 +68,23 @@ The Accounts module (`AccountsScreen.tsx`) dynamically reconciles financial stat
   $$\text{Real-time Balance} = \text{Checkpoint Balance} + \sum \text{Credits} - \sum \text{Debits}$$
 * **Anomaly Detection:** Flags reconciliation gaps where actual balances deviate from expected chronological sums, letting users manually record recovery transactions.
 
-### 3. Unified Split Ledger
-Splits are grouped under a single **transaction-wide ledger direction**:
-* **Simplified UX:** Modals offer a single overall "You owe them" or "They owe you" toggle.
-* **Database Alignment:** Preserves normalized schema records by mapping the global toggle to all splits, maintaining 100% backward compatibility.
+### 3. Premium Bank Cards UI Engine
+The bank cards display uses a high-performance visual carousel layout:
+* **Dynamic Card Styling**: Instantly renders custom debit cards using a deterministic color index generated via a string character hash of the `${bankName}::${accountNumber}` fields. Every debit card gets a distinct premium solid color.
+* **Branded Theme Mappings**: Traditional top-tier banks (ICICI, HDFC, SBI, BOB, BOI) utilize specific preset branding color combinations.
+* **Scroll Offset Alignment**: Tabbing switches register direct ref-driven viewport resets, executing `scrollToOffset({ offset: 0, animated: false })` on the underlying `FlatList` to prevent horizontal offset clipping.
 
-### 4. Premium Home Screen Dashboard
-The homepage is built as a complete personal finance dashboard:
-* **Interactive Shortcuts:** Rapid logging for Cash and Pre-built Splits.
-* **Bank Cards Carousel:** Slides miniature bank cards detailing real-time balances.
-* **Insights Panel:** Displays progress bars depicting top spending categories.
+### 4. Smart Split Repayment Engine
+The store hooks into all manual and parsed transaction insertions to automatically balance contacts' debts:
+* **Repayment Detection**: Intercepts credit transactions (`transactionType === 'credit'`).
+* **Word-Boundary Match**: Matches the sender with outstanding split contacts using regex word boundaries `\b${contactName}\b` to prevent false positive substring matches.
+* **Outstanding Settlement**: Auto-deducts and marks corresponding pending splits as paid/settled (`isPaid = true`) in the database chronologically (oldest first).
+* **Ledger Tracing**: Adds a matching settled split to the credit transaction itself, allowing correct tracking of incoming repayment histories.
+
+### 5. Double-Direction Settle & Unsettle Controls
+The Split Ledger offers granular controls with native `Alert` confirmation safety wraps:
+* **Individual Bill Toggles**: Enables `<TouchableOpacity>` wrapper bindings. Users can toggle single active items to paid, or settled history items back to unpaid.
+* **Bulk Undo**: Renders an "Unsettle All Balances" trigger when a contact has settled history items, fully reverting bulk settlements and resetting outstanding totals in one tap.
 
 ---
 
@@ -94,4 +101,5 @@ The homepage is built as a complete personal finance dashboard:
 * `src/core/confidence/`: Confidence scoring logic to route transactions.
 * `src/core/dedup/`: Duplicate transaction detection to prevent double-counting.
 * `src/database/`: SQLite database setup and repository pattern for expense tracking.
+* `src/hooks/`: Zustand store hooks (`useExpenses.ts`), including the auto-repayment matching and single split toggling logic.
 * `android/app/src/main/java/com/expensetracker/`: Native Android Kotlin code (receivers, listeners, bridges).
