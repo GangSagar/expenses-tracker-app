@@ -22,9 +22,10 @@ export default function SettingsScreen() {
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [jsonInput, setJsonInput] = useState('');
 
-  // Contacts permission and scratchpad notes state
+  // Contacts permission, scratchpad notes, and smart budget state
   const [contactsPermission, setContactsPermission] = useState<'granted' | 'denied' | 'checking'>('checking');
   const [note, setNote] = useState('');
+  const [budget, setBudget] = useState('20000');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -32,6 +33,9 @@ export default function SettingsScreen() {
     // Load persisted scratchpad note
     const savedNote = getSetting('future_updates_note', '');
     setNote(savedNote);
+    // Load persisted budget limit
+    const savedBudget = getSetting('monthly_budget_limit', '20000');
+    setBudget(savedBudget);
   }, []);
 
   const checkContactsPermission = async () => {
@@ -85,6 +89,12 @@ export default function SettingsScreen() {
     setTimeout(() => {
       setIsSaving(false);
     }, 400);
+  };
+
+  const handleBudgetChange = (text: string) => {
+    const cleaned = text.replace(/[^0-9]/g, '');
+    setBudget(cleaned);
+    setSetting('monthly_budget_limit', cleaned);
   };
 
   const openNotificationSettings = () => {
@@ -226,6 +236,30 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Smart Budget Settings</Text>
+          <View style={styles.budgetContainer}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={styles.itemTitle}>Monthly Budget Limit</Text>
+              <Text style={styles.itemDescription}>
+                Sets your target monthly expense limit for AI projections
+              </Text>
+            </View>
+            <View style={styles.budgetInputWrapper}>
+              <Text style={styles.currencySymbol}>₹</Text>
+              <TextInput
+                style={styles.budgetInput}
+                keyboardType="numeric"
+                value={budget}
+                onChangeText={handleBudgetChange}
+                placeholder="20000"
+                placeholderTextColor="#999"
+                maxLength={7}
+              />
+            </View>
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -531,5 +565,43 @@ const styles = StyleSheet.create({
     color: '#202124',
     minHeight: 120,
     lineHeight: 20,
+  },
+  budgetContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e8eaed',
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  budgetInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f3f4',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    minWidth: 100,
+    borderWidth: 1,
+    borderColor: '#dadce0',
+  },
+  currencySymbol: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#202124',
+    marginRight: 4,
+  },
+  budgetInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#202124',
+    padding: 0,
   },
 });
