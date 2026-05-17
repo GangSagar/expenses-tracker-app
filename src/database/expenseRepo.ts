@@ -5,8 +5,8 @@ export function insertExpense(expense: Omit<Expense, 'id'>): number {
   const db = getDatabase();
   const splitsStr = expense.splits ? JSON.stringify(expense.splits) : null;
   const result = db.execute(
-    `INSERT INTO expenses (amount, merchant, alias, category, confidence, timestamp, source, raw_message, transaction_type, account, bank, payment_mode, is_duplicate, available_balance, splits)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO expenses (amount, merchant, alias, category, confidence, timestamp, source, raw_message, transaction_type, account, bank, payment_mode, is_duplicate, available_balance, splits, reference_id, is_invalid)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       expense.amount,
       expense.merchant,
@@ -23,6 +23,8 @@ export function insertExpense(expense: Omit<Expense, 'id'>): number {
       expense.isDuplicate ? 1 : 0,
       expense.availableBalance !== undefined ? expense.availableBalance : null,
       splitsStr,
+      expense.referenceId || null,
+      expense.isInvalid ? 1 : 0,
     ],
   );
   return result.insertId ?? -1;
@@ -154,6 +156,8 @@ function mapRows(rows: any[]): Expense[] {
       isDuplicate: row.is_duplicate === 1,
       availableBalance: row.available_balance !== null && row.available_balance !== undefined ? Number(row.available_balance) : undefined,
       splits: splits,
+      referenceId: row.reference_id || undefined,
+      isInvalid: row.is_invalid === 1,
     };
   });
 }
@@ -172,4 +176,29 @@ export function clearAllExpenses(): void {
 export function deleteExpense(id: number): void {
   const db = getDatabase();
   db.execute('DELETE FROM expenses WHERE id = ?', [id]);
+}
+
+export function invalidateExpense(id: number, isInvalid: boolean): void {
+  const db = getDatabase();
+  db.execute('UPDATE expenses SET is_invalid = ? WHERE id = ?', [isInvalid ? 1 : 0, id]);
+}
+
+export function getSetting(key: string, defaultValue: string = ''): string {
+  try {
+    const db = getDatabase();
+    const result = db.execute('SELECT value FROM settings WHERE key = ?', [key]);
+    return result.rows?._array?.[0]?.value ?? defaultValue;
+  } catch (e) {
+    console.error('Failed to get setting', e);
+    return defaultValue;
+  }
+}
+
+export function setSetting(key: string, value: string): void {
+  try {
+    const db = getDatabase();
+    db.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [key, value]);
+  } catch (e) {
+    console.error('Failed to set setting', e);
+  }
 }

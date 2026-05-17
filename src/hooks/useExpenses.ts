@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Expense, Category } from '../types/expense';
-import { getAllExpenses, updateExpense as updateExpenseDb, saveMerchantCategory, insertExpense as insertExpenseDb, exportAllExpensesData, clearAllExpenses, deleteExpense as deleteExpenseDb } from '../database/expenseRepo';
+import { getAllExpenses, updateExpense as updateExpenseDb, saveMerchantCategory, insertExpense as insertExpenseDb, exportAllExpensesData, clearAllExpenses, deleteExpense as deleteExpenseDb, invalidateExpense as invalidateExpenseDb } from '../database/expenseRepo';
 import { setMerchantMapping } from '../core/classifier/merchantMap';
 
 interface ExpenseState {
@@ -17,6 +17,7 @@ interface ExpenseState {
   importExpenses: (imported: Expense[], overwrite: boolean) => void;
   settleContactSplits: (contactName: string) => void;
   deleteExpense: (id: number) => void;
+  invalidateExpense: (id: number, isInvalid: boolean) => void;
 }
 
 export const useExpenseStore = create<ExpenseState>((set, get) => ({
@@ -175,6 +176,17 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       }));
     } catch (e) {
       console.error('Failed to delete expense', e);
+    }
+  },
+
+  invalidateExpense: (id, isInvalid) => {
+    try {
+      invalidateExpenseDb(id, isInvalid);
+      set(state => ({
+        expenses: state.expenses.map(e => e.id === id ? { ...e, isInvalid } : e),
+      }));
+    } catch (e) {
+      console.error('Failed to invalidate expense', e);
     }
   },
 }));
