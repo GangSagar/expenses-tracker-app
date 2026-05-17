@@ -15,6 +15,7 @@ export const PAYMENT_MODES = [
   'upi',
   'cc',
   'wallet',
+  'cash',
   'unknown',
 ] as const;
 
