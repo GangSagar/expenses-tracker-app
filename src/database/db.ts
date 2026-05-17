@@ -34,6 +34,10 @@ function runMigrations(database: QuickSQLiteConnection): void {
       bank TEXT,
       payment_mode TEXT DEFAULT 'unknown',
       is_duplicate INTEGER DEFAULT 0,
+      available_balance REAL,
+      splits TEXT,
+      reference_id TEXT,
+      is_invalid INTEGER DEFAULT 0,
       created_at INTEGER DEFAULT (strftime('%s', 'now'))
     );
   `);
@@ -52,15 +56,7 @@ function runMigrations(database: QuickSQLiteConnection): void {
     // Column might already exist
   }
 
-  database.execute(
-    'CREATE INDEX IF NOT EXISTS idx_expenses_timestamp ON expenses(timestamp);',
-  );
-  database.execute(
-    'CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category);',
-  );
-  database.execute(
-    'CREATE INDEX IF NOT EXISTS idx_expenses_merchant ON expenses(merchant);',
-  );
+  // Indices moved to the end of runMigrations to ensure all columns exist first
 
   // Merchant category corrections table
   database.execute(`
@@ -113,6 +109,20 @@ function runMigrations(database: QuickSQLiteConnection): void {
   } catch {
     // Column might already exist
   }
+
+  // Create fast lookup indices on expenses table (done after migrations so columns exist)
+  database.execute(
+    'CREATE INDEX IF NOT EXISTS idx_expenses_timestamp ON expenses(timestamp);',
+  );
+  database.execute(
+    'CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category);',
+  );
+  database.execute(
+    'CREATE INDEX IF NOT EXISTS idx_expenses_merchant ON expenses(merchant);',
+  );
+  database.execute(
+    'CREATE INDEX IF NOT EXISTS idx_expenses_reference_id ON expenses(reference_id);',
+  );
 }
 
 export function closeDatabase(): void {
