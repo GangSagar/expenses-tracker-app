@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Expense, Category, ExpenseSplit } from '../types/expense';
-import { getAllExpenses, updateExpense as updateExpenseDb, saveMerchantCategory, insertExpense as insertExpenseDb, exportAllExpensesData, clearAllExpenses, deleteExpense as deleteExpenseDb, invalidateExpense as invalidateExpenseDb } from '../database/expenseRepo';
+import { getAllExpenses, updateExpense as updateExpenseDb, saveMerchantCategory, insertExpense as insertExpenseDb, exportAllExpensesData, clearAllExpenses, deleteExpense as deleteExpenseDb, invalidateExpense as invalidateExpenseDb, updateTrashReason as updateTrashReasonDb, deduplicateDatabase as deduplicateDatabaseDb } from '../database/expenseRepo';
 import { setMerchantMapping } from '../core/classifier/merchantMap';
 
 interface ExpenseState {
@@ -20,6 +20,8 @@ interface ExpenseState {
   toggleSplitPaid: (expenseId: number, contactName: string) => void;
   deleteExpense: (id: number) => void;
   invalidateExpense: (id: number, isInvalid: boolean) => void;
+  updateTrashReason: (id: number, reason: string | null) => void;
+  runDeduplication: () => number;
 }
 
 // Helper to automatically apply credit repayments to pending contact splits
@@ -384,6 +386,32 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       }));
     } catch (e) {
       console.error('Failed to invalidate expense', e);
+    }
+  },
+
+  updateTrashReason: (id, reason) => {
+    try {
+      updateTrashReasonDb(id, reason);
+      set(state => ({
+        expenses: state.expenses.map(e => e.id === id ? { ...e, trashReason: reason as any } : e),
+      }));
+    } catch (e) {
+      console.error('Failed to update trash reason', e);
+    }
+  },
+
+  runDeduplication: () => {
+    try {
+      const count = deduplicateDatabaseDb();
+      // Reload expenses completely since many items could have been modified
+      if (count > 0) {
+        const reloaded = getAllExpenses(100);
+        set({ expenses: reloaded });
+      }
+      return count;
+    } catch (e) {
+      console.error('Failed to deduplicate database', e);
+      return 0;
     }
   },
 }));
