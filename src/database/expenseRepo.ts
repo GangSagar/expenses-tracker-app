@@ -3,9 +3,10 @@ import { getDatabase } from './db';
 
 export function insertExpense(expense: Omit<Expense, 'id'>): number {
   const db = getDatabase();
+  const splitsStr = expense.splits ? JSON.stringify(expense.splits) : null;
   const result = db.execute(
-    `INSERT INTO expenses (amount, merchant, alias, category, confidence, timestamp, source, raw_message, transaction_type, account, bank, payment_mode, is_duplicate)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO expenses (amount, merchant, alias, category, confidence, timestamp, source, raw_message, transaction_type, account, bank, payment_mode, is_duplicate, available_balance, splits)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       expense.amount,
       expense.merchant,
@@ -20,6 +21,8 @@ export function insertExpense(expense: Omit<Expense, 'id'>): number {
       expense.bank || null,
       expense.paymentMode || 'unknown',
       expense.isDuplicate ? 1 : 0,
+      expense.availableBalance !== undefined ? expense.availableBalance : null,
+      splitsStr,
     ],
   );
   return result.insertId ?? -1;
@@ -31,14 +34,27 @@ export function updateExpense(
   category: Category,
   bank?: string,
   paymentMode?: string,
+  amount?: number,
+  splits?: any[],
 ): void {
   const db = getDatabase();
-  db.execute(
-    `UPDATE expenses 
-     SET merchant = ?, category = ?, bank = ?, payment_mode = ? 
-     WHERE id = ?`,
-    [merchant, category, bank || null, paymentMode || 'unknown', id],
-  );
+  const splitsStr = splits ? JSON.stringify(splits) : null;
+  
+  if (amount !== undefined) {
+    db.execute(
+      `UPDATE expenses 
+       SET merchant = ?, category = ?, bank = ?, payment_mode = ?, amount = ?, splits = ? 
+       WHERE id = ?`,
+      [merchant, category, bank || null, paymentMode || 'unknown', amount, splitsStr, id],
+    );
+  } else {
+    db.execute(
+      `UPDATE expenses 
+       SET merchant = ?, category = ?, bank = ?, payment_mode = ?, splits = ? 
+       WHERE id = ?`,
+      [merchant, category, bank || null, paymentMode || 'unknown', splitsStr, id],
+    );
+  }
 }
 
 export function getRecentExpenses(minutes: number = 5): Expense[] {
@@ -111,20 +127,49 @@ export function loadMerchantCategories(): Record<string, { category: Category, d
 }
 
 function mapRows(rows: any[]): Expense[] {
-  return rows.map(row => ({
-    id: row.id,
-    amount: Number(row.amount) || 0,
-    merchant: row.merchant,
-    alias: row.alias,
-    category: row.category as Category,
-    confidence: row.confidence,
-    timestamp: row.timestamp,
-    source: row.source,
-    rawMessage: row.raw_message,
-    transactionType: row.transaction_type || 'debit',
-    account: row.account,
-    bank: row.bank,
-    paymentMode: row.payment_mode,
-    isDuplicate: row.is_duplicate === 1,
-  }));
+  return rows.map(row => {
+    let splits = undefined;
+    if (row.splits) {
+      try {
+        splits = JSON.parse(row.splits);
+      } catch (e) {
+        console.error('Failed to parse splits JSON', e);
+      }
+    }
+
+    return {
+      id: row.id,
+      amount: Number(row.amount) || 0,
+      merchant: row.merchant,
+      alias: row.alias,
+      category: row.category as Category,
+      confidence: row.confidence,
+      timestamp: row.timestamp,
+      source: row.source,
+      rawMessage: row.raw_message,
+      transactionType: row.transaction_type || 'debit',
+      account: row.account,
+      bank: row.bank,
+      paymentMode: row.payment_mode,
+      isDuplicate: row.is_duplicate === 1,
+      availableBalance: row.available_balance !== null && row.available_balance !== undefined ? Number(row.available_balance) : undefined,
+      splits: splits,
+    };
+  });
+}
+
+export function exportAllExpensesData(): Expense[] {
+  const db = getDatabase();
+  const result = db.execute('SELECT * FROM expenses ORDER BY timestamp DESC');
+  return mapRows(result.rows?._array || []);
+}
+
+export function clearAllExpenses(): void {
+  const db = getDatabase();
+  db.execute('DELETE FROM expenses');
+}
+
+export function deleteExpense(id: number): void {
+  const db = getDatabase();
+  db.execute('DELETE FROM expenses WHERE id = ?', [id]);
 }

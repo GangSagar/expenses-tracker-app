@@ -1,10 +1,17 @@
 export type TransactionType = 'debit' | 'credit';
-export type TransactionSource = 'sms' | 'notification';
+export type TransactionSource = 'sms' | 'notification' | 'manual';
 import { CATEGORIES, PAYMENT_MODES } from '../constants/appOptions';
 
 export type PaymentMode = typeof PAYMENT_MODES[number];
 
 export type Category = typeof CATEGORIES[number];
+
+export interface ExpenseSplit {
+  contactName: string;
+  amount: number;
+  isPaid?: boolean;
+  owedByMe?: boolean;
+}
 
 export interface Expense {
   id?: number;
@@ -21,6 +28,8 @@ export interface Expense {
   bank?: string;
   paymentMode?: PaymentMode;
   isDuplicate?: boolean;
+  availableBalance?: number;
+  splits?: ExpenseSplit[];
 }
 
 export interface ParsedTransaction {
@@ -34,4 +43,5 @@ export interface ParsedTransaction {
   rawMessage: string;
   source: TransactionSource;
   timestamp: number;
+  availableBalance?: number;
 }
