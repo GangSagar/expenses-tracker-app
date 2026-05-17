@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,81 @@ import {
   Modal,
   TextInput,
   Platform,
+  PermissionsAndroid,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useExpenseStore } from '../hooks/useExpenses';
+import { getSetting, setSetting } from '../database/expenseRepo';
 
 export default function SettingsScreen() {
   const { exportExpenses, importExpenses } = useExpenseStore();
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [jsonInput, setJsonInput] = useState('');
+
+  // Contacts permission and scratchpad notes state
+  const [contactsPermission, setContactsPermission] = useState<'granted' | 'denied' | 'checking'>('checking');
+  const [note, setNote] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    checkContactsPermission();
+    // Load persisted scratchpad note
+    const savedNote = getSetting('future_updates_note', '');
+    setNote(savedNote);
+  }, []);
+
+  const checkContactsPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const hasIt = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.READ_CONTACTS
+        );
+        setContactsPermission(hasIt ? 'granted' : 'denied');
+      } catch (err) {
+        console.warn(err);
+        setContactsPermission('denied');
+      }
+    } else {
+      setContactsPermission('granted');
+    }
+  };
+
+  const handleRequestContactsPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
+          {
+            title: 'Contacts Permission',
+            message: 'This app needs access to your contacts to split bills easily.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          }
+        );
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          setContactsPermission('granted');
+          Alert.alert('Permission Granted', 'You can now split bills with your contacts!');
+        } else {
+          setContactsPermission('denied');
+          Alert.alert('Permission Denied', 'Access to contacts is required to select a person.');
+        }
+      } catch (err) {
+        console.warn(err);
+      }
+    } else {
+      Alert.alert('Granted', 'Contacts permission is active.');
+    }
+  };
+
+  const handleNoteChange = (text: string) => {
+    setNote(text);
+    setIsSaving(true);
+    setSetting('future_updates_note', text);
+    setTimeout(() => {
+      setIsSaving(false);
+    }, 400);
+  };
 
   const openNotificationSettings = () => {
     Linking.openSettings();
@@ -85,13 +153,30 @@ export default function SettingsScreen() {
     }
   };
 
+  const scrollViewRef = React.useRef<ScrollView>(null);
+
+  const handleNoteFocus = () => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 150);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 100}
+      >
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Permissions</Text>
 
@@ -119,6 +204,27 @@ export default function SettingsScreen() {
               </Text>
             </View>
             <Text style={styles.arrow}>→</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.item}
+            onPress={handleRequestContactsPermission}
+            disabled={contactsPermission === 'granted'}
+          >
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={styles.itemTitle}>Contacts Permission</Text>
+              <Text style={styles.itemDescription}>
+                Used to split expenses with contacts
+              </Text>
+            </View>
+            <View style={styles.statusBadgeContainer}>
+              <Text style={[
+                styles.statusBadgeText,
+                contactsPermission === 'granted' ? styles.grantedText : styles.requestText
+              ]}>
+                {contactsPermission === 'granted' ? '✅ Active' : '🔑 Request'}
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -153,10 +259,31 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
+          <View style={styles.scratchpadHeader}>
+            <Text style={styles.sectionTitle}>💡 Feature Ideas & Scratchpad</Text>
+            {isSaving && <Text style={styles.savingText}>Saving...</Text>}
+            {!isSaving && note.length > 0 && <Text style={styles.savedText}>Auto-saved</Text>}
+          </View>
+          <View style={styles.notepadContainer}>
+            <TextInput
+              style={styles.notepadInput}
+              multiline
+              numberOfLines={6}
+              value={note}
+              onChangeText={handleNoteChange}
+              onFocus={handleNoteFocus}
+              placeholder="Jot down future updates, feature ideas, or items you want to work on next..."
+              placeholderTextColor="#999"
+              textAlignVertical="top"
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
           <View style={styles.item}>
             <Text style={styles.itemTitle}>Version</Text>
-            <Text style={styles.itemValue}>1.0.0</Text>
+            <Text style={styles.itemValue}>1.1.1</Text>
           </View>
         </View>
       </ScrollView>
@@ -210,6 +337,7 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -351,5 +479,57 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  statusBadgeContainer: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#f1f3f4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  grantedText: {
+    color: '#137333',
+  },
+  requestText: {
+    color: '#1a73e8',
+  },
+  scratchpadHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  savingText: {
+    fontSize: 11,
+    color: '#1a73e8',
+    fontWeight: '500',
+  },
+  savedText: {
+    fontSize: 11,
+    color: '#137333',
+    fontWeight: '500',
+  },
+  notepadContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e8eaed',
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  notepadInput: {
+    fontSize: 14,
+    color: '#202124',
+    minHeight: 120,
+    lineHeight: 20,
   },
 });
