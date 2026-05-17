@@ -21,6 +21,9 @@ describe('parseMessage', () => {
       if (expected!.account) {
         expect(result.account).toBe(expected!.account);
       }
+      if (expected && 'availableBalance' in expected) {
+        expect(result.availableBalance).toBe(expected.availableBalance);
+      }
     },
   );
 

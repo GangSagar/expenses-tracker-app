@@ -210,5 +210,16 @@
             "paymentMode": "cc",
             "account": "4000"
         }
+    },
+    {
+        "message": "Dear Customer, your A/c XX0604 has been debited by Rs.750.00 on 17-May-26 in transfer to SWIGGY. Ref No 606127862781. Avl Bal Rs.25,120.50 - BOI",
+        "expected": {
+            "amount": 750,
+            "merchant": "SWIGGY",
+            "transactionType": "debit",
+            "paymentMode": "unknown",
+            "account": "0604",
+            "availableBalance": 25120.50
+        }
     }
 ]
