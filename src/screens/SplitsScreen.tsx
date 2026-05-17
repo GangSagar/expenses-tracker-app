@@ -1,0 +1,548 @@
+import React, { useState, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+import { useExpenseStore } from '../hooks/useExpenses';
+import { ExpenseSplit } from '../types/expense';
+
+interface SplitItemDetail {
+  expenseId: number;
+  merchant: string;
+  timestamp: number;
+  category: string;
+  split: ExpenseSplit;
+}
+
+interface ContactBalanceSummary {
+  contactName: string;
+  owedToMe: number;   // Money others owe me
+  owedByMe: number;   // Money I owe others
+  netBalance: number; // Positive: others owe me, Negative: I owe others
+  activeSplits: SplitItemDetail[];
+  settledSplits: SplitItemDetail[];
+}
+
+export default function SplitsScreen() {
+  const { expenses, settleContactSplits } = useExpenseStore();
+  const [expandedContact, setExpandedContact] = useState<string | null>(null);
+
+  // Group and calculate split balances per contact name
+  const contactBalances = useMemo(() => {
+    const registry: Record<string, ContactBalanceSummary> = {};
+
+    for (const exp of expenses) {
+      if (!exp.splits || exp.splits.length === 0 || !exp.id) continue;
+
+      for (const sp of exp.splits) {
+        const name = sp.contactName.trim();
+        if (!name) continue;
+
+        if (!registry[name]) {
+          registry[name] = {
+            contactName: name,
+            owedToMe: 0,
+            owedByMe: 0,
+            netBalance: 0,
+            activeSplits: [],
+            settledSplits: [],
+          };
+        }
+
+        const amt = Number(sp.amount) || 0;
+        const detail: SplitItemDetail = {
+          expenseId: exp.id,
+          merchant: exp.merchant,
+          timestamp: exp.timestamp,
+          category: exp.category,
+          split: sp,
+        };
+
+        if (sp.isPaid) {
+          registry[name].settledSplits.push(detail);
+        } else {
+          registry[name].activeSplits.push(detail);
+          if (sp.owedByMe) {
+            registry[name].owedByMe += amt;
+          } else {
+            registry[name].owedToMe += amt;
+          }
+        }
+      }
+    }
+
+    // Calculate net balances and sort alphabetically
+    return Object.values(registry)
+      .map(contact => {
+        contact.netBalance = contact.owedToMe - contact.owedByMe;
+        // Sort individual splits chronologically (newest first)
+        contact.activeSplits.sort((a, b) => b.timestamp - a.timestamp);
+        contact.settledSplits.sort((a, b) => b.timestamp - a.timestamp);
+        return contact;
+      })
+      .sort((a, b) => a.contactName.localeCompare(b.contactName));
+  }, [expenses]);
+
+  // Aggregate stats across all contacts
+  const totalStats = useMemo(() => {
+    let owedToMe = 0;
+    let owedByMe = 0;
+    for (const cb of contactBalances) {
+      owedToMe += cb.owedToMe;
+      owedByMe += cb.owedByMe;
+    }
+    return {
+      owedToMe,
+      owedByMe,
+      net: owedToMe - owedByMe,
+    };
+  }, [contactBalances]);
+
+  const toggleExpand = (name: string) => {
+    setExpandedContact(prev => (prev === name ? null : name));
+  };
+
+  const handleSettleUp = (contactName: string, balance: number) => {
+    const message = balance > 0 
+      ? `This will mark all pending balances from ${contactName} as settled/paid.` 
+      : balance < 0
+      ? `This will mark all balances you owe to ${contactName} as settled/paid.`
+      : `Mark all split balances with ${contactName} as settled?`;
+
+    Alert.alert(
+      '🤝 Settle Up Balances',
+      message,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm Settle Up',
+          style: 'default',
+          onPress: () => {
+            settleContactSplits(contactName);
+            Alert.alert('Success', `All outstanding balances with ${contactName} have been settled!`);
+          }
+        }
+      ]
+    );
+  };
+
+  const formatAmount = (amt: number) => {
+    return `₹${Math.abs(amt).toLocaleString('en-IN', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Split Ledger</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Net Splits Dashboard Panel */}
+        <View style={styles.dashboardCard}>
+          <Text style={styles.dashboardLabel}>NET SPLIT BALANCE</Text>
+          <Text style={[
+            styles.dashboardNet, 
+            totalStats.net > 0 ? styles.positiveText : totalStats.net < 0 ? styles.negativeText : styles.neutralText
+          ]}>
+            {totalStats.net > 0 ? '+' : totalStats.net < 0 ? '-' : ''}
+            {formatAmount(totalStats.net)}
+          </Text>
+          <Text style={styles.dashboardStatus}>
+            {totalStats.net > 0 
+              ? 'Overall, others owe you money' 
+              : totalStats.net < 0 
+              ? 'Overall, you owe money to others' 
+              : 'All split balances are fully cleared!'}
+          </Text>
+
+          <View style={styles.divider} />
+
+          <View style={styles.statsRow}>
+            <View style={styles.statCol}>
+              <Text style={styles.statLabel}>OTHERS OWE YOU</Text>
+              <Text style={[styles.statValue, styles.positiveText]}>
+                {formatAmount(totalStats.owedToMe)}
+              </Text>
+            </View>
+            <View style={styles.verticalDivider} />
+            <View style={styles.statCol}>
+              <Text style={styles.statLabel}>YOU OWE OTHERS</Text>
+              <Text style={[styles.statValue, styles.negativeText]}>
+                {formatAmount(totalStats.owedByMe)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Directory Header */}
+        <Text style={styles.sectionHeading}>Outstanding Ledger</Text>
+
+        {contactBalances.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>👥 No split transactions found.</Text>
+            <Text style={styles.emptySubtext}>
+              When adding or editing transactions, enable "Split with Contacts" to track bills!
+            </Text>
+          </View>
+        ) : (
+          contactBalances.map(contact => {
+            const isExpanded = expandedContact === contact.contactName;
+            const initial = contact.contactName.charAt(0).toUpperCase();
+            
+            return (
+              <View key={contact.contactName} style={[styles.contactCard, isExpanded && styles.contactCardExpanded]}>
+                <TouchableOpacity
+                  style={styles.contactHeader}
+                  onPress={() => toggleExpand(contact.contactName)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>{initial}</Text>
+                  </View>
+                  
+                  <View style={styles.contactInfo}>
+                    <Text style={styles.contactName}>{contact.contactName}</Text>
+                    <Text style={[
+                      styles.contactNetText,
+                      contact.netBalance > 0 ? styles.positiveText : contact.netBalance < 0 ? styles.negativeText : styles.neutralText
+                    ]}>
+                      {contact.netBalance > 0 
+                        ? `owes you ${formatAmount(contact.netBalance)}` 
+                        : contact.netBalance < 0 
+                        ? `you owe them ${formatAmount(contact.netBalance)}` 
+                        : 'Fully settled up'}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.expandChevron}>{isExpanded ? '▼' : '▶'}</Text>
+                </TouchableOpacity>
+
+                {isExpanded && (
+                  <View style={styles.detailsBox}>
+                    {/* Active splits list */}
+                    {contact.activeSplits.length > 0 && (
+                      <View style={{ marginBottom: 12 }}>
+                        <Text style={styles.detailsLabel}>Active Split Bills</Text>
+                        {contact.activeSplits.map((item, idx) => (
+                          <View key={`${item.expenseId}-${idx}`} style={styles.billItem}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.billMerchant}>{item.merchant}</Text>
+                              <Text style={styles.billMeta}>
+                                {item.category} • {new Date(item.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                              </Text>
+                            </View>
+                            <Text style={[
+                              styles.billAmount,
+                              item.split.owedByMe ? styles.negativeText : styles.positiveText
+                            ]}>
+                              {item.split.owedByMe ? '-' : '+'}
+                              {formatAmount(item.split.amount)}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    {/* Settle Up Action Button */}
+                    {contact.activeSplits.length > 0 && (
+                      <TouchableOpacity
+                        style={styles.settleBtn}
+                        onPress={() => handleSettleUp(contact.contactName, contact.netBalance)}
+                      >
+                        <Text style={styles.settleBtnText}>🤝 Settle Up Balances</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Settled splits list */}
+                    {contact.settledSplits.length > 0 && (
+                      <View style={{ marginTop: 12 }}>
+                        <Text style={[styles.detailsLabel, styles.settledSectionHeader]}>
+                          Settled History
+                        </Text>
+                        {contact.settledSplits.map((item, idx) => (
+                          <View key={`settled-${item.expenseId}-${idx}`} style={[styles.billItem, styles.settledBillItem]}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.settledBillMerchant}>{item.merchant}</Text>
+                              <Text style={styles.billMeta}>
+                                {new Date(item.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                              </Text>
+                            </View>
+                            <View style={styles.settledBadge}>
+                              <Text style={styles.settledBadgeText}>PAID {formatAmount(item.split.amount)}</Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  header: {
+    backgroundColor: '#1a73e8',
+    paddingTop: 48,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  dashboardCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 3,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  dashboardLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#5f6368',
+    letterSpacing: 1.5,
+  },
+  dashboardNet: {
+    fontSize: 32,
+    fontWeight: '800',
+    marginVertical: 4,
+  },
+  dashboardStatus: {
+    fontSize: 13,
+    color: '#5f6368',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  divider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: '#f1f3f4',
+    marginVertical: 16,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    width: '100%',
+    alignItems: 'center',
+  },
+  statCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#80868b',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  verticalDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: '#f1f3f4',
+  },
+  sectionHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#202124',
+    marginBottom: 12,
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  emptyCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e8eaed',
+  },
+  emptyText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#5f6368',
+    marginBottom: 6,
+  },
+  emptySubtext: {
+    fontSize: 12,
+    color: '#80868b',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  contactCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e8eaed',
+    overflow: 'hidden',
+  },
+  contactCardExpanded: {
+    borderColor: '#1a73e8',
+    shadowColor: '#1a73e8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  contactHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#e8f0fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a73e8',
+  },
+  contactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#202124',
+    marginBottom: 2,
+  },
+  contactNetText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  expandChevron: {
+    fontSize: 12,
+    color: '#80868b',
+    paddingHorizontal: 4,
+  },
+  detailsBox: {
+    backgroundColor: '#f8f9fa',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f3f4',
+    padding: 14,
+  },
+  detailsLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#80868b',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  settledSectionHeader: {
+    borderTopWidth: 1,
+    borderTopColor: '#e8eaed',
+    paddingTop: 12,
+    marginTop: 6,
+  },
+  billItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#e8eaed',
+  },
+  settledBillItem: {
+    backgroundColor: '#f1f3f4',
+    borderColor: '#e8eaed',
+  },
+  billMerchant: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#202124',
+  },
+  settledBillMerchant: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#5f6368',
+    textDecorationLine: 'line-through',
+  },
+  billMeta: {
+    fontSize: 11,
+    color: '#80868b',
+    marginTop: 2,
+  },
+  billAmount: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  settleBtn: {
+    backgroundColor: '#1a73e8',
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  settleBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  settledBadge: {
+    backgroundColor: '#e6f4ea',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  settledBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#137333',
+  },
+  positiveText: {
+    color: '#137333',
+  },
+  negativeText: {
+    color: '#c5221f',
+  },
+  neutralText: {
+    color: '#5f6368',
+  },
+});

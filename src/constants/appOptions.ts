@@ -6,8 +6,10 @@ export const CATEGORIES = [
   'Bills & Recharge',
   'Entertainment',
   'Health',
+  'Finance',
   'Education',
   'Self-transfers',
+  'Transfers',
   'Other',
 ] as const;
 
