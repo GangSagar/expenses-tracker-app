@@ -106,6 +106,7 @@ describe('System Test Suite for Sample Messages', () => {
     expect(result.transactionType).toBe('credit');
     expect(result.account).toBe('2540');
     expect(result.merchant).toBe('GANGA SAGAR');
+    expect(result.availableBalance).toBe(100120);
   });
 
   it('parses message 2 (PSB Credited with VPA fallback)', () => {
@@ -140,6 +141,7 @@ describe('System Test Suite for Sample Messages', () => {
     );
     expect(result.amount).toBe(1);
     expect(result.transactionType).toBe('credit');
+    expect(result.availableBalance).toBe(1015.58);
   });
 
   it('parses message 5 (BOB Dr. to VPA with 3-digit masked account)', () => {
@@ -152,6 +154,7 @@ describe('System Test Suite for Sample Messages', () => {
     expect(result.transactionType).toBe('debit');
     expect(result.account).toBe('9132');
     expect(result.merchant).toBe('harshithrn@ybl');
+    expect(result.availableBalance).toBe(1015.58);
   });
 
   it('parses message 6 (BOI Credited)', () => {
@@ -163,6 +166,7 @@ describe('System Test Suite for Sample Messages', () => {
     expect(result.amount).toBe(1);
     expect(result.transactionType).toBe('credit');
     expect(result.account).toBe('0604');
+    expect(result.availableBalance).toBe(1121);
   });
 
   it('parses message 7 (BOI Debited with custom merchant)', () => {
@@ -187,6 +191,7 @@ describe('System Test Suite for Sample Messages', () => {
     expect(result.transactionType).toBe('debit');
     expect(result.account).toBe('4000');
     expect(result.merchant).toBe('TECHMASH SOLUTI');
+    expect(result.availableBalance).toBe(8667.02);
   });
 
   it('parses message 9/10 (ICICI 3-digit Account debited)', () => {
@@ -198,6 +203,7 @@ describe('System Test Suite for Sample Messages', () => {
     expect(result.amount).toBe(450.36);
     expect(result.transactionType).toBe('debit');
     expect(result.account).toBe('575');
+    expect(result.availableBalance).toBe(2667.87);
   });
 
   it('parses message 11 (ICICI 3-digit Account NEFT credited)', () => {
@@ -210,6 +216,7 @@ describe('System Test Suite for Sample Messages', () => {
     expect(result.transactionType).toBe('credit');
     expect(result.account).toBe('575');
     expect(result.merchant).toBe('HP PPS');
+    expect(result.availableBalance).toBe(67676.13);
   });
 
   it('parses message 12 (ICICI CC received payment)', () => {
