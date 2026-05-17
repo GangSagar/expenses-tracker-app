@@ -30,6 +30,8 @@ export interface Expense {
   isDuplicate?: boolean;
   availableBalance?: number;
   splits?: ExpenseSplit[];
+  referenceId?: string;
+  isInvalid?: boolean;
 }
 
 export interface ParsedTransaction {
@@ -44,4 +46,5 @@ export interface ParsedTransaction {
   source: TransactionSource;
   timestamp: number;
   availableBalance?: number;
+  referenceId?: string | null;
 }

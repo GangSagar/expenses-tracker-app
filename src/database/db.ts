@@ -78,6 +78,14 @@ function runMigrations(database: QuickSQLiteConnection): void {
     // Column might already exist
   }
 
+  // Create settings table for persistence (e.g., notes/scratchpad)
+  database.execute(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+  `);
+
   // Migration for v1.0.4: Add available_balance column to expenses
   try {
     database.execute('ALTER TABLE expenses ADD COLUMN available_balance REAL;');
@@ -88,6 +96,20 @@ function runMigrations(database: QuickSQLiteConnection): void {
   // Migration for v1.0.5: Add splits column to expenses
   try {
     database.execute('ALTER TABLE expenses ADD COLUMN splits TEXT;');
+  } catch {
+    // Column might already exist
+  }
+
+  // Migration for v1.0.6: Add reference_id column to expenses
+  try {
+    database.execute('ALTER TABLE expenses ADD COLUMN reference_id TEXT;');
+  } catch {
+    // Column might already exist
+  }
+
+  // Migration for v1.0.6: Add is_invalid column to expenses
+  try {
+    database.execute('ALTER TABLE expenses ADD COLUMN is_invalid INTEGER DEFAULT 0;');
   } catch {
     // Column might already exist
   }
