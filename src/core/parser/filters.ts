@@ -4,6 +4,7 @@ import {
   DEBIT_REGEX,
   CREDIT_REGEX,
 } from './regexRules';
+import { classifySMS } from '../classifier/bayesClassifier';
 
 // Matches the standard Indian bank transactional SMS sender format: XX-XXXXXXX
 // Allows alphanumeric suffixes and hyphens (e.g., VM-HDFCBK, AX-SBI123, BP-ICICIB, JM-BOIIND-S)
@@ -60,5 +61,12 @@ export function isTransactionMessage(message: string): boolean {
   if (!DEBIT_REGEX.test(message) && !CREDIT_REGEX.test(message)) {
     return false;
   }
+
+  // Bayesian probability validation to weed out smart marketing/spam
+  const classification = classifySMS(message);
+  if (!classification.isTransaction) {
+    return false;
+  }
+
   return true;
 }
