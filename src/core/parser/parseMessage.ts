@@ -54,6 +54,12 @@ function extractAccount(message: string): string | null {
   return match ? match[1] : null;
 }
 
+function extractReferenceId(message: string): string | null {
+  const REFERENCE_REGEX = /(?:ref\s*(?:no\.?|id)?|reference\s*(?:no\.?|id)?|txn\s*(?:id|no\.?)?|transaction\s*(?:id|no\.?)?)\s*[:.-]?\s*(?:no\.?)?\\s*(\w{6,20})/i;
+  const match = message.match(REFERENCE_REGEX);
+  return match ? match[1] : null;
+}
+
 function extractMerchant(message: string): string | null {
   // Clean up any dates preceded by "on" to prevent matching them as merchants
   let cleanMessage = message.replace(/\bon\s+\d{1,2}[-/.]\w+[-/.]\d{2,4}\b/gi, '');
@@ -252,6 +258,9 @@ export function parseMessage(
   const availableBalance = extractAvailableBalance(message);
   console.log(`Extracted Available Balance: ${availableBalance}`);
 
+  const referenceId = extractReferenceId(message);
+  console.log(`Extracted Reference ID: ${referenceId}`);
+
   console.log('---------------------------');
 
   return {
@@ -266,5 +275,6 @@ export function parseMessage(
     source,
     timestamp: Date.now(),
     availableBalance: availableBalance || undefined,
+    referenceId: referenceId || undefined,
   };
 }

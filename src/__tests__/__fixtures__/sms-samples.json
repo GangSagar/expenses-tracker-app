@@ -6,7 +6,8 @@
             "merchant": "AMAZON",
             "transactionType": "debit",
             "paymentMode": "unknown",
-            "account": "1234"
+            "account": "1234",
+            "bank": "HDFC"
         }
     },
     {
@@ -16,7 +17,8 @@
             "merchant": "SWIGGY",
             "transactionType": "debit",
             "paymentMode": "unknown",
-            "account": "1234"
+            "account": "1234",
+            "bank": "HDFC"
         }
     },
     {
@@ -26,7 +28,8 @@
             "merchant": "JOHN",
             "transactionType": "debit",
             "paymentMode": "unknown",
-            "account": null
+            "account": "123",
+            "bank": "HDFC"
         }
     },
     {
@@ -36,7 +39,8 @@
             "merchant": "Zomato",
             "transactionType": "debit",
             "paymentMode": "wallet",
-            "account": null
+            "account": null,
+            "bank": "HDFC"
         }
     },
     {
@@ -46,7 +50,8 @@
             "merchant": null,
             "transactionType": "credit",
             "paymentMode": "unknown",
-            "account": "1234"
+            "account": "1234",
+            "bank": "HDFC"
         }
     },
     {
@@ -56,7 +61,8 @@
             "merchant": "FLIPKART",
             "transactionType": "debit",
             "paymentMode": "upi",
-            "account": "9876"
+            "account": "9876",
+            "bank": "HDFC"
         }
     },
     {
@@ -78,7 +84,8 @@
             "merchant": "Netflix",
             "transactionType": "debit",
             "paymentMode": "unknown",
-            "account": "5678"
+            "account": "5678",
+            "bank": "HDFC"
         }
     },
     {
@@ -88,7 +95,8 @@
             "merchant": "LANDLORD",
             "transactionType": "debit",
             "paymentMode": "unknown",
-            "account": "2345"
+            "account": "2345",
+            "bank": "HDFC"
         }
     },
     {
@@ -98,7 +106,8 @@
             "merchant": "STARBUCKS INDIA",
             "transactionType": "debit",
             "paymentMode": "unknown",
-            "account": null
+            "account": "4321",
+            "bank": "HDFC"
         }
     },
     {
@@ -108,7 +117,9 @@
             "merchant": "GANGA SAGAR",
             "transactionType": "credit",
             "paymentMode": "upi",
-            "account": "2540"
+            "account": "2540",
+            "bank": "HDFC",
+            "availableBalance": 100120
         }
     },
     {
@@ -118,7 +129,8 @@
             "merchant": "hrnharshit-1",
             "transactionType": "credit",
             "paymentMode": "upi",
-            "account": "2540"
+            "account": "2540",
+            "bank": "HDFC"
         }
     },
     {
@@ -128,7 +140,8 @@
             "merchant": "8957298560@ybl",
             "transactionType": "debit",
             "paymentMode": "upi",
-            "account": "2540"
+            "account": "2540",
+            "bank": "HDFC"
         }
     },
     {
@@ -138,7 +151,9 @@
             "merchant": null,
             "transactionType": "credit",
             "paymentMode": "upi",
-            "account": null
+            "account": null,
+            "bank": "HDFC",
+            "availableBalance": 1015.58
         }
     },
     {
@@ -148,7 +163,9 @@
             "merchant": "harshithrn@ybl",
             "transactionType": "debit",
             "paymentMode": "upi",
-            "account": "9132"
+            "account": "9132",
+            "bank": "HDFC",
+            "availableBalance": 1015.58
         }
     },
     {
@@ -158,7 +175,9 @@
             "merchant": null,
             "transactionType": "credit",
             "paymentMode": "upi",
-            "account": "0604"
+            "account": "0604",
+            "bank": "HDFC",
+            "availableBalance": 1121
         }
     },
     {
@@ -168,7 +187,8 @@
             "merchant": "TOBOX VENTURES PRIVATE LIMIT",
             "transactionType": "debit",
             "paymentMode": "upi",
-            "account": "0604"
+            "account": "0604",
+            "bank": "HDFC"
         }
     },
     {
@@ -178,7 +198,9 @@
             "merchant": "TECHMASH SOLUTI",
             "transactionType": "debit",
             "paymentMode": "unknown",
-            "account": "4000"
+            "account": "4000",
+            "bank": "HDFC",
+            "availableBalance": 8667.02
         }
     },
     {
@@ -188,7 +210,9 @@
             "merchant": null,
             "transactionType": "debit",
             "paymentMode": "unknown",
-            "account": "575"
+            "account": "575",
+            "bank": "HDFC",
+            "availableBalance": 2667.87
         }
     },
     {
@@ -198,7 +222,9 @@
             "merchant": "HP PPS",
             "transactionType": "credit",
             "paymentMode": "unknown",
-            "account": "575"
+            "account": "575",
+            "bank": "HDFC",
+            "availableBalance": 67676.13
         }
     },
     {
@@ -208,7 +234,8 @@
             "merchant": null,
             "transactionType": "credit",
             "paymentMode": "cc",
-            "account": "4000"
+            "account": "4000",
+            "bank": "HDFC"
         }
     },
     {
@@ -219,6 +246,7 @@
             "transactionType": "debit",
             "paymentMode": "unknown",
             "account": "0604",
+            "bank": "HDFC",
             "availableBalance": 25120.50
         }
     }
