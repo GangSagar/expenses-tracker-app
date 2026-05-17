@@ -48,6 +48,7 @@ export function processTransaction(
     bank: parsed.bank,
     paymentMode: parsed.paymentMode,
     isDuplicate: false,
+    availableBalance: parsed.availableBalance,
   };
 
   return { expense, decision };

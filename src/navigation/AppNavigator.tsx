@@ -4,7 +4,10 @@ import { createMaterialTopTabNavigator } from '@react-navigation/material-top-ta
 import { Text } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
 import HistoryScreen from '../screens/HistoryScreen';
+import SplitsScreen from '../screens/SplitsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+
+import AccountsScreen from '../screens/AccountsScreen';
 
 const Tab = createMaterialTopTabNavigator();
 
@@ -48,6 +51,24 @@ export default function AppNavigator() {
           options={{
             tabBarIcon: ({ color }) => (
               <Text style={{ color, fontSize: 20 }}>📋</Text>
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Splits"
+          component={SplitsScreen}
+          options={{
+            tabBarIcon: ({ color }) => (
+              <Text style={{ color, fontSize: 20 }}>👥</Text>
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Accounts"
+          component={AccountsScreen}
+          options={{
+            tabBarIcon: ({ color }) => (
+              <Text style={{ color, fontSize: 20 }}>💳</Text>
             ),
           }}
         />
