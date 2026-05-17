@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import android.net.Uri
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -98,6 +99,45 @@ class MessageModule(reactContext: ReactApplicationContext) :
             .setAutoCancel(true)
 
         notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
+    }
+
+    @ReactMethod
+    fun fetchPastMessages(startTimestamp: Double, promise: Promise) {
+        try {
+            val context = reactApplicationContext ?: throw Exception("React context is null")
+            val uri = Uri.parse("content://sms/inbox")
+            val projection = arrayOf("body", "address", "date")
+            val selection = "date >= ?"
+            val selectionArgs = arrayOf(startTimestamp.toLong().toString())
+            val sortOrder = "date ASC"
+
+            val cursor = context.contentResolver.query(uri, projection, selection, selectionArgs, sortOrder)
+            val list = Arguments.createArray()
+
+            cursor?.use { c ->
+                val bodyIndex = c.getColumnIndexOrThrow("body")
+                val addressIndex = c.getColumnIndexOrThrow("address")
+                val dateIndex = c.getColumnIndexOrThrow("date")
+
+                while (c.moveToNext()) {
+                    val body = c.getString(bodyIndex)
+                    val sender = c.getString(addressIndex)
+                    val date = c.getLong(dateIndex)
+
+                    val map = Arguments.createMap().apply {
+                        putString("body", body)
+                        putString("sender", sender)
+                        putString("source", "sms")
+                        putDouble("timestamp", date.toDouble())
+                    }
+                    list.pushMap(map)
+                }
+            }
+
+            promise.resolve(list)
+        } catch (e: Exception) {
+            promise.reject("FETCH_ERROR", "Failed to query historical SMS messages", e)
+        }
     }
 
     @ReactMethod
