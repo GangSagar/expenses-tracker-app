@@ -112,7 +112,7 @@ class MessageModule(reactContext: ReactApplicationContext) :
             val sortOrder = "date ASC"
 
             val cursor = context.contentResolver.query(uri, projection, selection, selectionArgs, sortOrder)
-            val list = Arguments.createArray()
+            val jsonArray = org.json.JSONArray()
 
             cursor?.use { c ->
                 val bodyIndex = c.getColumnIndexOrThrow("body")
@@ -124,19 +124,116 @@ class MessageModule(reactContext: ReactApplicationContext) :
                     val sender = c.getString(addressIndex)
                     val date = c.getLong(dateIndex)
 
-                    val map = Arguments.createMap().apply {
-                        putString("body", body)
-                        putString("sender", sender)
-                        putString("source", "sms")
-                        putDouble("timestamp", date.toDouble())
+                    // Filter out purely numeric senders (e.g. standard phone numbers)
+                    // Transactional SMS in India always contain letters.
+                    if (sender != null && (sender.matches(Regex(".*[a-zA-Z].*")) || sender.matches(Regex("^\\d{3,6}$")))) {
+                        val obj = org.json.JSONObject().apply {
+                            put("body", body)
+                            put("sender", sender)
+                            put("source", "sms")
+                            put("timestamp", date.toDouble())
+                        }
+                        jsonArray.put(obj)
                     }
-                    list.pushMap(map)
                 }
             }
 
-            promise.resolve(list)
+            promise.resolve(jsonArray.toString())
         } catch (e: Exception) {
             promise.reject("FETCH_ERROR", "Failed to query historical SMS messages", e)
+        }
+    }
+
+    @ReactMethod
+    fun fetchPastMessagesPaged(startTimestamp: Double, pageSize: Int, offset: Int, promise: Promise) {
+        try {
+            val context = reactApplicationContext ?: throw Exception("React context is null")
+            val uri = Uri.parse("content://sms/inbox")
+            val projection = arrayOf("body", "address", "date")
+            val selection = "date >= ?"
+            val selectionArgs = arrayOf(startTimestamp.toLong().toString())
+            // Use sortOrder with LIMIT/OFFSET to page results
+            val sortOrder = "date ASC LIMIT $pageSize OFFSET $offset"
+
+            val cursor = context.contentResolver.query(uri, projection, selection, selectionArgs, sortOrder)
+            val jsonArray = org.json.JSONArray()
+
+            cursor?.use { c ->
+                val bodyIndex = c.getColumnIndexOrThrow("body")
+                val addressIndex = c.getColumnIndexOrThrow("address")
+                val dateIndex = c.getColumnIndexOrThrow("date")
+
+                while (c.moveToNext()) {
+                    val body = c.getString(bodyIndex)
+                    val sender = c.getString(addressIndex)
+                    val date = c.getLong(dateIndex)
+                    // Allow senders that contain letters or short numeric shortcodes (3-6 digits)
+                    if (sender != null && (sender.matches(Regex(".*[a-zA-Z].*")) || sender.matches(Regex("^\\d{3,6}$")))) {
+                        val obj = org.json.JSONObject().apply {
+                            put("body", body)
+                            put("sender", sender)
+                            put("source", "sms")
+                            put("timestamp", date.toDouble())
+                        }
+                        jsonArray.put(obj)
+                    }
+                }
+            }
+
+            promise.resolve(jsonArray.toString())
+        } catch (e: Exception) {
+            promise.reject("FETCH_ERROR", "Failed to query historical SMS messages (paged)", e)
+        }
+    }
+
+    @ReactMethod
+    fun fetchPastMessagesSince(startTimestamp: Double, pageSize: Int, afterTimestamp: Double, promise: Promise) {
+        try {
+            val context = reactApplicationContext ?: throw Exception("React context is null")
+            val uri = Uri.parse("content://sms/inbox")
+            val projection = arrayOf("body", "address", "date")
+
+            // Build selection depending on whether afterTimestamp is provided
+            val selection: String
+            val selectionArgs: Array<String>
+            if (afterTimestamp <= 0.0) {
+                selection = "date >= ?"
+                selectionArgs = arrayOf(startTimestamp.toLong().toString())
+            } else {
+                selection = "date >= ? AND date > ?"
+                selectionArgs = arrayOf(startTimestamp.toLong().toString(), afterTimestamp.toLong().toString())
+            }
+
+            val sortOrder = "date ASC LIMIT $pageSize"
+
+            val cursor = context.contentResolver.query(uri, projection, selection, selectionArgs, sortOrder)
+            val jsonArray = org.json.JSONArray()
+
+            cursor?.use { c ->
+                val bodyIndex = c.getColumnIndexOrThrow("body")
+                val addressIndex = c.getColumnIndexOrThrow("address")
+                val dateIndex = c.getColumnIndexOrThrow("date")
+
+                while (c.moveToNext()) {
+                    val body = c.getString(bodyIndex)
+                    val sender = c.getString(addressIndex)
+                    val date = c.getLong(dateIndex)
+
+                    if (sender != null && (sender.matches(Regex(".*[a-zA-Z].*")) || sender.matches(Regex("^\\d{3,6}$")))) {
+                        val obj = org.json.JSONObject().apply {
+                            put("body", body)
+                            put("sender", sender)
+                            put("source", "sms")
+                            put("timestamp", date.toDouble())
+                        }
+                        jsonArray.put(obj)
+                    }
+                }
+            }
+
+            promise.resolve(jsonArray.toString())
+        } catch (e: Exception) {
+            promise.reject("FETCH_ERROR", "Failed to query historical SMS messages (since)", e)
         }
     }
 

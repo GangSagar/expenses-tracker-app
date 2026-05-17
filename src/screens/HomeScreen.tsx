@@ -26,6 +26,7 @@ export default function HomeScreen() {
   const isFocused = useIsFocused();
   const navigation = useNavigation<any>();
   const [budgetLimit, setBudgetLimit] = useState(20000);
+  const [hiddenAccounts, setHiddenAccounts] = useState<string[]>([]);
 
   useEffect(() => {
     loadExpenses();
@@ -35,6 +36,13 @@ export default function HomeScreen() {
     if (isFocused) {
       const saved = getSetting('monthly_budget_limit', '20000');
       setBudgetLimit(Number(saved) || 20000);
+
+      try {
+        const savedHidden = getSetting('hidden_accounts', '[]');
+        setHiddenAccounts(JSON.parse(savedHidden));
+      } catch (e) {
+        console.error('Failed to parse hidden accounts', e);
+      }
     }
   }, [isFocused]);
 
@@ -55,6 +63,7 @@ export default function HomeScreen() {
   for (const e of activeExpenses) {
     if (!e.bank || !e.account) continue;
     const key = `${e.bank}::${e.account}`;
+    if (hiddenAccounts.includes(key)) continue; // Completely hide from calculations and UI
     if (!accountGroups[key]) accountGroups[key] = [];
     accountGroups[key].push(e);
   }

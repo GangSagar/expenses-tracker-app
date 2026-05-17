@@ -2,6 +2,7 @@ import { Expense, ParsedTransaction } from '../types/expense';
 import { classify } from '../core/classifier';
 import { calculateConfidence } from '../core/confidence';
 import { isDuplicate } from '../core/dedup';
+import { isSpam } from '../core/classifier/spamClassifier';
 import { insertExpense, getRecentExpenses } from '../database/expenseRepo';
 
 export type ExpenseDecision = 'auto_save' | 'show_popup' | 'discard';
@@ -51,6 +52,12 @@ export function processTransaction(
     availableBalance: parsed.availableBalance,
     referenceId: parsed.referenceId || undefined,
   };
+
+  if (isSpam(parsed.rawMessage)) {
+    expense.isInvalid = true;
+    expense.trashReason = 'spam';
+    decision = 'auto_save'; // Save directly to trash without popup
+  }
 
   return { expense, decision };
 }

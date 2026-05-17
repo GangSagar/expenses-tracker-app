@@ -12,6 +12,7 @@ import {
 import { useExpenseStore } from '../hooks/useExpenses';
 import { Expense, Category } from '../types/expense';
 import { CATEGORIES as APP_CATEGORIES } from '../constants/appOptions';
+import { trainSpam } from '../core/classifier/spamClassifier';
 import EditTransactionModal from '../components/EditTransactionModal';
 import CalendarModal from '../components/CalendarModal';
 import { getGroupedSections } from '../utils/dateHelpers';
@@ -60,6 +61,10 @@ export default function HistoryScreen() {
   // Modal State for Editing
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+
+  // Trash Options Modal
+  const [trashOptionsVisible, setTrashOptionsVisible] = useState(false);
+  const [selectedTrashExpense, setSelectedTrashExpense] = useState<Expense | null>(null);
 
   // Collapse State
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -167,8 +172,39 @@ export default function HistoryScreen() {
     filterEndDate !== null;
 
   const handleEditExpense = (expense: Expense) => {
-    setEditingExpense(expense);
-    setModalVisible(true);
+    if (viewMode === 'trash' || expense.isInvalid) {
+      setSelectedTrashExpense(expense);
+      setTrashOptionsVisible(true);
+    } else {
+      setEditingExpense(expense);
+      setModalVisible(true);
+    }
+  };
+
+  const handleTrashOption = (action: 'restore' | 'spam' | 'duplicate' | 'false' | 'other') => {
+    if (!selectedTrashExpense || !selectedTrashExpense.id) return;
+    const id = selectedTrashExpense.id;
+
+    if (action === 'restore') {
+      // Un-trash
+      useExpenseStore.getState().invalidateExpense(id, false);
+      // If it was marked as spam previously, untrain
+      if (selectedTrashExpense.trashReason === 'spam') {
+        trainSpam(selectedTrashExpense.rawMessage, false);
+      }
+    } else {
+      // Keep trashed, but update reason
+      useExpenseStore.getState().invalidateExpense(id, true);
+      useExpenseStore.getState().updateTrashReason(id, action);
+      
+      // If marked as spam, train AI
+      if (action === 'spam') {
+        trainSpam(selectedTrashExpense.rawMessage, true);
+      }
+    }
+
+    setTrashOptionsVisible(false);
+    setSelectedTrashExpense(null);
   };
 
   const activeCount = expenses.filter(e => !e.isInvalid).length;
@@ -416,6 +452,11 @@ export default function HistoryScreen() {
                   </Text>
                 </View>
               )}
+              {item.isInvalid && item.trashReason && (
+                <View style={styles.trashReasonBadge}>
+                  <Text style={styles.trashReasonText}>Tag: {item.trashReason.toUpperCase()}</Text>
+                </View>
+              )}
             </View>
             <Text
               style={[
@@ -455,6 +496,46 @@ export default function HistoryScreen() {
         onAddManual={() => {}}
         isAddMode={false}
       />
+
+      <Modal
+        visible={trashOptionsVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setTrashOptionsVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.optionsModalBox}>
+            <Text style={styles.optionsModalTitle}>Manage Trashed Item</Text>
+            
+            <TouchableOpacity style={styles.optionBtnRestore} onPress={() => handleTrashOption('restore')}>
+              <Text style={styles.optionBtnRestoreText}>✅ Restore to Active</Text>
+            </TouchableOpacity>
+
+            <View style={styles.optionsDivider} />
+            <Text style={styles.optionsSubtitle}>Tag this transaction:</Text>
+
+            <TouchableOpacity style={styles.optionBtn} onPress={() => handleTrashOption('spam')}>
+              <Text style={styles.optionBtnText}>🛑 Mark as Spam (Trains AI)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.optionBtn} onPress={() => handleTrashOption('duplicate')}>
+              <Text style={styles.optionBtnText}>👯 Mark as Duplicate</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.optionBtn} onPress={() => handleTrashOption('false')}>
+              <Text style={styles.optionBtnText}>⚠️ Mark as False Transaction</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.optionBtn} onPress={() => handleTrashOption('other')}>
+              <Text style={styles.optionBtnText}>🗑️ Other Reason</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setTrashOptionsVisible(false)}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={calendarVisible}
@@ -788,6 +869,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#137333',
   },
+  trashReasonBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fce8e6',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  trashReasonText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#c5221f',
+  },
   amount: {
     fontSize: 15,
     fontWeight: '700',
@@ -798,6 +894,76 @@ const styles = StyleSheet.create({
   },
   credit: {
     color: '#137333',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  optionsModalBox: {
+    width: '85%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+  },
+  optionsModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#202124',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  optionBtnRestore: {
+    backgroundColor: '#e6f4ea',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  optionBtnRestoreText: {
+    color: '#137333',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  optionsDivider: {
+    height: 1,
+    backgroundColor: '#f1f3f4',
+    marginVertical: 10,
+  },
+  optionsSubtitle: {
+    fontSize: 13,
+    color: '#5f6368',
+    marginBottom: 10,
+    fontWeight: '600',
+  },
+  optionBtn: {
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e8eaed',
+  },
+  optionBtnText: {
+    color: '#3c4043',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  cancelBtn: {
+    marginTop: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    color: '#80868b',
+    fontWeight: '600',
+    fontSize: 14,
   },
   empty: {
     alignItems: 'center',
