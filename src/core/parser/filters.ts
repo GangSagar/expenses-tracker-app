@@ -27,6 +27,11 @@ export function isTransactionalSender(sender: string): boolean {
     return false;
   }
 
+  // Allow short numeric shortcodes (3-6 digits) used by some banks/services
+  if (/^\d{3,6}$/.test(sender)) {
+    return true;
+  }
+
   // Strong bypass: if it contains any known bank keywords (e.g. BOI, HDFC, SBI), accept it immediately!
   const upperSender = sender.toUpperCase();
   for (const bank of KNOWN_BANKS) {

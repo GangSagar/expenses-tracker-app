@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import { Expense } from '../types/expense';
 import EditTransactionModal from '../components/EditTransactionModal';
 import { formatAmount } from '../utils/formatHelpers';
 import { getSetting, setSetting } from '../database/expenseRepo';
+import { useFocusEffect } from '@react-navigation/native';
+import { Modal as RNModal } from 'react-native';
 
 interface AccountSummary {
   bank: string;
@@ -70,6 +72,10 @@ export default function AccountsScreen() {
   const [accountTypesOverride, setAccountTypesOverride] = useState<Record<string, 'cc' | 'debit'>>({});
   const [selectedFilter, setSelectedFilter] = useState<'All' | 'debit' | 'cc'>('All');
   const [ignoredSignatures, setIgnoredSignatures] = useState<string[]>([]);
+  const [hiddenAccounts, setHiddenAccounts] = useState<string[]>([]);
+  
+  const [optionsModalVisible, setOptionsModalVisible] = useState(false);
+  const [selectedOptionsCard, setSelectedOptionsCard] = useState<{bank: string, account: string} | null>(null);
 
   const flatListRef = useRef<FlatList<AccountSummary>>(null);
 
@@ -84,15 +90,20 @@ export default function AccountsScreen() {
     }
   }, [selectedFilter]);
 
-  // Load ignored anomalies on mount
-  useEffect(() => {
-    try {
-      const saved = getSetting('ignored_anomalies', '[]');
-      setIgnoredSignatures(JSON.parse(saved));
-    } catch (e) {
-      console.error('Failed to parse ignored anomalies', e);
-    }
-  }, []);
+  // Load ignored anomalies whenever screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      try {
+        const savedAnomalies = getSetting('ignored_anomalies', '[]');
+        setIgnoredSignatures(JSON.parse(savedAnomalies));
+
+        const savedHidden = getSetting('hidden_accounts', '[]');
+        setHiddenAccounts(JSON.parse(savedHidden));
+      } catch (e) {
+        console.error('Failed to parse settings in Accounts', e);
+      }
+    }, [])
+  );
 
   const activeExpenses = expenses.filter(e => !e.isInvalid);
 
@@ -101,6 +112,7 @@ export default function AccountsScreen() {
   for (const e of activeExpenses) {
     if (!e.bank || !e.account) continue;
     const key = `${e.bank}::${e.account}`;
+    if (hiddenAccounts.includes(key)) continue; // Completely skip hidden accounts
     if (!accountGroups[key]) accountGroups[key] = [];
     accountGroups[key].push(e);
   }
@@ -220,8 +232,24 @@ export default function AccountsScreen() {
     return accountTypesOverride[key] || saved || defaultType;
   };
 
-  // Separate Debit vs Credit Cards
+  const openCardOptions = (bank: string, account: string) => {
+    setSelectedOptionsCard({ bank, account });
+    setOptionsModalVisible(true);
+  };
 
+  const handleHideCard = () => {
+    if (!selectedOptionsCard) return;
+    const key = `${selectedOptionsCard.bank}::${selectedOptionsCard.account}`;
+    const newList = [...hiddenAccounts, key];
+    setHiddenAccounts(newList);
+    setSetting('hidden_accounts', JSON.stringify(newList));
+    setOptionsModalVisible(false);
+  };
+
+  const handleRestoreHiddenCards = () => {
+    setHiddenAccounts([]);
+    setSetting('hidden_accounts', '[]');
+  };
 
   // Ignored Anomalies Actions
   const handleIgnoreAnomaly = (anomaly: MissingAnomaly) => {
@@ -296,15 +324,24 @@ export default function AccountsScreen() {
           <Text style={styles.bankName}>{item.bank.toUpperCase()}</Text>
           
           {/* Interactive Toggle Capsule */}
-          <TouchableOpacity 
-            style={[styles.toggleBadge, cardType === 'cc' ? styles.toggleBadgeCc : styles.toggleBadgeDebit]}
-            onPress={() => toggleAccountType(item.bank, item.account)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.toggleBadgeText, cardType === 'cc' && styles.toggleBadgeTextCc]}>
-              {cardType === 'cc' ? '💳 CREDIT CARD' : '🏦 DEBIT CARD'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.cardHeaderRight}>
+            <TouchableOpacity 
+              style={[styles.toggleBadge, cardType === 'cc' ? styles.toggleBadgeCc : styles.toggleBadgeDebit]}
+              onPress={() => toggleAccountType(item.bank, item.account)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.toggleBadgeText, cardType === 'cc' && styles.toggleBadgeTextCc]}>
+                {cardType === 'cc' ? '💳 CREDIT CARD' : '🏦 DEBIT CARD'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.optionsDotBtn} 
+              onPress={() => openCardOptions(item.bank, item.account)}
+            >
+              <Text style={styles.optionsDotIcon}>⋮</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         <Text style={styles.balance}>{formatAmount(item.latestBalance)}</Text>
         <View style={styles.cardFooter}>
@@ -326,6 +363,15 @@ export default function AccountsScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Bank Sync & Ledger Accounts</Text>
+        {hiddenAccounts.length > 0 && (
+          <TouchableOpacity 
+            style={styles.headerRightBtn} 
+            onPress={handleRestoreHiddenCards}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.headerRightBtnText}>👁️ Unhide ({hiddenAccounts.length})</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -452,7 +498,33 @@ export default function AccountsScreen() {
             <Text style={styles.resetIgnoredBtnText}>🔄 Reset & Show {ignoredSignatures.length} Ignored Anomalies</Text>
           </TouchableOpacity>
         )}
+
       </ScrollView>
+
+      {/* Card Options Modal */}
+      <RNModal
+        visible={optionsModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOptionsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.optionsModalBox}>
+            <Text style={styles.optionsModalTitle}>
+              Card Options
+              {selectedOptionsCard ? ` (${selectedOptionsCard.bank} ${selectedOptionsCard.account})` : ''}
+            </Text>
+
+            <TouchableOpacity style={styles.optionBtnDanger} onPress={handleHideCard}>
+              <Text style={styles.optionBtnDangerText}>🚫 Hide this Card</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setOptionsModalVisible(false)}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </RNModal>
 
       <EditTransactionModal
         expense={selectedPrefill}
@@ -479,11 +551,26 @@ const styles = StyleSheet.create({
     paddingTop: 48,
     paddingBottom: 20,
     paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#fff',
+    flex: 1,
+  },
+  headerRightBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  headerRightBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
   },
   scrollContent: {
     paddingBottom: 40,
@@ -594,12 +681,18 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  cardHeaderRight: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   bankName: {
     color: '#fff',
     fontSize: 15,
     fontWeight: '800',
+    flex: 1,
   },
   toggleBadge: {
     paddingHorizontal: 8,
@@ -623,6 +716,15 @@ const styles = StyleSheet.create({
   },
   toggleBadgeTextCc: {
     color: '#c5a059',
+  },
+  optionsDotBtn: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  optionsDotIcon: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
   },
   balance: {
     color: '#fff',
@@ -802,7 +904,52 @@ const styles = StyleSheet.create({
   },
   resetIgnoredBtnText: {
     color: '#1a73e8',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  optionsModalBox: {
+    width: '85%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+  },
+  optionsModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#202124',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  optionBtnDanger: {
+    backgroundColor: '#fce8e6',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  optionBtnDangerText: {
+    color: '#d93025',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  cancelBtn: {
+    marginTop: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    color: '#80868b',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

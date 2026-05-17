@@ -32,6 +32,7 @@ export interface Expense {
   splits?: ExpenseSplit[];
   referenceId?: string;
   isInvalid?: boolean;
+  trashReason?: 'spam' | 'false' | 'duplicate' | 'other';
 }
 
 export interface ParsedTransaction {

@@ -38,6 +38,7 @@ function runMigrations(database: QuickSQLiteConnection): void {
       splits TEXT,
       reference_id TEXT,
       is_invalid INTEGER DEFAULT 0,
+      trash_reason TEXT,
       created_at INTEGER DEFAULT (strftime('%s', 'now'))
     );
   `);
@@ -106,6 +107,13 @@ function runMigrations(database: QuickSQLiteConnection): void {
   // Migration for v1.0.6: Add is_invalid column to expenses
   try {
     database.execute('ALTER TABLE expenses ADD COLUMN is_invalid INTEGER DEFAULT 0;');
+  } catch {
+    // Column might already exist
+  }
+
+  // Migration for v1.0.7: Add trash_reason column to expenses
+  try {
+    database.execute('ALTER TABLE expenses ADD COLUMN trash_reason TEXT;');
   } catch {
     // Column might already exist
   }
