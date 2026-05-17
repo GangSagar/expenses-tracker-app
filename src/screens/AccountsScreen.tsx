@@ -10,6 +10,7 @@ import {
 import { useExpenseStore } from '../hooks/useExpenses';
 import { Expense } from '../types/expense';
 import EditTransactionModal from '../components/EditTransactionModal';
+import { formatAmount } from '../utils/formatHelpers';
 
 interface AccountSummary {
   bank: string;
@@ -29,15 +30,7 @@ interface MissingAnomaly {
   endDate: number;
 }
 
-function formatAmount(amount: number): string {
-  const isNegative = amount < 0;
-  const absAmount = Math.abs(amount);
-  const formatted = absAmount.toLocaleString('en-IN', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
-  return `${isNegative ? '-' : ''}₹${formatted}`;
-}
+
 
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp);
@@ -54,11 +47,13 @@ export default function AccountsScreen() {
   const [selectedPrefill, setSelectedPrefill] = useState<Expense | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
+  const activeExpenses = expenses.filter(e => !e.isInvalid);
+
   // Group by unique bank + account pairs
   const accountGroups: Record<string, Expense[]> = {};
-  for (const e of expenses) {
+  for (const e of activeExpenses) {
     if (!e.bank || !e.account) continue;
-    const key = `${e.bank}-${e.account}`;
+    const key = `${e.bank}::${e.account}`;
     if (!accountGroups[key]) accountGroups[key] = [];
     accountGroups[key].push(e);
   }
@@ -68,7 +63,7 @@ export default function AccountsScreen() {
   const anomalies: MissingAnomaly[] = [];
 
   for (const [key, list] of Object.entries(accountGroups)) {
-    const [bank, account] = key.split('-');
+    const [bank, account] = key.split('::');
     // Sort transactions chronological (oldest to newest)
     const sorted = [...list].sort((a, b) => a.timestamp - b.timestamp);
 
@@ -78,11 +73,24 @@ export default function AccountsScreen() {
       .find(e => e.availableBalance !== undefined && e.availableBalance !== null);
 
     if (latestWithBal && latestWithBal.availableBalance !== undefined) {
+      let latestBalance = latestWithBal.availableBalance;
+      const latestIdx = sorted.indexOf(latestWithBal);
+      
+      // Apply subsequent transaction deltas to compute true current balance
+      for (let idx = latestIdx + 1; idx < sorted.length; idx++) {
+        const subsequent = sorted[idx];
+        if (subsequent.transactionType === 'debit') {
+          latestBalance -= subsequent.amount;
+        } else {
+          latestBalance += subsequent.amount;
+        }
+      }
+
       accounts.push({
         bank,
         account,
-        latestBalance: latestWithBal.availableBalance,
-        lastUpdated: latestWithBal.timestamp,
+        latestBalance,
+        lastUpdated: sorted[sorted.length - 1].timestamp,
       });
     }
 

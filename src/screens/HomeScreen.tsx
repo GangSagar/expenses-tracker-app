@@ -1,79 +1,95 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  TouchableOpacity,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useExpenseStore } from '../hooks/useExpenses';
 import { Expense } from '../types/expense';
 import EditTransactionModal from '../components/EditTransactionModal';
-
-function formatAmount(amount: number): string {
-  const isNegative = amount < 0;
-  const absAmount = Math.abs(amount);
-  const formatted = absAmount.toLocaleString('en-IN', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
-  return `${isNegative ? '-' : ''}₹${formatted}`;
-}
-
-function formatDate(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function ExpenseItem({ item, onPress }: { item: Expense, onPress: () => void }) {
-  const isCredit = item.transactionType === 'credit';
-
-  return (
-    <TouchableOpacity style={styles.expenseItem} onPress={onPress}>
-      <View style={styles.expenseLeft}>
-        <Text style={styles.merchant}>{item.merchant}</Text>
-        <Text style={styles.category}>{item.category}</Text>
-        <Text style={styles.date}>{formatDate(item.timestamp)}</Text>
-        {item.splits && item.splits.length > 0 && (
-          <View style={styles.splitBadgeContainer}>
-            <Text style={styles.splitBadgeText}>
-              👥 Split: {item.splits.map(s => `${s.contactName} (₹${s.amount})`).join(', ')}
-            </Text>
-          </View>
-        )}
-      </View>
-      <View style={styles.expenseRight}>
-        <Text style={[styles.amount, isCredit ? styles.credit : styles.debit]}>
-          {isCredit ? '+' : '-'}
-          {formatAmount(item.amount)}
-        </Text>
-        <View style={styles.badges}>
-          {item.bank && <Text style={styles.bankBadge}>{item.bank}</Text>}
-          <Text style={styles.paymentMode}>{item.paymentMode || ''}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-}
+import ExpenseItem from '../components/ExpenseItem';
+import { formatAmount, getCategoryColor, getBankColor } from '../utils/formatHelpers';
 
 export default function HomeScreen() {
   const { expenses, loading, loadExpenses, updateExpense, addManualExpense } = useExpenseStore();
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [isAddMode, setIsAddMode] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const navigation = useNavigation<any>();
 
   useEffect(() => {
     loadExpenses();
   }, [loadExpenses]);
 
-  const totalCredits = expenses
+  const activeExpenses = expenses.filter(e => !e.isInvalid);
+
+  const totalCredits = activeExpenses
     .filter(e => e.transactionType === 'credit')
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
-  const totalDebits = expenses
+  const totalDebits = activeExpenses
     .filter(e => e.transactionType === 'debit')
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
   const currentBalance = totalCredits - totalDebits;
+
+  // 1. Calculate Account Balances for Carousel (using live math delta logic)
+  const accountGroups: Record<string, Expense[]> = {};
+  for (const e of activeExpenses) {
+    if (!e.bank || !e.account) continue;
+    const key = `${e.bank}::${e.account}`;
+    if (!accountGroups[key]) accountGroups[key] = [];
+    accountGroups[key].push(e);
+  }
+
+  const accountsList: { bank: string; account: string; balance: number }[] = [];
+  for (const [key, list] of Object.entries(accountGroups)) {
+    const [bank, account] = key.split('::');
+    const sorted = [...list].sort((a, b) => a.timestamp - b.timestamp);
+    const latestWithBal = [...sorted]
+      .reverse()
+      .find(e => e.availableBalance !== undefined && e.availableBalance !== null);
+
+    if (latestWithBal && latestWithBal.availableBalance !== undefined) {
+      let balance = latestWithBal.availableBalance;
+      const latestIdx = sorted.indexOf(latestWithBal);
+      for (let idx = latestIdx + 1; idx < sorted.length; idx++) {
+        const subsequent = sorted[idx];
+        if (subsequent.transactionType === 'debit') {
+          balance -= subsequent.amount;
+        } else {
+          balance += subsequent.amount;
+        }
+      }
+      accountsList.push({ bank, account, balance });
+    }
+  }
+
+  // 2. Calculate Category Insights (Top 3 Debits)
+  const categoryTotals = activeExpenses
+    .filter(e => e.transactionType === 'debit')
+    .reduce((acc, e) => {
+      const cat = e.category || 'Other';
+      acc[cat] = (acc[cat] || 0) + e.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+  const totalDebit = Object.values(categoryTotals).reduce((sum, val) => sum + val, 0);
+
+  const topCategories = Object.entries(categoryTotals)
+    .map(([category, amount]) => ({
+      category,
+      amount,
+      percentage: totalDebit > 0 ? (amount / totalDebit) * 100 : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 3);
+
+
 
   const handleEditExpense = (expense: Expense) => {
     setEditingExpense(expense);
@@ -87,48 +103,177 @@ export default function HomeScreen() {
     setModalVisible(true);
   };
 
+  const handleAddSplit = () => {
+    // Intelligently pre-populate one empty split contact to trigger Splits mode in modal
+    setEditingExpense({
+      amount: 0,
+      merchant: '',
+      category: 'Other',
+      source: 'manual',
+      transactionType: 'debit',
+      splits: [{ contactName: '', amount: 0 }],
+    } as any);
+    setIsAddMode(true);
+    setModalVisible(true);
+  };
+
+  const recentExpenses = activeExpenses.slice(0, 5);
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Expense Tracker</Text>
-        <View style={styles.totalCard}>
-          <View style={styles.balanceSection}>
-            <Text style={styles.totalLabel}>Current Balance</Text>
-            <Text style={styles.totalAmount}>{formatAmount(currentBalance)}</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.statsRow}>
-            <View style={styles.statCol}>
-              <Text style={styles.statLabel}>Income</Text>
-              <Text style={styles.incomeAmount}>+{formatAmount(totalCredits)}</Text>
-            </View>
-            <View style={styles.statCol}>
-              <Text style={styles.statLabel}>Expense</Text>
-              <Text style={styles.expenseAmount}>-{formatAmount(totalDebits)}</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      <FlatList
-        data={expenses}
-        keyExtractor={item => String(item.id)}
-        renderItem={({ item }) => <ExpenseItem item={item} onPress={() => handleEditExpense(item)} />}
-        contentContainerStyle={styles.list}
+      {/* Scrollable Dashboard Context */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={loadExpenses} />
         }
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No expenses yet</Text>
-            <Text style={styles.emptySubtext}>
-              Transactions will appear here automatically
-            </Text>
+      >
+        {/* Header Section */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Dashboard</Text>
+          <View style={styles.totalCard}>
+            <View style={styles.balanceSection}>
+              <Text style={styles.totalLabel}>CURRENT NET BALANCE</Text>
+              <Text style={styles.totalAmount}>{formatAmount(currentBalance)}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.statsRow}>
+              <View style={styles.statCol}>
+                <Text style={styles.statLabel}>INCOME</Text>
+                <Text style={styles.incomeAmount}>+{formatAmount(totalCredits)}</Text>
+              </View>
+              <View style={styles.verticalDivider} />
+              <View style={styles.statCol}>
+                <Text style={styles.statLabel}>EXPENSES</Text>
+                <Text style={styles.expenseAmount}>-{formatAmount(totalDebits)}</Text>
+              </View>
+            </View>
           </View>
-        }
-      />
+        </View>
 
-      <TouchableOpacity style={styles.fab} onPress={handleAddCash}>
+        {/* Quick Actions Shortcuts */}
+        <View style={styles.quickActionCard}>
+          <Text style={styles.sectionHeading}>Quick Actions</Text>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.actionBtn} onPress={handleAddCash}>
+              <Text style={styles.actionIcon}>💵</Text>
+              <Text style={styles.actionText}>Add Cash</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionBtn} onPress={handleAddSplit}>
+              <Text style={styles.actionIcon}>👥</Text>
+              <Text style={styles.actionText}>Split Bill</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Accounts')}>
+              <Text style={styles.actionIcon}>🏦</Text>
+              <Text style={styles.actionText}>Accounts</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Miniature Bank Cards Carousel */}
+        {accountsList.length > 0 && (
+          <View style={styles.carouselContainer}>
+            <Text style={styles.sectionHeading}>Your Bank Accounts</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carouselScroll}
+            >
+              {accountsList.map((acc) => {
+                const colors = getBankColor(acc.bank);
+                return (
+                  <TouchableOpacity
+                    key={`${acc.bank}-${acc.account}`}
+                    style={[styles.bankMiniCard, { backgroundColor: colors[0] }]}
+                    onPress={() => navigation.navigate('Accounts')}
+                    activeOpacity={0.9}
+                  >
+                    <Text style={styles.bankName}>{acc.bank}</Text>
+                    <Text style={styles.bankNumber}>•••• {acc.account}</Text>
+                    <View style={styles.cardBalanceRow}>
+                      <Text style={styles.bankBalanceLabel}>Balance</Text>
+                      <Text style={styles.bankBalance}>{formatAmount(acc.balance)}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Top Spending Analytics */}
+        {topCategories.length > 0 && (
+          <View style={styles.insightsCard}>
+            <Text style={styles.sectionHeading}>Spending Insights</Text>
+            <View style={styles.insightsList}>
+              {topCategories.map((cat, index) => {
+                const color = getCategoryColor(cat.category, index);
+                return (
+                  <View key={cat.category} style={styles.insightItem}>
+                    <View style={styles.insightHeader}>
+                      <Text style={styles.insightCategory}>{cat.category}</Text>
+                      <Text style={styles.insightAmount}>
+                        {formatAmount(cat.amount)} ({cat.percentage.toFixed(0)}%)
+                      </Text>
+                    </View>
+                    <View style={styles.progressBg}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          { backgroundColor: color, width: `${cat.percentage}%` },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Recent Activity Section */}
+        <View style={styles.recentActivityHeader}>
+          <Text style={styles.sectionHeading}>Recent Transactions</Text>
+          {expenses.length > 5 && (
+            <TouchableOpacity onPress={() => navigation.navigate('History')}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {recentExpenses.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>No transactions yet</Text>
+            <Text style={styles.emptySubtext}>Your recent activity will be listed here.</Text>
+          </View>
+        ) : (
+          <View style={styles.recentList}>
+            {recentExpenses.map(item => (
+              <ExpenseItem
+                key={String(item.id)}
+                item={item}
+                onPress={() => handleEditExpense(item)}
+              />
+            ))}
+          </View>
+        )}
+
+        {recentExpenses.length > 0 && (
+          <TouchableOpacity
+            style={styles.viewHistoryBtn}
+            onPress={() => navigation.navigate('History')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.viewHistoryBtnText}>View Full Ledger History →</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+
+      {/* Manual Transaction Float Trigger */}
+      <TouchableOpacity style={styles.fab} onPress={handleAddCash} activeOpacity={0.8}>
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
 
@@ -152,31 +297,39 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  scrollContent: {
+    paddingBottom: 100,
+  },
   header: {
     backgroundColor: '#1a73e8',
     paddingTop: 48,
     paddingBottom: 24,
     paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#fff',
     marginBottom: 16,
   },
   totalCard: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderRadius: 16,
     padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   totalLabel: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-    fontWeight: '500',
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   totalAmount: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 30,
+    fontWeight: '800',
     color: '#fff',
     marginTop: 2,
   },
@@ -186,49 +339,190 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginVertical: 10,
+    marginVertical: 12,
   },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
   statCol: {
     flex: 1,
+    alignItems: 'center',
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 9,
     color: 'rgba(255, 255, 255, 0.7)',
-    fontWeight: '500',
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
   incomeAmount: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#a5d6a7',
-    marginTop: 1,
   },
   expenseAmount: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#ef9a9a',
-    marginTop: 1,
   },
-  list: {
-    padding: 16,
+  verticalDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
-  expenseItem: {
+  sectionHeading: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#202124',
+    marginBottom: 12,
+  },
+  quickActionCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: 20,
     padding: 16,
-    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e8eaed',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  actionBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  actionIcon: {
+    fontSize: 24,
+    marginBottom: 6,
+  },
+  actionText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#5f6368',
+  },
+  carouselContainer: {
+    marginTop: 20,
+    paddingLeft: 16,
+  },
+  carouselScroll: {
+    paddingRight: 16,
+    gap: 12,
+  },
+  bankMiniCard: {
+    width: 160,
+    height: 100,
+    borderRadius: 14,
+    padding: 12,
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  bankName: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#fff',
+    opacity: 0.95,
+  },
+  bankNumber: {
+    fontSize: 10,
+    color: '#fff',
+    opacity: 0.7,
+    marginTop: -16,
+  },
+  cardBalanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  bankBalanceLabel: {
+    fontSize: 8,
+    color: '#fff',
+    opacity: 0.8,
+    textTransform: 'uppercase',
+  },
+  bankBalance: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  insightsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e8eaed',
+  },
+  insightsList: {
+    gap: 12,
+  },
+  insightItem: {
+    width: '100%',
+  },
+  insightHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  insightCategory: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3c4043',
+  },
+  insightAmount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#202124',
+  },
+  progressBg: {
+    height: 6,
+    backgroundColor: '#f1f3f4',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  recentActivityHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    elevation: 1,
+    marginHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 10,
+  },
+  seeAllText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1a73e8',
+  },
+  recentList: {
+    marginHorizontal: 16,
+    gap: 8,
+  },
+  expenseItem: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e8eaed',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.03,
     shadowRadius: 2,
+    elevation: 1,
   },
   expenseLeft: {
     flex: 1,
@@ -237,70 +531,55 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   merchant: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: '#202124',
   },
   category: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 11,
+    color: '#5f6368',
     marginTop: 2,
   },
   date: {
-    fontSize: 11,
-    color: '#999',
+    fontSize: 10,
+    color: '#9cc0e0',
     marginTop: 4,
+    display: 'none', // Hide standard simple date, we place formatting
   },
   amount: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
   debit: {
-    color: '#d32f2f',
+    color: '#d93025',
   },
   credit: {
-    color: '#2e7d32',
+    color: '#188038',
   },
   badges: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
+    gap: 4,
+    marginTop: 6,
   },
   bankBadge: {
-    fontSize: 10,
-    backgroundColor: '#e3f2fd',
+    fontSize: 9,
+    backgroundColor: '#e8f0fe',
     color: '#1a73e8',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    fontWeight: '600',
-    overflow: 'hidden',
+    fontWeight: '700',
   },
   paymentMode: {
-    fontSize: 10,
-    backgroundColor: '#f5f5f5',
-    color: '#666',
+    fontSize: 9,
+    backgroundColor: '#f1f3f4',
+    color: '#5f6368',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    fontWeight: '600',
+    fontWeight: '700',
     textTransform: 'uppercase',
-    overflow: 'hidden',
-  },
-  empty: {
-    alignItems: 'center',
-    paddingTop: 60,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#666',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
   },
   splitBadgeContainer: {
     flexDirection: 'row',
@@ -313,9 +592,45 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   splitBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 9,
+    fontWeight: '700',
     color: '#137333',
+  },
+  viewHistoryBtn: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#1a73e8',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  viewHistoryBtnText: {
+    color: '#1a73e8',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  empty: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e8eaed',
+  },
+  emptyText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#5f6368',
+  },
+  emptySubtext: {
+    fontSize: 11,
+    color: '#80868b',
+    marginTop: 4,
   },
   fab: {
     position: 'absolute',

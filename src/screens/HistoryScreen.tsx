@@ -7,120 +7,42 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { useExpenseStore } from '../hooks/useExpenses';
 import { Expense, Category } from '../types/expense';
 import { CATEGORIES as APP_CATEGORIES } from '../constants/appOptions';
-
-interface GroupedSection {
-  id: string;
-  type: 'today' | 'date' | 'month' | 'year';
-  title: string;
-  expenses: Expense[];
-  total: number;
-}
+import EditTransactionModal from '../components/EditTransactionModal';
+import CalendarModal from '../components/CalendarModal';
+import { getGroupedSections } from '../utils/dateHelpers';
+import { formatAmount } from '../utils/formatHelpers';
 
 const CATEGORIES: (Category | 'All')[] = ['All', ...APP_CATEGORIES];
 
 const SOURCES = ['All', 'sms', 'notification', 'manual'];
 const TYPES = ['All', 'debit', 'credit'];
 
-function getGroupedSections(expenses: Expense[]): GroupedSection[] {
-  const now = new Date();
-  
-  // Start of today (00:00:00)
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  
-  // 30 days ago
-  const thirtyDaysAgo = todayStart - 30 * 24 * 60 * 60 * 1000;
-
-  const groups: Record<string, { type: 'today' | 'date' | 'month' | 'year'; title: string; expenses: Expense[] }> = {};
-
-  for (const expense of expenses) {
-    const t = expense.timestamp;
-    const dateObj = new Date(t);
-    
-    let groupId = '';
-    let type: 'today' | 'date' | 'month' | 'year' = 'date';
-    let title = '';
-
-    if (t >= todayStart) {
-      // Today
-      groupId = 'today';
-      type = 'today';
-      title = 'Today - ' + dateObj.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' });
-    } else if (t >= thirtyDaysAgo) {
-      // Older days within 30 days: "Only show date and day"
-      const dateKey = dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-      groupId = `date:${dateKey}`;
-      type = 'date';
-      title = `${dateKey} - ${dateObj.toLocaleDateString('en-IN', { weekday: 'long' })}`;
-    } else if (dateObj.getFullYear() === now.getFullYear()) {
-      // Older than 30 days, but within the current year: Collapse the month
-      const monthName = dateObj.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-      groupId = `month:${monthName}`;
-      type = 'month';
-      title = monthName;
-    } else {
-      // Older than the current year: Collapse the year
-      const yearName = String(dateObj.getFullYear());
-      groupId = `year:${yearName}`;
-      type = 'year';
-      title = yearName;
-    }
-
-    if (!groups[groupId]) {
-      groups[groupId] = { type, title, expenses: [] };
-    }
-    groups[groupId].expenses.push(expense);
-  }
-
-  // Convert to sorted array
-  return Object.entries(groups)
-    .map(([id, val]) => {
-      const total = val.expenses.reduce((sum, e) => {
-        const amt = Number(e.amount) || 0;
-        return e.transactionType === 'credit' ? sum + amt : sum - amt;
-      }, 0);
-      return {
-        id,
-        type: val.type,
-        title: val.title,
-        expenses: val.expenses,
-        total,
-      };
-    })
-    .sort((a, b) => {
-      // Sort sections by their newest transaction timestamp
-      const maxA = Math.max(...a.expenses.map(e => e.timestamp));
-      const maxB = Math.max(...b.expenses.map(e => e.timestamp));
-      return maxB - maxA;
-    });
-}
-
-function formatAmount(amount: number): string {
-  const isNegative = amount < 0;
-  const absAmount = Math.abs(amount);
-  const formatted = absAmount.toLocaleString('en-IN', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
-  return `${isNegative ? '-' : ''}₹${formatted}`;
-}
-
 export default function HistoryScreen() {
-  const { expenses, loadExpenses } = useExpenseStore();
+  const { expenses, loadExpenses, updateExpense } = useExpenseStore();
   
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'All' | Category>('All');
   const [selectedSource, setSelectedSource] = useState('All');
   const [selectedType, setSelectedType] = useState('All');
+  const [filterStartDate, setFilterStartDate] = useState<number | null>(null);
+  const [filterEndDate, setFilterEndDate] = useState<number | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'active' | 'trash'>('active');
+  const [calendarVisible, setCalendarVisible] = useState(false);
+
+  // Modal State for Editing
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   // Collapse State
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    today: true, // Only today is uncollapsed by default
+    today: true,
   });
 
   useEffect(() => {
@@ -130,12 +52,17 @@ export default function HistoryScreen() {
   // Filtered Expenses
   const filteredExpenses = useMemo(() => {
     return expenses.filter(e => {
+      // Invalidation/Trash filter
+      const isModeMatch = viewMode === 'trash' ? e.isInvalid : !e.isInvalid;
+      if (!isModeMatch) return false;
+
       // Search filter
       const q = searchQuery.toLowerCase().trim();
       const matchSearch = !q || 
-        e.merchant.toLowerCase().includes(q) || 
+        (e.merchant && e.merchant.toLowerCase().includes(q)) || 
         (e.alias && e.alias.toLowerCase().includes(q)) ||
         (e.bank && e.bank.toLowerCase().includes(q)) ||
+        (e.referenceId && e.referenceId.toLowerCase().includes(q)) ||
         String(e.amount).includes(q);
 
       // Category filter
@@ -147,16 +74,29 @@ export default function HistoryScreen() {
       // Type filter
       const matchType = selectedType === 'All' || e.transactionType === selectedType;
 
-      return matchSearch && matchCategory && matchSource && matchType;
-    });
-  }, [expenses, searchQuery, selectedCategory, selectedSource, selectedType]);
+      // Date Range Filter
+      let matchDate = true;
+      if (filterStartDate !== null) {
+        const startOfDay = new Date(filterStartDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        matchDate = matchDate && e.timestamp >= startOfDay.getTime();
+      }
+      if (filterEndDate !== null) {
+        const endOfDay = new Date(filterEndDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        matchDate = matchDate && e.timestamp <= endOfDay.getTime();
+      }
 
-  // Grouped Sections based on filtered expenses
+      return matchSearch && matchCategory && matchSource && matchType && matchDate;
+    });
+  }, [expenses, searchQuery, selectedCategory, selectedSource, selectedType, filterStartDate, filterEndDate, viewMode]);
+
+  // Grouped Sections
   const sections = useMemo(() => {
     return getGroupedSections(filteredExpenses);
   }, [filteredExpenses]);
 
-  // Dynamic Section mapping for SectionList collapse feature
+  // Dynamic Section collapsing
   const renderableSections = useMemo(() => {
     return sections.map(sec => ({
       ...sec,
@@ -176,14 +116,50 @@ export default function HistoryScreen() {
     setSelectedCategory('All');
     setSelectedSource('All');
     setSelectedType('All');
+    setFilterStartDate(null);
+    setFilterEndDate(null);
   };
 
-  const hasActiveFilters = searchQuery || selectedCategory !== 'All' || selectedSource !== 'All' || selectedType !== 'All';
+  const hasActiveFilters = 
+    searchQuery || 
+    selectedCategory !== 'All' || 
+    selectedSource !== 'All' || 
+    selectedType !== 'All' ||
+    filterStartDate !== null ||
+    filterEndDate !== null;
+
+  const handleEditExpense = (expense: Expense) => {
+    setEditingExpense(expense);
+    setModalVisible(true);
+  };
+
+  const activeCount = expenses.filter(e => !e.isInvalid).length;
+  const trashCount = expenses.filter(e => e.isInvalid).length;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>History</Text>
+        <Text style={styles.headerTitle}>Ledger History</Text>
+      </View>
+
+      {/* Segment Tab Controls */}
+      <View style={styles.segmentContainer}>
+        <TouchableOpacity
+          style={[styles.segmentBtn, viewMode === 'active' && styles.segmentBtnActive]}
+          onPress={() => setViewMode('active')}
+        >
+          <Text style={[styles.segmentText, viewMode === 'active' && styles.segmentTextActive]}>
+            💼 Active ({activeCount})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.segmentBtn, viewMode === 'trash' && styles.segmentBtnActive]}
+          onPress={() => setViewMode('trash')}
+        >
+          <Text style={[styles.segmentText, viewMode === 'trash' && styles.segmentTextActive]}>
+            🗑️ Trash Bin ({trashCount})
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Modern Search & Filter Panel */}
@@ -191,7 +167,7 @@ export default function HistoryScreen() {
         <View style={styles.searchRow}>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search merchant, bank, amount..."
+            placeholder="Search merchant, ref id, amount..."
             placeholderTextColor="#9aa0a6"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -223,6 +199,25 @@ export default function HistoryScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+
+            {/* Date Filters Calendar Trigger */}
+            <Text style={styles.filterLabel}>Date Range Filter</Text>
+            <TouchableOpacity 
+              style={styles.calendarTriggerBtn} 
+              onPress={() => setCalendarVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.calendarTriggerText}>
+                {filterStartDate 
+                  ? `${new Date(filterStartDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                  : 'Start Date'}
+                {'  ➔  '}
+                {filterEndDate 
+                  ? `${new Date(filterEndDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                  : 'End Date'}
+              </Text>
+              <Text style={styles.calendarIcon}>📅</Text>
+            </TouchableOpacity>
 
             <View style={styles.filterRowTwo}>
               {/* Source Filter */}
@@ -311,13 +306,22 @@ export default function HistoryScreen() {
           );
         }}
         renderItem={({ item }) => (
-          <View style={styles.item}>
+          <TouchableOpacity
+            style={[styles.item, item.isInvalid && styles.itemTrashed]}
+            onPress={() => handleEditExpense(item)}
+            activeOpacity={0.7}
+          >
             <View style={styles.itemLeft}>
               <View style={styles.merchantRow}>
                 <Text style={styles.merchant}>{item.merchant}</Text>
                 {item.bank && (
                   <View style={styles.bankBadge}>
                     <Text style={styles.bankBadgeText}>{item.bank}</Text>
+                  </View>
+                )}
+                {item.referenceId && (
+                  <View style={styles.refBadge}>
+                    <Text style={styles.refBadgeText}>ID: {item.referenceId}</Text>
                   </View>
                 )}
               </View>
@@ -347,17 +351,51 @@ export default function HistoryScreen() {
               {item.transactionType === 'credit' ? '+' : '-'}
               {formatAmount(item.amount)}
             </Text>
-          </View>
+          </TouchableOpacity>
         )}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyText}>
-              {hasActiveFilters ? 'No matches found for filters' : 'No transaction history'}
+              {hasActiveFilters 
+                ? 'No matches found for filters' 
+                : viewMode === 'trash' 
+                  ? 'Trash Bin is empty' 
+                  : 'No transaction history'}
             </Text>
           </View>
         }
       />
+
+      <EditTransactionModal
+        expense={editingExpense}
+        visible={modalVisible}
+        onClose={() => {
+          setEditingExpense(null);
+          setModalVisible(false);
+        }}
+        onSave={updateExpense}
+        onAddManual={() => {}}
+        isAddMode={false}
+      />
+
+      <Modal
+        visible={calendarVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCalendarVisible(false)}
+      >
+        <CalendarModal
+          startDate={filterStartDate}
+          endDate={filterEndDate}
+          onClose={() => setCalendarVisible(false)}
+          onApply={(start, end) => {
+            setFilterStartDate(start);
+            setFilterEndDate(end);
+            setCalendarVisible(false);
+          }}
+        />
+      </Modal>
     </View>
   );
 }
@@ -375,8 +413,33 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#fff',
+  },
+  segmentContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f3f4',
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  segmentBtnActive: {
+    borderBottomColor: '#1a73e8',
+  },
+  segmentText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#5f6368',
+  },
+  segmentTextActive: {
+    color: '#1a73e8',
+    fontWeight: '700',
   },
   searchContainer: {
     paddingHorizontal: 16,
@@ -458,6 +521,26 @@ const styles = StyleSheet.create({
   pillTextActive: {
     color: '#1a73e8',
   },
+  calendarTriggerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#dadce0',
+    borderRadius: 8,
+    height: 42,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+  },
+  calendarTriggerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#202124',
+  },
+  calendarIcon: {
+    fontSize: 16,
+  },
   filterRowTwo: {
     flexDirection: 'row',
     gap: 12,
@@ -466,7 +549,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   clearBtn: {
-    marginTop: 4,
+    marginTop: 10,
     paddingVertical: 8,
     borderRadius: 6,
     backgroundColor: '#fce8e6',
@@ -543,6 +626,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 3,
     elevation: 1,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  itemTrashed: {
+    backgroundColor: '#f8f9fa',
+    borderColor: '#dadce0',
+    opacity: 0.8,
   },
   itemLeft: {
     flex: 1,
@@ -569,6 +659,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#5f6368',
     textTransform: 'uppercase',
+  },
+  refBadge: {
+    backgroundColor: '#e8f0fe',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  refBadgeText: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#1a73e8',
   },
   metaRow: {
     flexDirection: 'row',
