@@ -28,7 +28,12 @@ interface ContactBalanceSummary {
 }
 
 export default function SplitsScreen() {
-  const { expenses, settleContactSplits } = useExpenseStore();
+  const { 
+    expenses, 
+    settleContactSplits, 
+    unsettleContactSplits, 
+    toggleSplitPaid 
+  } = useExpenseStore();
   const [expandedContact, setExpandedContact] = useState<string | null>(null);
 
   // Group and calculate split balances per contact name
@@ -124,6 +129,47 @@ export default function SplitsScreen() {
           onPress: () => {
             settleContactSplits(contactName);
             Alert.alert('Success', `All outstanding balances with ${contactName} have been settled!`);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleUnsettleAll = (contactName: string) => {
+    Alert.alert(
+      '🔄 Unsettle All Balances',
+      `This will mark all settled splits with ${contactName} as active/unpaid again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm Unsettle',
+          style: 'destructive',
+          onPress: () => {
+            unsettleContactSplits(contactName);
+            Alert.alert('Success', `All balances with ${contactName} are now active again!`);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleToggleSplit = (
+    expenseId: number, 
+    contactName: string, 
+    isPaid: boolean, 
+    merchant: string, 
+    amount: number
+  ) => {
+    Alert.alert(
+      isPaid ? '🔄 Unsettle Split Bill' : '🤝 Settle Split Bill',
+      `Are you sure you want to mark "${merchant}" (${formatAmount(amount)}) as ${isPaid ? 'unpaid' : 'paid'}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: isPaid ? 'Unsettle' : 'Settle',
+          style: isPaid ? 'destructive' : 'default',
+          onPress: () => {
+            toggleSplitPaid(expenseId, contactName);
           }
         }
       ]
@@ -229,9 +275,14 @@ export default function SplitsScreen() {
                     {/* Active splits list */}
                     {contact.activeSplits.length > 0 && (
                       <View style={{ marginBottom: 12 }}>
-                        <Text style={styles.detailsLabel}>Active Split Bills</Text>
+                        <Text style={styles.detailsLabel}>Active Split Bills (Tap to Settle)</Text>
                         {contact.activeSplits.map((item, idx) => (
-                          <View key={`${item.expenseId}-${idx}`} style={styles.billItem}>
+                          <TouchableOpacity 
+                            key={`${item.expenseId}-${idx}`} 
+                            style={styles.billItem}
+                            onPress={() => handleToggleSplit(item.expenseId, contact.contactName, false, item.merchant, item.split.amount)}
+                            activeOpacity={0.7}
+                          >
                             <View style={{ flex: 1 }}>
                               <Text style={styles.billMerchant}>{item.merchant}</Text>
                               <Text style={styles.billMeta}>
@@ -245,7 +296,7 @@ export default function SplitsScreen() {
                               {item.split.owedByMe ? '-' : '+'}
                               {formatAmount(item.split.amount)}
                             </Text>
-                          </View>
+                          </TouchableOpacity>
                         ))}
                       </View>
                     )}
@@ -256,7 +307,18 @@ export default function SplitsScreen() {
                         style={styles.settleBtn}
                         onPress={() => handleSettleUp(contact.contactName, contact.netBalance)}
                       >
-                        <Text style={styles.settleBtnText}>🤝 Settle Up Balances</Text>
+                        <Text style={styles.settleBtnText}>🤝 Settle Up All Balances</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Unsettle All Action Button */}
+                    {contact.settledSplits.length > 0 && (
+                      <TouchableOpacity
+                        style={[styles.settleBtn, styles.unsettleBtn]}
+                        onPress={() => handleUnsettleAll(contact.contactName)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.unsettleBtnText}>🔄 Unsettle All Balances</Text>
                       </TouchableOpacity>
                     )}
 
@@ -264,10 +326,15 @@ export default function SplitsScreen() {
                     {contact.settledSplits.length > 0 && (
                       <View style={{ marginTop: 12 }}>
                         <Text style={[styles.detailsLabel, styles.settledSectionHeader]}>
-                          Settled History
+                          Settled History (Tap to Unsettle)
                         </Text>
                         {contact.settledSplits.map((item, idx) => (
-                          <View key={`settled-${item.expenseId}-${idx}`} style={[styles.billItem, styles.settledBillItem]}>
+                          <TouchableOpacity 
+                            key={`settled-${item.expenseId}-${idx}`} 
+                            style={[styles.billItem, styles.settledBillItem]}
+                            onPress={() => handleToggleSplit(item.expenseId, contact.contactName, true, item.merchant, item.split.amount)}
+                            activeOpacity={0.7}
+                          >
                             <View style={{ flex: 1 }}>
                               <Text style={styles.settledBillMerchant}>{item.merchant}</Text>
                               <Text style={styles.billMeta}>
@@ -277,7 +344,7 @@ export default function SplitsScreen() {
                             <View style={styles.settledBadge}>
                               <Text style={styles.settledBadgeText}>PAID {formatAmount(item.split.amount)}</Text>
                             </View>
-                          </View>
+                          </TouchableOpacity>
                         ))}
                       </View>
                     )}
@@ -473,7 +540,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e8eaed',
     paddingTop: 12,
-    marginTop: 6,
+    marginTop: 12,
   },
   billItem: {
     flexDirection: 'row',
@@ -522,6 +589,18 @@ const styles = StyleSheet.create({
   },
   settleBtnText: {
     color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  unsettleBtn: {
+    backgroundColor: '#f1f3f4',
+    borderWidth: 1,
+    borderColor: '#dadce0',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  unsettleBtnText: {
+    color: '#5f6368',
     fontSize: 13,
     fontWeight: '700',
   },
