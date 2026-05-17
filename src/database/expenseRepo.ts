@@ -69,6 +69,27 @@ export function getRecentExpenses(minutes: number = 5): Expense[] {
   return mapRows(result.rows?._array || []);
 }
 
+export function isDuplicateTransaction(
+  amount: number,
+  timestamp: number,
+  referenceId?: string,
+): boolean {
+  const db = getDatabase();
+  if (referenceId) {
+    const result = db.execute(
+      'SELECT id FROM expenses WHERE reference_id = ? AND is_invalid = 0',
+      [referenceId],
+    );
+    if (result.rows && result.rows.length > 0) return true;
+  }
+  
+  const result = db.execute(
+    'SELECT id FROM expenses WHERE timestamp = ? AND amount = ? AND is_invalid = 0',
+    [timestamp, amount],
+  );
+  return !!(result.rows && result.rows.length > 0);
+}
+
 export function getAllExpenses(
   limit: number = 50,
   offset: number = 0,
