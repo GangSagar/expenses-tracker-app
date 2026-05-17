@@ -1,4 +1,4 @@
-# 📱 Smart Expense Tracker (v1.0.3)
+# 📱 Smart Expense Tracker (v1.0.4)
 
 [![React Native](https://img.shields.io/badge/React_Native-0.85.3-blue.svg?logo=react&logoColor=white)](https://reactnative.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -10,23 +10,27 @@ An automated, privacy-first personal Android expense tracker that seamlessly par
 
 ---
 
-## ✨ Premium Upgrades in v1.0.3
+## ✨ Premium Upgrades in v1.0.4
 
-### 📊 Real-Time Financial Dashboard
-* **Mathematically Precise Balance**: Computes actual `Current Balance = Income (Credits) - Expenses (Debits)` dynamically on the home screen rather than displaying absolute accumulated sums.
-* **Dual-Metric Breakdown Card**: Displays separate, color-coded summaries for **Income** (`+₹X,XXX` in vibrant green) and **Expense** (`-₹X,XXX` in light red) within a beautiful modern glassmorphism header.
-* **Intelligent Daily Net Change**: Grouped transaction cards in the history list calculate the exact net financial delta of each calendar day.
-* **Accounting-Grade Currency Formatting**: Supports clean Indian formatting (`en-IN`) with correct negative signs prefixed to currency symbols (e.g., `-₹150.00` instead of `₹-150.00`).
+### 📊 Rebuilt Personal Finance Dashboard
+* **Sleek Cards Carousel**: Scroll through styled, color-coded miniature credit/debit cards representing HDFC, SBI, BOI, ICICI, and other bank accounts with live, real-time balances directly on your Home Screen.
+* **Quick Actions Row**: Touch-friendly shortcut chips to quickly add manual cash, initiate a pre-built split bill, or view account ledger reports.
+* **Spending Analytics Insight**: Color-coded category progress bars highlighting your top 3 spending categories (e.g., Food & Dining, Shopping, Travel) with exact percentages.
+* **Clean Ledger History list**: Displays only the 5 most recent activities on your dashboard, with an elegant "View Full Ledger History →" button to smoothly navigate to the full logs.
 
-### ⚙️ Centralized Configuration Architecture
-* Managed entirely through [appOptions.ts](file:///home/harshit/Desktop/Projects/ExpenseTracker/src/constants/appOptions.ts).
-* Unifies all system categories, payment mode classifications (`upi`, `cc`, `wallet`, `unknown`), and registered banking institutions into a single reusable, structured configuration array.
+### 🤝 Unified Split Ledger Module
+* **Single Direction Toggle**: Streamlined the split layout inside the transaction editor by replacing redundant per-person direction selectors with a single overall split direction toggle (*You owe them* or *They owe you*).
+* **Database & Types Compatibility**: Toggling the single split setting automatically sets the direction for all participant items, maintaining 100% database normalization and backward-compatibility.
 
-### 🔍 Advanced Regex Transaction Parser
-* **Regional Routing Carrier Bypass**: Automatically inspects SMS payload contents to prevent drops caused by carrier prefixes (e.g. `AD-`, `JD-`, `VK-`).
-* **High-Signal Extraction Engine**: Employs transactional action verbs (`debited`, `credited`, `spent`, `transferred to`) to prevent false-positives from contextual prepositions.
-* **Flexible Bank Alert Mappings**: Provides robust parsing rules for Punjab & Sind Bank (PSB), Bank of Baroda (BOB), Bank of India (BOI), and ICICI Bank.
-* **Account Mask Isolator**: Standardizes standalone account boundaries (`\bAc\b`) and keeps card masks separated from checking account digits.
+### 🛡️ Strict Anti-Spam Message Filtration
+* **Signal Validation**: Standardizes message validation by requiring that an incoming notification must explicitly match either a debit (`DEBIT_REGEX`) or credit (`CREDIT_REGEX`) signal.
+* **Zero Junk Processing**: General cellular operator notifications, service pack warnings, network promotions, and data usage statistics are blocked and dropped before parsing.
+
+### 🧮 Live Bank Account Reconciliation
+* **Delimiter Fix**: Uses a unique `::` delimiter to group bank accounts, preventing partition issues on bank names containing hyphens.
+* **Dynamic Real-Time Balance Checkpoints**: Dynamically reconciles accounts by factoring subsequent manual transactions or SMS deltas into the latest balance checkpoint:
+  $$\text{Real-time Balance} = \text{Checkpoint Balance} + \sum \text{Credits} - \sum \text{Debits}$$
+* **Missing Transaction Anomaly Alerts**: Automatically flags differences between expected and actual chronological balances, generating card alerts to pre-fill and log missing transactions.
 
 ---
 
@@ -54,7 +58,7 @@ src/
 ├── database/            # Migrations & expense repository layers
 ├── services/            # Background transaction processing pipeline
 ├── hooks/               # Unified Zustand store & native listener hooks
-├── screens/             # HomeScreen, HistoryScreen, and SettingsScreen
+├── screens/             # HomeScreen, HistoryScreen, SplitsScreen, and SettingsScreen
 ├── components/          # Transaction editing modals & dialogs
 ├── constants/           # appOptions.ts (Global unified lists)
 └── types/               # TypeScript type definitions
@@ -110,5 +114,5 @@ npm test src/__tests__/parser.test.ts
 ---
 
 ## 🔒 Privacy & Performance Focus
-* **Zero External Calls**: All transactional SMS messages are parsed and categorized directly inside the client application. Your financial data is saved only inside the local SQLite database.
+* **Zero External Calls**: All transactional SMS messages are parsed and categorized locally. Your financial data never leaves your device.
 * **Ultra-Low Battery Footprint**: The application wakes up momentarily in response to native platform broadcast events (`SmsReceiver` and `NotificationListenerService`) and sleeps immediately, consuming `~1%` battery daily.
