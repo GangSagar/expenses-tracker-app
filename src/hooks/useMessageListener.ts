@@ -17,6 +17,8 @@ export function useMessageListener() {
   const listenerRef = useRef<any>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const processMessage = (message: IncomingMessage) => {
       const parsed = processIncomingMessage(message);
       if (!parsed) {
@@ -65,13 +67,16 @@ export function useMessageListener() {
     const fetchPending = async () => {
       try {
         const pendingStr = await MessageModule.getPendingMessages();
+        if (!isMounted) return;
         const pending = JSON.parse(pendingStr) as IncomingMessage[];
         if (pending.length > 0) {
           console.log(`Processing ${pending.length} pending offline messages...`);
           pending.forEach(msg => processMessage(msg));
         }
       } catch (e) {
-        console.error('Failed to fetch pending messages:', e);
+        if (isMounted) {
+          console.error('Failed to fetch pending messages:', e);
+        }
       }
     };
     fetchPending();
@@ -95,6 +100,7 @@ export function useMessageListener() {
     );
 
     return () => {
+      isMounted = false;
       listenerRef.current?.remove();
     };
   }, [addExpense, queuePendingExpense]);

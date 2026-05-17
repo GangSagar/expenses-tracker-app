@@ -1,7 +1,5 @@
 import {
   OTP_REGEX,
-  PROMO_REGEX,
-  BALANCE_REGEX,
   LOGIN_REGEX,
   DEBIT_REGEX,
   CREDIT_REGEX,
@@ -38,10 +36,6 @@ export function isTransactionalSender(sender: string): boolean {
     }
   }
 
-  // Promotional/transactional DLT prefixes that are NOT financial
-  if (/^(?:TD|TA|JD|BD|SD|AD)-/i.test(sender)) {
-    return false;
-  }
   // Accept any sender matching the XX-XXXXX bank format (with alphanumeric suffix)
   if (TRANSACTIONAL_SENDER_REGEX.test(sender)) {
     return true;
@@ -61,13 +55,9 @@ export function isTransactionMessage(message: string): boolean {
   if (LOGIN_REGEX.test(message)) {
     return false;
   }
-  // Only block promo messages if they don't also contain a debit/credit keyword.
-  // Some bank SMSes mention cashback alongside a real transaction.
-  if (PROMO_REGEX.test(message) && !DEBIT_REGEX.test(message) && !CREDIT_REGEX.test(message)) {
-    return false;
-  }
-  // Only block pure balance-inquiry messages (no debit/credit action in the message)
-  if (BALANCE_REGEX.test(message) && !DEBIT_REGEX.test(message) && !CREDIT_REGEX.test(message)) {
+  // A transaction message must explicitly contain a debit or credit keyword/signal.
+  // This blocks general notifications, carrier plan warnings, data limits, etc.
+  if (!DEBIT_REGEX.test(message) && !CREDIT_REGEX.test(message)) {
     return false;
   }
   return true;
