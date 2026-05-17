@@ -34,6 +34,7 @@ export const categoryRules: CategoryRule[] = [
     keywords: [
       'uber',
       'ola',
+      'namma yatri',
       'rapido',
       'irctc',
       'makemytrip',
@@ -123,6 +124,7 @@ export const categoryRules: CategoryRule[] = [
     keywords: [
       'netflix',
       'hotstar',
+      'district',
       'spotify',
       'pvr',
       'inox',
@@ -161,7 +163,7 @@ export const categoryRules: CategoryRule[] = [
     ],
   },
   {
-    category: 'Finance',
+    category: 'Other',
     keywords: [
       'emi',
       'loan',
@@ -200,7 +202,7 @@ export const categoryRules: CategoryRule[] = [
     ],
   },
   {
-    category: 'Transfers',
+    category: 'Self-transfers',
     keywords: ['transfer', 'sent to', 'paid to', 'neft to', 'imps to'],
   },
 ];
