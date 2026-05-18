@@ -249,5 +249,17 @@
             "bank": "Bank of India",
             "availableBalance": 25120.50
         }
+    },
+    {
+        "message": "Dear BOB UPI User: Your account is credited with INR 589.00 on 2026-05-18 12:40:35 PM by UPI Ref No 650422642065; AvlBal: Rs2248.58 - 𝖡𝖮𝖡",
+        "expected": {
+            "amount": 589,
+            "merchant": null,
+            "transactionType": "credit",
+            "paymentMode": "upi",
+            "account": null,
+            "bank": "Bank of Baroda",
+            "availableBalance": 2248.58
+        }
     }
 ]

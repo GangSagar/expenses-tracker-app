@@ -267,3 +267,30 @@ describe('System Test Suite for Sample Messages', () => {
     expect(result.merchant).toBe('ZOMATO');
   });
 });
+
+import { normalizeUnicodeText } from '../utils/formatHelpers';
+import { processIncomingMessage } from '../services/messageService';
+
+describe('Unicode Alphanumeric Normalization', () => {
+  it('correctly normalizes stylized mathematical sans-serif fonts to standard ASCII', () => {
+    const stylized = '𝖣𝖾𝖺𝗋 𝖡𝖮𝖡 𝖴𝖯𝖨 𝖴𝗌𝖾𝗋: 𝖸𝗈𝗎𝗋 𝖺𝖼𝖼𝗈𝗎𝗇𝗍 𝗂𝗌 𝖼𝗋𝖾𝖽𝗂𝗍𝖾𝖽 𝗐𝗂𝗍𝗁 𝖨𝖭𝖱 589.00';
+    const expected = 'Dear BOB UPI User: Your account is credited with INR 589.00';
+    expect(normalizeUnicodeText(stylized)).toBe(expected);
+  });
+
+  it('successfully processes fully stylized Mathematical Sans-Serif bank alerts', () => {
+    const rawAlert = '𝖣𝖾𝖺𝗋 𝖡𝖮𝖡 𝖴𝖯𝖨 𝖴𝗌𝖾𝗋: 𝖸𝗈𝗎𝗋 𝖺𝖼𝖼𝗈𝗎𝗇𝗍 𝗂𝗌 𝖼𝗋𝖾𝖽𝗂𝗍𝖾𝖽 𝗐𝗂𝗍𝗁 𝖨𝖭𝖱 589.00 𝗈𝗇 2026-05-18 12:40:35 PM by UPI Ref No 650422642065; AvlBal: Rs2248.58 - 𝖡𝖮𝖡';
+    const parsed = processIncomingMessage({
+      body: rawAlert,
+      sender: 'JX-BOBSMS',
+      source: 'sms',
+    });
+
+    expect(parsed).not.toBeNull();
+    expect(parsed!.amount).toBe(589.00);
+    expect(parsed!.transactionType).toBe('credit');
+    expect(parsed!.bank).toBe('Bank of Baroda');
+    expect(parsed!.paymentMode).toBe('upi');
+    expect(parsed!.availableBalance).toBe(2248.58);
+  });
+});
