@@ -97,9 +97,9 @@ export function isSpam(text: string): boolean {
 
   const totalDocs = currentState.spamCount + currentState.hamCount;
 
-  // Prior probabilities (with Laplace smoothing just in case)
-  const pSpam = currentState.spamCount / totalDocs;
-  const pHam = currentState.hamCount / totalDocs;
+  // Prior probabilities with Laplace smoothing to prevent underflow log(0) -> -Infinity
+  const pSpam = (currentState.spamCount + 1) / (totalDocs + 2);
+  const pHam = (currentState.hamCount + 1) / (totalDocs + 2);
 
   // We use log probabilities to avoid underflow with very small numbers
   let logPSpam = Math.log(pSpam);
@@ -107,10 +107,11 @@ export function isSpam(text: string): boolean {
 
   for (const token of tokens) {
     const stats = currentState.wordFrequencies[token];
+    if (!stats) continue; // Skip completely unknown tokens to avoid bias and underflow!
 
     // Laplace smoothing (add 1)
-    const countSpam = stats ? stats.spam : 0;
-    const countHam = stats ? stats.ham : 0;
+    const countSpam = stats.spam;
+    const countHam = stats.ham;
 
     // Total words of that class in the training set
     // For simplicity, we just use the document counts as the denominator (Bernoulli-ish model)
@@ -134,4 +135,13 @@ export function isSpam(text: string): boolean {
   );
 
   return isSpamResult;
+}
+
+/**
+ * Resets the Bayesian spam classifier model entirely back to its default starting counts.
+ */
+export function resetSpamClassifier() {
+  state = JSON.parse(JSON.stringify(defaultState));
+  saveState();
+  console.log('[SpamClassifier] Dynamic Naive Bayes model has been completely reset.');
 }

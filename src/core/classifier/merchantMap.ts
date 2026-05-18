@@ -30,3 +30,11 @@ export function setMerchantMapping(
 export function getMerchantMap(): Record<string, MerchantMapping> {
   return { ...merchantCategoryMap };
 }
+
+/**
+ * Completely clears the in-memory user preference category mapping.
+ */
+export function resetMerchantMap(): void {
+  merchantCategoryMap = {};
+  console.log('[MerchantMap] Learned category preferences map has been cleared.');
+}
