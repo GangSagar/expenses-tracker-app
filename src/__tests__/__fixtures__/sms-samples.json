@@ -107,7 +107,7 @@
             "transactionType": "debit",
             "paymentMode": "unknown",
             "account": "4321",
-            "bank": "HDFC"
+            "bank": "ICICI"
         }
     },
     {
@@ -118,7 +118,7 @@
             "transactionType": "credit",
             "paymentMode": "upi",
             "account": "2540",
-            "bank": "HDFC",
+            "bank": "Punjab and Sind Bank",
             "availableBalance": 100120
         }
     },
@@ -130,7 +130,7 @@
             "transactionType": "credit",
             "paymentMode": "upi",
             "account": "2540",
-            "bank": "HDFC"
+            "bank": "Punjab and Sind Bank"
         }
     },
     {
@@ -141,7 +141,7 @@
             "transactionType": "debit",
             "paymentMode": "upi",
             "account": "2540",
-            "bank": "HDFC"
+            "bank": "Punjab and Sind Bank"
         }
     },
     {
@@ -152,7 +152,7 @@
             "transactionType": "credit",
             "paymentMode": "upi",
             "account": null,
-            "bank": "HDFC",
+            "bank": "Bank of Baroda",
             "availableBalance": 1015.58
         }
     },
@@ -164,7 +164,7 @@
             "transactionType": "debit",
             "paymentMode": "upi",
             "account": "9132",
-            "bank": "HDFC",
+            "bank": "Bank of Baroda",
             "availableBalance": 1015.58
         }
     },
@@ -176,7 +176,7 @@
             "transactionType": "credit",
             "paymentMode": "upi",
             "account": "0604",
-            "bank": "HDFC",
+            "bank": "Bank of India",
             "availableBalance": 1121
         }
     },
@@ -188,7 +188,7 @@
             "transactionType": "debit",
             "paymentMode": "upi",
             "account": "0604",
-            "bank": "HDFC"
+            "bank": "Bank of India"
         }
     },
     {
@@ -197,9 +197,9 @@
             "amount": 665.64,
             "merchant": "TECHMASH SOLUTI",
             "transactionType": "debit",
-            "paymentMode": "unknown",
+            "paymentMode": "cc",
             "account": "4000",
-            "bank": "HDFC",
+            "bank": "ICICI",
             "availableBalance": 8667.02
         }
     },
@@ -211,7 +211,7 @@
             "transactionType": "debit",
             "paymentMode": "unknown",
             "account": "575",
-            "bank": "HDFC",
+            "bank": "ICICI",
             "availableBalance": 2667.87
         }
     },
@@ -223,7 +223,7 @@
             "transactionType": "credit",
             "paymentMode": "unknown",
             "account": "575",
-            "bank": "HDFC",
+            "bank": "ICICI",
             "availableBalance": 67676.13
         }
     },
@@ -235,7 +235,7 @@
             "transactionType": "credit",
             "paymentMode": "cc",
             "account": "4000",
-            "bank": "HDFC"
+            "bank": "ICICI"
         }
     },
     {
@@ -246,7 +246,7 @@
             "transactionType": "debit",
             "paymentMode": "unknown",
             "account": "0604",
-            "bank": "HDFC",
+            "bank": "Bank of India",
             "availableBalance": 25120.50
         }
     }

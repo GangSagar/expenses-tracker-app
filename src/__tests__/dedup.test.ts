@@ -63,4 +63,41 @@ describe('isDuplicate', () => {
     );
     expect(result).toBe(false);
   });
+
+  it('detects duplicate via direct reference ID match', () => {
+    const recent = [makeExpense({ referenceId: 'UPI999888' })];
+    const result = isDuplicate(
+      { amount: 200, merchant: 'Different Merchant', transactionType: 'debit', referenceId: 'UPI999888' },
+      recent,
+    );
+    expect(result).toBe(true);
+  });
+
+  it('detects duplicate via reference ID cross-message search', () => {
+    const recent = [makeExpense({ referenceId: 'UPI111222' })];
+    const result = isDuplicate(
+      { amount: 200, merchant: 'SBI', transactionType: 'debit', rawMessage: 'UPI111222 paid to friend' },
+      recent,
+    );
+    expect(result).toBe(true);
+  });
+
+  it('detects cross-bank duplicate via shared 6-to-12 digit numeric transaction token', () => {
+    const recent = [makeExpense({ 
+      bank: 'BOB', 
+      amount: 500, 
+      transactionType: 'credit', 
+      rawMessage: 'Your BOB A/C XX1234 credited with INR 500.00. UPI Ref: 213456789012' 
+    })];
+    const result = isDuplicate(
+      { 
+        amount: 500, 
+        merchant: 'SBI', 
+        transactionType: 'credit', 
+        rawMessage: 'SBI A/C XX5678 debited/transferred INR 500.00. Ref: 213456789012' 
+      },
+      recent,
+    );
+    expect(result).toBe(true);
+  });
 });
