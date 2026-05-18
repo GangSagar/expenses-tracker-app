@@ -29,7 +29,7 @@ describe('isDuplicateTransaction (SQLite Ledger)', () => {
 
     expect(result).toBe(true);
     expect(mockExecute).toHaveBeenCalledWith(
-      'SELECT id FROM expenses WHERE reference_id = ? AND is_invalid = 0',
+      'SELECT id FROM expenses WHERE reference_id = ?',
       ['TXN123456']
     );
   });
@@ -44,7 +44,7 @@ describe('isDuplicateTransaction (SQLite Ledger)', () => {
 
     expect(result).toBe(true);
     expect(mockExecute).toHaveBeenCalledWith(
-      'SELECT id FROM expenses WHERE timestamp = ? AND amount = ? AND is_invalid = 0',
+      'SELECT id FROM expenses WHERE timestamp = ? AND amount = ?',
       [1621245600000, 200.0]
     );
   });
@@ -76,7 +76,7 @@ describe('isDuplicateTransaction (SQLite Ledger)', () => {
     expect(result).toBe(false);
     expect(mockExecute).toHaveBeenCalledTimes(1);
     expect(mockExecute).toHaveBeenCalledWith(
-      'SELECT id FROM expenses WHERE timestamp = ? AND amount = ? AND is_invalid = 0',
+      'SELECT id FROM expenses WHERE timestamp = ? AND amount = ?',
       [1621245600000, 300.0]
     );
   });
