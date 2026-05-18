@@ -1,3 +1,4 @@
+import { normalizeUnicodeText } from '../../utils/formatHelpers';
 import {
   ParsedTransaction,
   PaymentMode,
@@ -262,6 +263,10 @@ export function parseMessage(
   sender: string,
   source: TransactionSource,
 ): ParsedTransaction {
+  // Normalize Unicode characters (e.g. Mathematical Alphanumeric Symbols) to standard text
+  message = normalizeUnicodeText(message);
+  sender = normalizeUnicodeText(sender);
+
   console.log('--- NEW MESSAGE ARRIVED ---');
   console.log(`Raw Message: "${message}"`);
   console.log(`Sender: "${sender}"`);
