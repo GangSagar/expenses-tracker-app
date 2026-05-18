@@ -29,7 +29,7 @@ export const CREDIT_REGEX =
 //   ending 1234  (spoken-English format used by some banks)
 //   no.1234    (some banks prefix with "no.")
 export const ACCOUNT_REGEX =
-  /(?:A\/c|Acct?|account|a\/c|Card|ending|no\.?|\bAc\b)\s*(?:[3-6]\d{0,3}[Xx*.\s\-]{3,15}|[Xx*.\s\-]{0,10})\s*(\d{3,4})\b/i;
+  /(?:A\/c|Acct?|account|a\/c|Card|ending|no\.?|\bAc\b|\bCC\b)\s*(?:[3-6]\d{0,3}[A-Za-z*.\s\-\/]{3,15}|[A-Za-z*.\s\-\/]{0,15})\s*(\d{3,4})\b/i;
 
 // ─── Payment Mode ─────────────────────────────────────────────────────────────
 // UPI — covers the most common UPI app references and @VPA handles
@@ -38,7 +38,7 @@ export const UPI_REGEX =
 
 // Credit Cards
 export const CC_REGEX =
-  /\b(?:credit\s*card|cc)\b/i;
+  /\b(?:credit\s*card|cc|limit|credit\s*limit|avl\s*limit)\b/i;
 
 // Wallets — includes Amazon Pay, MobiKwik, FreeCharge
 export const WALLET_REGEX =
