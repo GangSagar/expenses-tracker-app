@@ -4,7 +4,7 @@ import {
   processIncomingMessage,
   IncomingMessage,
 } from '../services/messageService';
-import { processTransaction } from '../services/expenseService';
+import { processTransaction, saveExpense } from '../services/expenseService';
 import { useExpenseStore } from './useExpenses';
 
 
@@ -36,13 +36,32 @@ export function useMessageListener() {
       console.log(`Message from ${message.sender} parsed! Decision: ${decision}`);
 
       switch (decision) {
-        case 'auto_save':
-        case 'show_popup':
+        case 'auto_save': {
+          const displayMerchant = expense.merchant && expense.merchant !== 'Unknown' ? expense.merchant : 'Unknown';
           if (
             AppState.currentState === 'background' ||
             AppState.currentState === 'inactive'
           ) {
-            const displayMerchant = expense.merchant && expense.merchant !== 'Unknown' ? expense.merchant : 'Unknown';
+            MessageModule.showExpenseNotification(
+              'Transaction Auto-Saved',
+              `₹${expense.amount} at ${displayMerchant} recorded.`,
+            );
+          }
+          const id = saveExpense(expense);
+          if (id !== null) {
+            console.log(`Auto-saved expense to DB with ID: ${id}`);
+            addExpense({ ...expense, id } as any);
+          } else {
+            console.log('Expense was not saved (possibly duplicate or failed insert).');
+          }
+          break;
+        }
+        case 'show_popup': {
+          const displayMerchant = expense.merchant && expense.merchant !== 'Unknown' ? expense.merchant : 'Unknown';
+          if (
+            AppState.currentState === 'background' ||
+            AppState.currentState === 'inactive'
+          ) {
             MessageModule.showExpenseNotification(
               'New Pending Transaction',
               `₹${expense.amount} at ${displayMerchant}. Tap to approve.`,
@@ -50,6 +69,7 @@ export function useMessageListener() {
           }
           queuePendingExpense(expense);
           break;
+        }
         case 'discard':
           console.log('Discarding low confidence expense.');
           break;

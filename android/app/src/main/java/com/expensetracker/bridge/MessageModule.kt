@@ -126,7 +126,7 @@ class MessageModule(reactContext: ReactApplicationContext) :
 
                     // Filter out purely numeric senders (e.g. standard phone numbers)
                     // Transactional SMS in India always contain letters.
-                    if (sender != null && (sender.matches(Regex(".*[a-zA-Z].*")) || sender.matches(Regex("^\\d{3,6}$")))) {
+                    if (sender != null && (sender.matches(Regex(".*[a-zA-Z].*")) || sender.matches(Regex("^\\d{3,9}$")))) {
                         val obj = org.json.JSONObject().apply {
                             put("body", body)
                             put("sender", sender)
@@ -168,7 +168,7 @@ class MessageModule(reactContext: ReactApplicationContext) :
                     val sender = c.getString(addressIndex)
                     val date = c.getLong(dateIndex)
                     // Allow senders that contain letters or short numeric shortcodes (3-6 digits)
-                    if (sender != null && (sender.matches(Regex(".*[a-zA-Z].*")) || sender.matches(Regex("^\\d{3,6}$")))) {
+                    if (sender != null && (sender.matches(Regex(".*[a-zA-Z].*")) || sender.matches(Regex("^\\d{3,9}$")))) {
                         val obj = org.json.JSONObject().apply {
                             put("body", body)
                             put("sender", sender)
@@ -223,7 +223,7 @@ class MessageModule(reactContext: ReactApplicationContext) :
                     val sender = c.getString(addressIndex)
                     val date = c.getLong(dateIndex)
 
-                    if (sender != null && (sender.matches(Regex(".*[a-zA-Z].*")) || sender.matches(Regex("^\\d{3,6}$")))) {
+                    if (sender != null && (sender.matches(Regex(".*[a-zA-Z].*")) || sender.matches(Regex("^\\d{3,9}$")))) {
                         val obj = org.json.JSONObject().apply {
                             put("body", body)
                             put("sender", sender)
