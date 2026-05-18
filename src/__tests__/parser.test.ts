@@ -9,7 +9,22 @@ describe('parseMessage', () => {
   test.each(transactionalSamples)(
     'parses: "$message"',
     ({ message, expected }) => {
-      const result = parseMessage(message, 'JD-HDFCBK', 'sms');
+      let mockSender = 'JD-HDFCBK';
+      if (expected && expected.bank) {
+        const bankName = expected.bank;
+        if (bankName === 'ICICI') mockSender = 'AD-ICICIB';
+        else if (bankName === 'SBI') mockSender = 'VK-SBIIND';
+        else if (bankName === 'Axis') mockSender = 'AX-AXISBK';
+        else if (bankName === 'Kotak') mockSender = 'KM-KOTAKB';
+        else if (bankName === 'Bank of India') mockSender = 'JM-BOIIND';
+        else if (bankName === 'Bank of Baroda') mockSender = 'JX-BOBSMS';
+        else if (bankName === 'PNB') mockSender = 'VM-PNBSMS';
+        else if (bankName === 'Punjab and Sind Bank') mockSender = 'VM-PSBANK';
+        else if (bankName === 'Yes Bank') mockSender = 'AD-YESBNK';
+        else if (bankName === 'IndusInd') mockSender = 'AD-INDUSI';
+        else if (bankName === 'Paytm Payments Bank') mockSender = 'AD-PAYTM';
+      }
+      const result = parseMessage(message, mockSender, 'sms');
       expect(result.amount).toBe(expected!.amount);
       if (expected!.merchant) {
         expect(result.merchant?.toUpperCase()).toContain(
@@ -238,5 +253,17 @@ describe('System Test Suite for Sample Messages', () => {
     expect(result.amount).toBe(35115.90);
     expect(result.transactionType).toBe('credit');
     expect(result.account).toBe('4000');
+  });
+
+  it('parses message 13 (ICICI CC with ending in format)', () => {
+    const result = parseMessage(
+      'INR 1,200.00 spent using ICICI Bank Credit Card ending in 4000 on 17-May-26 at ZOMATO.',
+      'AD-ICICIB',
+      'sms'
+    );
+    expect(result.amount).toBe(1200);
+    expect(result.transactionType).toBe('debit');
+    expect(result.account).toBe('4000');
+    expect(result.merchant).toBe('ZOMATO');
   });
 });

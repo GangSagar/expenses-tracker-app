@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import EditTransactionModal from '../components/EditTransactionModal';
 import CalendarModal from '../components/CalendarModal';
 import { getGroupedSections } from '../utils/dateHelpers';
 import { formatAmount } from '../utils/formatHelpers';
+import commonStyles from '../styles/commonStyles';
 
 const formatTime = (timestamp: number) => {
   return new Date(timestamp).toLocaleTimeString('en-IN', {
@@ -66,10 +67,8 @@ export default function HistoryScreen() {
   const [trashOptionsVisible, setTrashOptionsVisible] = useState(false);
   const [selectedTrashExpense, setSelectedTrashExpense] = useState<Expense | null>(null);
 
-  // Collapse State
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    today: true,
-  });
+  // Collapse State (expanded by default, we track which ones are collapsed)
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadExpenses();
@@ -130,24 +129,143 @@ export default function HistoryScreen() {
     });
   }, [expenses, searchQuery, selectedCategory, selectedSource, selectedType, selectedBank, selectedSize, filterStartDate, filterEndDate, viewMode]);
 
+  // Date collapse state (Today is expanded, past dates collapsed by default)
+  const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
+
+  const isDateCollapsed = useCallback((dateKey: string, isToday: boolean) => {
+    if (isToday) return false; // Always open (uncollapsed) for the current date
+    if (collapsedDates[dateKey] !== undefined) {
+      return collapsedDates[dateKey];
+    }
+    return true; // Everything else in the past is collapsed by default
+  }, [collapsedDates]);
+
+  const toggleDate = (dateKey: string, isToday: boolean) => {
+    setCollapsedDates(prev => {
+      const current = prev[dateKey] !== undefined ? prev[dateKey] : !isToday;
+      return {
+        ...prev,
+        [dateKey]: !current,
+      };
+    });
+  };
+
+  // Month-section collapse state helper
+  const isSectionCollapsed = useCallback((sectionId: string) => {
+    if (collapsedSections[sectionId] !== undefined) {
+      return collapsedSections[sectionId];
+    }
+    // Default: Current month is expanded (collapsed = false), older months are collapsed (collapsed = true)
+    const now = new Date();
+    const currentMonthKey = `month:${now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`;
+    return sectionId !== currentMonthKey;
+  }, [collapsedSections]);
+
+  const toggleSection = (id: string) => {
+    setCollapsedSections(prev => {
+      const current = isSectionCollapsed(id);
+      return {
+        ...prev,
+        [id]: !current,
+      };
+    });
+  };
+
   // Grouped Sections
   const sections = useMemo(() => {
     return getGroupedSections(filteredExpenses);
   }, [filteredExpenses]);
 
-  // Dynamic Section collapsing
+  // Dynamic Section collapsing (handles both Month section collapses and Date sub-section collapses)
   const renderableSections = useMemo(() => {
-    return sections.map(sec => ({
-      ...sec,
-      data: expandedSections[sec.id] ? sec.expenses : [],
-    }));
-  }, [sections, expandedSections]);
+    return sections.map(sec => {
+      if (isSectionCollapsed(sec.id)) {
+        return {
+          ...sec,
+          data: [],
+        };
+      }
 
-  const toggleSection = (id: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+      // Filter out transaction rows if their date sub-section is collapsed
+      const filteredItems = sec.expenses.filter((item: any) => {
+        if (item.isDivider) {
+          return true; // Always show sub-headers so they can be expanded
+        }
+        return !isDateCollapsed(item.parentDateKey, item.isToday);
+      });
+
+      return {
+        ...sec,
+        data: filteredItems,
+      };
+    });
+  }, [sections, isSectionCollapsed, isDateCollapsed]);
+
+  const collapseStats = useMemo(() => {
+    let totalSections = sections.length;
+    let expandedSectionsCount = sections.filter(sec => !isSectionCollapsed(sec.id)).length;
+
+    let totalDates = 0;
+    let expandedDatesCount = 0;
+
+    sections.forEach(sec => {
+      sec.expenses.forEach((item: any) => {
+        if (item.isDivider) {
+          totalDates++;
+          if (!isDateCollapsed(item.dateKey, item.isToday)) {
+            expandedDatesCount++;
+          }
+        }
+      });
+    });
+
+    const canExpand = expandedSectionsCount < totalSections || expandedDatesCount < totalDates;
+    const anyOpen = expandedSectionsCount > 1 || expandedDatesCount > 1;
+
+    return {
+      totalSections,
+      expandedSectionsCount,
+      totalDates,
+      expandedDatesCount,
+      canExpand,
+      anyOpen,
+    };
+  }, [sections, isSectionCollapsed, isDateCollapsed]);
+
+  const handleUncollapseAll = () => {
+    const newSections: Record<string, boolean> = {};
+    sections.forEach(sec => {
+      newSections[sec.id] = false;
+    });
+    setCollapsedSections(newSections);
+
+    const newDates: Record<string, boolean> = {};
+    sections.forEach(sec => {
+      sec.expenses.forEach((item: any) => {
+        if (item.isDivider) {
+          newDates[item.dateKey] = false;
+        }
+      });
+    });
+    setCollapsedDates(newDates);
+  };
+
+  const handleCollapseAll = () => {
+    const newSections: Record<string, boolean> = {};
+    sections.forEach(sec => {
+      newSections[sec.id] = true;
+    });
+    setCollapsedSections(newSections);
+
+    const newDates: Record<string, boolean> = {};
+    sections.forEach(sec => {
+      sec.expenses.forEach((item: any) => {
+        if (item.isDivider) {
+          newDates[item.dateKey] = true;
+        }
+      });
+    });
+    setCollapsedDates(newDates);
   };
 
   const clearAllFilters = () => {
@@ -211,9 +329,9 @@ export default function HistoryScreen() {
   const trashCount = expenses.filter(e => e.isInvalid).length;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Ledger History</Text>
+    <View style={commonStyles.container}>
+      <View style={commonStyles.header}>
+        <Text style={commonStyles.headerTitle}>Ledger History</Text>
       </View>
 
       {/* Segment Tab Controls */}
@@ -375,13 +493,32 @@ export default function HistoryScreen() {
             )}
           </View>
         )}
+        {sections.length > 0 && (sections.length > 1 || collapseStats.totalDates > 1) && (
+          <View style={styles.utilityRow}>
+            <Text style={styles.utilityCount}>
+              Showing {filteredExpenses.length} transactions
+            </Text>
+            <View style={styles.utilityActionsContainer}>
+              {collapseStats.canExpand && (
+                <TouchableOpacity style={styles.utilityActionBtn} onPress={handleUncollapseAll} activeOpacity={0.7}>
+                  <Text style={styles.utilityActionText}>📂 Expand All</Text>
+                </TouchableOpacity>
+              )}
+              {collapseStats.anyOpen && (
+                <TouchableOpacity style={[styles.utilityActionBtn, { marginLeft: 8 }]} onPress={handleCollapseAll} activeOpacity={0.7}>
+                  <Text style={styles.utilityActionText}>📁 Collapse All</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
       </View>
 
       <SectionList
         sections={renderableSections}
         keyExtractor={item => String(item.id)}
         renderSectionHeader={({ section }) => {
-          const isExpanded = !!expandedSections[section.id];
+          const isExpanded = !isSectionCollapsed(section.id);
           return (
             <TouchableOpacity
               style={[
@@ -409,6 +546,7 @@ export default function HistoryScreen() {
                   styles.sectionTotal,
                   section.type === 'month' && styles.monthTotal,
                   section.type === 'year' && styles.yearTotal,
+                  section.total < 0 && styles.totalDebit,
                 ]}
               >
                 {formatAmount(section.total)}
@@ -416,65 +554,92 @@ export default function HistoryScreen() {
             </TouchableOpacity>
           );
         }}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.item, item.isInvalid && styles.itemTrashed]}
-            onPress={() => handleEditExpense(item)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.itemLeft}>
-              <View style={styles.merchantRow}>
-                <Text style={styles.merchant}>{item.merchant}</Text>
-                {item.bank && (
-                  <View style={styles.bankBadge}>
-                    <Text style={styles.bankBadgeText}>{item.bank}</Text>
-                  </View>
-                )}
-                {item.referenceId && (
-                  <View style={styles.refBadge}>
-                    <Text style={styles.refBadgeText}>ID: {item.referenceId}</Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.metaRow}>
-                <Text style={styles.timeText}>{formatTime(item.timestamp)}</Text>
-                <Text style={styles.bullet}>•</Text>
-                <Text style={styles.category}>{item.category}</Text>
-                <Text style={styles.bullet}>•</Text>
-                <Text style={styles.sourceText}>
-                  {item.source === 'sms' ? '💬 SMS' : item.source === 'notification' ? '🔔 Alert' : '✍️ Manual'}
+        renderItem={({ item }: { item: any }) => {
+          if (item.isDivider) {
+            const isCollapsed = isDateCollapsed(item.dateKey, item.isToday);
+            return (
+              <TouchableOpacity
+                style={styles.dateDividerRow}
+                onPress={() => !item.isToday && toggleDate(item.dateKey, item.isToday)}
+                activeOpacity={item.isToday ? 1.0 : 0.7}
+                disabled={item.isToday}
+              >
+                <View style={styles.dateDividerLeft}>
+                  <Text style={styles.chevronSmall}>{item.isToday ? '▼' : (isCollapsed ? '▶' : '▼')}</Text>
+                  <Text style={styles.dateDividerTitle}>{item.title}</Text>
+                </View>
+                <Text
+                  style={[
+                    styles.dateDividerTotal,
+                    item.dayTotal >= 0 ? styles.totalCredit : styles.totalDebit,
+                  ]}
+                >
+                  {item.dayTotal >= 0 ? '+' : ''}{formatAmount(item.dayTotal)}
                 </Text>
-              </View>
-              {item.splits && item.splits.length > 0 && (
-                <View style={styles.splitBadgeContainer}>
-                  <Text style={styles.splitBadgeText}>
-                    👥 Split: {item.splits.map(s => `${s.contactName} (₹${s.amount})`).join(', ')}
+              </TouchableOpacity>
+            );
+          }
+
+          return (
+            <TouchableOpacity
+              style={[styles.item, item.isInvalid && styles.itemTrashed]}
+              onPress={() => handleEditExpense(item)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.itemLeft}>
+                <View style={styles.merchantRow}>
+                  <Text style={styles.merchant}>{item.merchant}</Text>
+                  {item.bank && (
+                    <View style={styles.bankBadge}>
+                      <Text style={styles.bankBadgeText}>{item.bank}</Text>
+                    </View>
+                  )}
+                  {item.referenceId && (
+                    <View style={styles.refBadge}>
+                      <Text style={styles.refBadgeText}>ID: {item.referenceId}</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.metaRow}>
+                  <Text style={styles.timeText}>{formatTime(item.timestamp)}</Text>
+                  <Text style={styles.bullet}>•</Text>
+                  <Text style={styles.category}>{item.category}</Text>
+                  <Text style={styles.bullet}>•</Text>
+                  <Text style={styles.sourceText}>
+                    {item.source === 'sms' ? '💬 SMS' : item.source === 'notification' ? '🔔 Alert' : '✍️ Manual'}
                   </Text>
                 </View>
-              )}
-              {item.isInvalid && item.trashReason && (
-                <View style={styles.trashReasonBadge}>
-                  <Text style={styles.trashReasonText}>Tag: {item.trashReason.toUpperCase()}</Text>
-                </View>
-              )}
-            </View>
-            <Text
-              style={[
-                styles.amount,
-                item.transactionType === 'credit'
-                  ? styles.credit
-                  : styles.debit,
-              ]}
-            >
-              {item.transactionType === 'credit' ? '+' : '-'}
-              {formatAmount(item.amount)}
-            </Text>
-          </TouchableOpacity>
-        )}
+                {item.splits && item.splits.length > 0 && (
+                  <View style={styles.splitBadgeContainer}>
+                    <Text style={styles.splitBadgeText}>
+                      👥 Split: {item.splits.map((s: any) => `${s.contactName} (₹${s.amount})`).join(', ')}
+                    </Text>
+                  </View>
+                )}
+                {item.isInvalid && item.trashReason && (
+                  <View style={styles.trashReasonBadge}>
+                    <Text style={styles.trashReasonText}>Tag: {item.trashReason.toUpperCase()}</Text>
+                  </View>
+                )}
+              </View>
+              <Text
+                style={[
+                  styles.amount,
+                  item.transactionType === 'credit'
+                    ? styles.credit
+                    : styles.debit,
+                ]}
+              >
+                {item.transactionType === 'credit' ? '+' : '-'}
+                {formatAmount(item.amount)}
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>
+          <View style={commonStyles.empty}>
+            <Text style={commonStyles.emptyText}>
               {hasActiveFilters 
                 ? 'No matches found for filters' 
                 : viewMode === 'trash' 
@@ -559,21 +724,8 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    backgroundColor: '#1a73e8',
-    paddingTop: 48,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-  },
+
+
   segmentContainer: {
     flexDirection: 'row',
     backgroundColor: '#fff',
@@ -717,6 +869,37 @@ const styles = StyleSheet.create({
     color: '#c5221f',
     fontSize: 12,
     fontWeight: '600',
+  },
+  utilityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f3f4',
+  },
+  utilityCount: {
+    fontSize: 13,
+    color: '#5f6368',
+    fontWeight: '600',
+  },
+  utilityActionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  utilityActionBtn: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    backgroundColor: '#f1f3f4',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#dadce0',
+  },
+  utilityActionText: {
+    fontSize: 12,
+    color: '#1a73e8',
+    fontWeight: '700',
   },
   list: {
     padding: 16,
@@ -965,13 +1148,43 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  empty: {
+
+  dateDividerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 8,
+    paddingBottom: 4,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f3f4',
+    marginTop: 6,
+    marginBottom: 4,
   },
-  emptyText: {
-    fontSize: 15,
-    color: '#9aa0a6',
-    fontWeight: '500',
+  dateDividerTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#80868b',
+    textTransform: 'uppercase',
+  },
+  dateDividerTotal: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  totalCredit: {
+    color: '#137333',
+  },
+  totalDebit: {
+    color: '#c5221f',
+  },
+  dateDividerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  chevronSmall: {
+    fontSize: 10,
+    color: '#80868b',
+    width: 12,
+    marginRight: 4,
   },
 });
