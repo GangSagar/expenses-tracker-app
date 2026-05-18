@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { useExpenseStore } from '../hooks/useExpenses';
+import commonStyles from '../styles/commonStyles';
 import { ExpenseSplit } from '../types/expense';
 
 interface SplitItemDetail {
@@ -184,9 +185,9 @@ export default function SplitsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Split Ledger</Text>
+    <View style={commonStyles.container}>
+      <View style={commonStyles.header}>
+        <Text style={commonStyles.headerTitle}>Split Ledger</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -228,12 +229,12 @@ export default function SplitsScreen() {
         </View>
 
         {/* Directory Header */}
-        <Text style={styles.sectionHeading}>Outstanding Ledger</Text>
+        <Text style={commonStyles.sectionHeading}>Outstanding Ledger</Text>
 
         {contactBalances.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>👥 No split transactions found.</Text>
-            <Text style={styles.emptySubtext}>
+          <View style={commonStyles.empty}>
+            <Text style={commonStyles.emptyText}>👥 No split transactions found.</Text>
+            <Text style={commonStyles.emptySubtext}>
               When adding or editing transactions, enable "Split with Contacts" to track bills!
             </Text>
           </View>
@@ -360,21 +361,8 @@ export default function SplitsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    backgroundColor: '#1a73e8',
-    paddingTop: 48,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#fff',
-  },
+
+
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
@@ -439,35 +427,8 @@ const styles = StyleSheet.create({
     height: 30,
     backgroundColor: '#f1f3f4',
   },
-  sectionHeading: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#202124',
-    marginBottom: 12,
-    marginTop: 8,
-    paddingHorizontal: 4,
-  },
-  emptyCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e8eaed',
-  },
-  emptyText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#5f6368',
-    marginBottom: 6,
-  },
-  emptySubtext: {
-    fontSize: 12,
-    color: '#80868b',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
+
+
   contactCard: {
     backgroundColor: '#fff',
     borderRadius: 14,
