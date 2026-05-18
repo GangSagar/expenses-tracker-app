@@ -6,14 +6,17 @@ import {
   FlatList,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { useExpenseStore } from '../hooks/useExpenses';
 import { Expense } from '../types/expense';
 import EditTransactionModal from '../components/EditTransactionModal';
 import { formatAmount } from '../utils/formatHelpers';
-import { getSetting, setSetting } from '../database/expenseRepo';
+import { getSetting, setSetting, deleteTransactionsForAccount } from '../database/expenseRepo';
 import { useFocusEffect } from '@react-navigation/native';
 import { Modal as RNModal } from 'react-native';
+import BankCard from '../components/BankCard';
+import commonStyles from '../styles/commonStyles';
 
 interface AccountSummary {
   bank: string;
@@ -33,38 +36,10 @@ interface MissingAnomaly {
   endDate: number;
 }
 
-function formatDate(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
 
-const CARD_PALETTES = [
-  ['#1a73e8', '#1557b0'], // Indigo/Blue
-  ['#009688', '#00796b'], // Teal
-  ['#2c3e50', '#1a252f'], // Dark Slate
-  ['#7b1fa2', '#4a148c'], // Rich Purple
-  ['#e65100', '#b53d00'], // Bright Orange
-  ['#c2185b', '#880e4f'], // Deep Pink
-  ['#1b5e20', '#0d3c12'], // Forest Green
-  ['#29b6f6', '#0288d1'], // Light Blue
-  ['#ec407a', '#c2185b'], // Coral Pink
-  ['#f4511e', '#b71c1c'], // Vermilion
-  ['#3f51b5', '#1a237e'], // Royal Indigo
-  ['#43a047', '#1b5e20'], // Emerald Green
-  ['#ab47bc', '#7b1fa2'], // Amethyst Purple
-  ['#d81b60', '#ad1457'], // Ruby Red
-  ['#00acc1', '#00838f'], // Cyan
-  ['#ffb300', '#ff6f00'], // Amber Gold
-];
 
 export default function AccountsScreen() {
-  const { expenses, addManualExpense } = useExpenseStore();
+  const { expenses, addManualExpense, loadExpenses } = useExpenseStore();
   const [selectedPrefill, setSelectedPrefill] = useState<Expense | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -131,8 +106,11 @@ export default function AccountsScreen() {
       .reverse()
       .find(e => e.availableBalance !== undefined && e.availableBalance !== null);
 
+    let latestBalance = 0;
+    const lastUpdated = sorted[sorted.length - 1].timestamp;
+
     if (latestWithBal && latestWithBal.availableBalance !== undefined) {
-      let latestBalance = latestWithBal.availableBalance;
+      latestBalance = latestWithBal.availableBalance;
       const latestIdx = sorted.indexOf(latestWithBal);
       
       // Apply subsequent transaction deltas to compute true current balance
@@ -144,14 +122,23 @@ export default function AccountsScreen() {
           latestBalance += subsequent.amount;
         }
       }
-
-      accounts.push({
-        bank,
-        account,
-        latestBalance,
-        lastUpdated: sorted[sorted.length - 1].timestamp,
-      });
+    } else {
+      // Fallback: No balance checkpoint found. Accumulate transaction deltas to get dynamic balance flow.
+      for (const item of sorted) {
+        if (item.transactionType === 'debit') {
+          latestBalance -= item.amount;
+        } else {
+          latestBalance += item.amount;
+        }
+      }
     }
+
+    accounts.push({
+      bank,
+      account,
+      latestBalance,
+      lastUpdated,
+    });
 
     // Run reconciliation checks to identify missing transactions
     let lastCheckpointBal: number | null = null;
@@ -246,6 +233,28 @@ export default function AccountsScreen() {
     setOptionsModalVisible(false);
   };
 
+  const handleDeleteCard = () => {
+    if (!selectedOptionsCard) return;
+    const { bank, account } = selectedOptionsCard;
+    
+    Alert.alert(
+      'Remove Card & Data',
+      `Are you sure you want to completely remove the card "${bank} ${account}"? This will permanently delete all transaction history associated with this card from the database. This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Remove', 
+          style: 'destructive',
+          onPress: () => {
+            deleteTransactionsForAccount(bank, account);
+            loadExpenses();
+            setOptionsModalVisible(false);
+          }
+        }
+      ]
+    );
+  };
+
   const handleRestoreHiddenCards = () => {
     setHiddenAccounts([]);
     setSetting('hidden_accounts', '[]');
@@ -296,59 +305,19 @@ export default function AccountsScreen() {
     setModalVisible(true);
   };
 
-  const getCardColor = (bankName: string, accountNumber: string, type: 'cc' | 'debit') => {
-    const name = bankName.toUpperCase();
-    if (name.includes('ICICI')) return ['#4a148c', '#8e24aa']; // Purple
-    if (name.includes('HDFC')) return ['#0d47a1', '#1976d2']; // Royal Blue
-    if (name.includes('SBI')) return ['#006064', '#0097a7']; // Cyan/Teal
-    if (name.includes('BOB')) return ['#e65100', '#f57c00']; // Orange
-    if (name.includes('BOI')) return ['#1b5e20', '#388e3c']; // Green
-    if (type === 'cc') return ['#111111', '#2c3e50']; // Sleek credit dark blue/black
-
-    // Dynamic Hashing for unique debit card colors
-    const str = `${bankName}::${accountNumber}`;
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const idx = Math.abs(hash) % CARD_PALETTES.length;
-    return CARD_PALETTES[idx];
-  };
-
   const renderCard = ({ item }: { item: AccountSummary }) => {
     const cardType = getLiveCardType(item.bank, item.account);
-    const colors = getCardColor(item.bank, item.account, cardType);
     return (
-      <View style={[styles.card, { backgroundColor: colors[0], borderColor: cardType === 'cc' ? '#c5a059' : 'transparent', borderWidth: cardType === 'cc' ? 1.5 : 0 }]}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.bankName}>{item.bank.toUpperCase()}</Text>
-          
-          {/* Interactive Toggle Capsule */}
-          <View style={styles.cardHeaderRight}>
-            <TouchableOpacity 
-              style={[styles.toggleBadge, cardType === 'cc' ? styles.toggleBadgeCc : styles.toggleBadgeDebit]}
-              onPress={() => toggleAccountType(item.bank, item.account)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.toggleBadgeText, cardType === 'cc' && styles.toggleBadgeTextCc]}>
-                {cardType === 'cc' ? '💳 CREDIT CARD' : '🏦 DEBIT CARD'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.optionsDotBtn} 
-              onPress={() => openCardOptions(item.bank, item.account)}
-            >
-              <Text style={styles.optionsDotIcon}>⋮</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        <Text style={styles.balance}>{formatAmount(item.latestBalance)}</Text>
-        <View style={styles.cardFooter}>
-          <Text style={styles.accountNumber}>A/C: •••• {item.account}</Text>
-          <Text style={styles.lastUpdated}>Updated: {formatDate(item.lastUpdated)}</Text>
-        </View>
-      </View>
+      <BankCard
+        bank={item.bank}
+        account={item.account}
+        balance={item.latestBalance}
+        cardType={cardType}
+        variant="full"
+        lastUpdated={item.lastUpdated}
+        onToggleCardType={() => toggleAccountType(item.bank, item.account)}
+        onOptionsPress={() => openCardOptions(item.bank, item.account)}
+      />
     );
   };
 
@@ -360,9 +329,9 @@ export default function AccountsScreen() {
   });
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Bank Sync & Ledger Accounts</Text>
+    <View style={commonStyles.container}>
+      <View style={commonStyles.header}>
+        <Text style={commonStyles.headerTitle}>Bank Sync & Ledger Accounts</Text>
         {hiddenAccounts.length > 0 && (
           <TouchableOpacity 
             style={styles.headerRightBtn} 
@@ -376,9 +345,9 @@ export default function AccountsScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {accounts.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No Bank Accounts Detected</Text>
-            <Text style={styles.emptySubtext}>
+          <View style={commonStyles.empty}>
+            <Text style={commonStyles.emptyText}>No Bank Accounts Detected</Text>
+            <Text style={commonStyles.emptySubtext}>
               Once bank transactions with balance checkpoints are processed from SMS, your digital cards will appear here automatically.
             </Text>
           </View>
@@ -519,6 +488,10 @@ export default function AccountsScreen() {
               <Text style={styles.optionBtnDangerText}>🚫 Hide this Card</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.optionBtnDelete} onPress={handleDeleteCard}>
+              <Text style={styles.optionBtnDeleteText}>🗑️ Remove Card & Transactions</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setOptionsModalVisible(false)}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
@@ -542,25 +515,8 @@ export default function AccountsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    backgroundColor: '#1a73e8',
-    paddingTop: 48,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-    flex: 1,
-  },
+
+
   headerRightBtn: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 12,
@@ -665,89 +621,7 @@ const styles = StyleSheet.create({
     paddingLeft: 16,
     paddingRight: 8,
   },
-  card: {
-    width: 280,
-    height: 160,
-    borderRadius: 16,
-    padding: 20,
-    marginRight: 12,
-    justifyContent: 'space-between',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  cardHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  bankName: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '800',
-    flex: 1,
-  },
-  toggleBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  toggleBadgeDebit: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  toggleBadgeCc: {
-    backgroundColor: 'rgba(197, 160, 89, 0.15)',
-    borderColor: 'rgba(197, 160, 89, 0.4)',
-  },
-  toggleBadgeText: {
-    color: '#fff',
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  toggleBadgeTextCc: {
-    color: '#c5a059',
-  },
-  optionsDotBtn: {
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-  },
-  optionsDotIcon: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  balance: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: '800',
-    marginVertical: 10,
-    letterSpacing: -0.5,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  accountNumber: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-    opacity: 0.95,
-  },
-  lastUpdated: {
-    color: 'rgba(255, 255, 255, 0.65)',
-    fontSize: 10,
-  },
+
   anomalySection: {
     marginTop: 8,
   },
@@ -848,26 +722,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  emptyContainer: {
-    alignItems: 'center',
-    padding: 40,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    margin: 16,
-    elevation: 1,
-  },
-  emptyText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#5f6368',
-  },
-  emptySubtext: {
-    fontSize: 13,
-    color: '#9aa0a6',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 18,
-  },
+
   reconciledState: {
     alignItems: 'center',
     padding: 32,
@@ -939,6 +794,20 @@ const styles = StyleSheet.create({
   },
   optionBtnDangerText: {
     color: '#d93025',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  optionBtnDelete: {
+    backgroundColor: '#ffebee',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#ffcdd2',
+  },
+  optionBtnDeleteText: {
+    color: '#c62828',
     fontWeight: '700',
     fontSize: 14,
   },
