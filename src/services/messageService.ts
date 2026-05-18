@@ -4,6 +4,7 @@ import {
   isTransactionalSender,
   isTransactionMessage,
 } from '../core/parser';
+import { normalizeUnicodeText } from '../utils/formatHelpers';
 
 export interface IncomingMessage {
   body: string;
@@ -15,23 +16,26 @@ export interface IncomingMessage {
 export function processIncomingMessage(
   message: IncomingMessage,
 ): ParsedTransaction | null {
-  console.log(`\n=== Processing Message from ${message.sender} ===`);
+  const cleanSender = normalizeUnicodeText(message.sender || '');
+  const cleanBody = normalizeUnicodeText(message.body || '');
+
+  console.log(`\n=== Processing Message from ${cleanSender} ===`);
   
   // Step 1: Filter by sender (for SMS)
-  if (message.source === 'sms' && !isTransactionalSender(message.sender)) {
-    console.log(`❌ Dropped: Sender ${message.sender} is not recognized as a transactional sender.`);
+  if (message.source === 'sms' && !isTransactionalSender(cleanSender)) {
+    console.log(`❌ Dropped: Sender ${cleanSender} is not recognized as a transactional sender.`);
     return null;
   }
 
   // Step 2: Filter non-transaction messages
-  if (!isTransactionMessage(message.body)) {
+  if (!isTransactionMessage(cleanBody)) {
     console.log(`❌ Dropped: Message body matched a block filter (like OTP, Login, or pure Promo/Balance).`);
-    console.log(`Raw Body: ${message.body}`);
+    console.log(`Raw Body: ${cleanBody}`);
     return null;
   }
 
   // Step 3: Parse the message
-  const parsed = parseMessage(message.body, message.sender, message.source);
+  const parsed = parseMessage(cleanBody, cleanSender, message.source);
 
   // Step 4: Must have an amount to be a valid transaction
   if (parsed.amount === null) {

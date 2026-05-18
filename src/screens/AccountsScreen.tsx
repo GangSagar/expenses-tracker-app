@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   TouchableOpacity,
   ScrollView,
@@ -17,6 +16,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Modal as RNModal } from 'react-native';
 import BankCard from '../components/BankCard';
 import commonStyles from '../styles/commonStyles';
+import styles from '../styles/AccountsScreenStyles';
+
 
 interface AccountSummary {
   bank: string;
@@ -65,10 +66,11 @@ export default function AccountsScreen() {
     }
   }, [selectedFilter]);
 
-  // Load ignored anomalies whenever screen comes into focus
+  // Load expenses and ignored anomalies whenever screen comes into focus
   useFocusEffect(
     useCallback(() => {
       try {
+        loadExpenses();
         const savedAnomalies = getSetting('ignored_anomalies', '[]');
         setIgnoredSignatures(JSON.parse(savedAnomalies));
 
@@ -77,7 +79,7 @@ export default function AccountsScreen() {
       } catch (e) {
         console.error('Failed to parse settings in Accounts', e);
       }
-    }, [])
+    }, [loadExpenses])
   );
 
   const activeExpenses = expenses.filter(e => !e.isInvalid);
@@ -514,311 +516,3 @@ export default function AccountsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-
-
-  headerRightBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  headerRightBtnText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  ccSectionContainer: {
-    marginTop: 10,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#202124',
-    marginHorizontal: 16,
-    marginTop: 22,
-    marginBottom: 10,
-    letterSpacing: 0.2,
-  },
-  filterTabs: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 18,
-    marginBottom: 16,
-    backgroundColor: '#e8eaed',
-    borderRadius: 12,
-    padding: 3,
-  },
-  filterTabBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 9,
-  },
-  filterTabBtnActive: {
-    backgroundColor: '#fff',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 1.5,
-  },
-  filterTabBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#5f6368',
-  },
-  filterTabBtnTextActive: {
-    color: '#1a73e8',
-  },
-  emptyContainerCard: {
-    height: 160,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#dadce0',
-    borderStyle: 'dashed',
-    borderRadius: 16,
-  },
-  emptyTextCard: {
-    fontSize: 13,
-    color: '#80868b',
-    fontWeight: '600',
-  },
-  anomalySectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 24,
-    marginBottom: 10,
-  },
-  sectionTitleAnomaly: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#202124',
-    letterSpacing: 0.2,
-  },
-  ignoreAllBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: '#f1f3f4',
-    borderWidth: 1,
-    borderColor: '#dadce0',
-  },
-  ignoreAllBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#5f6368',
-  },
-  cardList: {
-    paddingLeft: 16,
-    paddingRight: 8,
-  },
-
-  anomalySection: {
-    marginTop: 8,
-  },
-  anomalyCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    borderLeftWidth: 4,
-    borderLeftColor: '#f4b400',
-  },
-  anomalyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  anomalyTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#202124',
-    flex: 1,
-    marginRight: 8,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  debitBadge: {
-    backgroundColor: '#fce8e6',
-  },
-  creditBadge: {
-    backgroundColor: '#e6f4ea',
-  },
-  badgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  anomalyDescription: {
-    fontSize: 13,
-    color: '#5f6368',
-    lineHeight: 18,
-  },
-  anomalyBold: {
-    fontWeight: '800',
-    color: '#202124',
-  },
-  expectedText: {
-    color: '#c5221f',
-    fontWeight: '700',
-  },
-  actualText: {
-    color: '#137333',
-    fontWeight: '700',
-  },
-  anomalyMeta: {
-    fontSize: 11,
-    color: '#9aa0a6',
-    marginTop: 6,
-    marginBottom: 14,
-  },
-  anomalyActionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  ignoreSingleBtn: {
-    flex: 1,
-    backgroundColor: '#f1f3f4',
-    borderWidth: 1,
-    borderColor: '#dadce0',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ignoreSingleText: {
-    color: '#5f6368',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  logBtn: {
-    flex: 2.2,
-    backgroundColor: '#1a73e8',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logBtnText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-
-  reconciledState: {
-    alignItems: 'center',
-    padding: 32,
-    margin: 16,
-  },
-  reconciledIcon: {
-    fontSize: 48,
-    color: '#34a853',
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  reconciledText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#202124',
-    marginBottom: 6,
-  },
-  reconciledSubtext: {
-    fontSize: 13,
-    color: '#5f6368',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  resetIgnoredBtn: {
-    marginTop: 10,
-    marginHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#e8f0fe',
-    borderWidth: 1,
-    borderColor: '#1a73e8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  resetIgnoredBtnText: {
-    color: '#1a73e8',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  optionsModalBox: {
-    width: '85%',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-  },
-  optionsModalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#202124',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  optionBtnDanger: {
-    backgroundColor: '#fce8e6',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  optionBtnDangerText: {
-    color: '#d93025',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  optionBtnDelete: {
-    backgroundColor: '#ffebee',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#ffcdd2',
-  },
-  optionBtnDeleteText: {
-    color: '#c62828',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  cancelBtn: {
-    marginTop: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  cancelBtnText: {
-    color: '#80868b',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-});
