@@ -180,7 +180,11 @@ class MessageModule(reactContext: ReactApplicationContext) :
                 }
             }
 
-            promise.resolve(jsonArray.toString())
+            val responseObj = org.json.JSONObject().apply {
+                put("messages", jsonArray)
+                put("cursorCount", cursor?.count ?: 0)
+            }
+            promise.resolve(responseObj.toString())
         } catch (e: Exception) {
             promise.reject("FETCH_ERROR", "Failed to query historical SMS messages (paged)", e)
         }

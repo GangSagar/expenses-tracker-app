@@ -13,9 +13,11 @@ import { useExpenseStore } from '../hooks/useExpenses';
 import { Expense } from '../types/expense';
 import EditTransactionModal from '../components/EditTransactionModal';
 import ExpenseItem from '../components/ExpenseItem';
-import { formatAmount, getCategoryColor, getBankColor } from '../utils/formatHelpers';
+import { formatAmount, getCategoryColor } from '../utils/formatHelpers';
+import BankCard from '../components/BankCard';
 import { getSetting } from '../database/expenseRepo';
 import { generateBudgetInsights } from '../services/advisorService';
+import commonStyles from '../styles/commonStyles';
 
 export default function HomeScreen() {
   const { expenses, loading, loadExpenses, updateExpense, addManualExpense } = useExpenseStore();
@@ -76,8 +78,9 @@ export default function HomeScreen() {
       .reverse()
       .find(e => e.availableBalance !== undefined && e.availableBalance !== null);
 
+    let balance = 0;
     if (latestWithBal && latestWithBal.availableBalance !== undefined) {
-      let balance = latestWithBal.availableBalance;
+      balance = latestWithBal.availableBalance;
       const latestIdx = sorted.indexOf(latestWithBal);
       for (let idx = latestIdx + 1; idx < sorted.length; idx++) {
         const subsequent = sorted[idx];
@@ -87,15 +90,24 @@ export default function HomeScreen() {
           balance += subsequent.amount;
         }
       }
-
-      // Check persisted cardType override or auto default
-      const typeKey = `account_type::${bank}::${account}`;
-      const saved = getSetting(typeKey);
-      const hasCCMode = list.some(e => e.paymentMode === 'cc' || /credit\s*card|cc\b/i.test(e.rawMessage));
-      const cardType = (saved || (hasCCMode ? 'cc' : 'debit')) as 'cc' | 'debit';
-
-      accountsList.push({ bank, account, balance, cardType });
+    } else {
+      // Fallback: Accumulate transaction deltas to get dynamic balance flow.
+      for (const item of sorted) {
+        if (item.transactionType === 'debit') {
+          balance -= item.amount;
+        } else {
+          balance += item.amount;
+        }
+      }
     }
+
+    // Check persisted cardType override or auto default
+    const typeKey = `account_type::${bank}::${account}`;
+    const saved = getSetting(typeKey);
+    const hasCCMode = list.some(e => e.paymentMode === 'cc' || /credit\s*card|cc\b/i.test(e.rawMessage));
+    const cardType = (saved || (hasCCMode ? 'cc' : 'debit')) as 'cc' | 'debit';
+
+    accountsList.push({ bank, account, balance, cardType });
   }
 
   // 2. Calculate Category Insights (Top 3 Debits)
@@ -150,12 +162,12 @@ export default function HomeScreen() {
   const recentExpenses = activeExpenses.slice(0, 5);
 
   return (
-    <View style={styles.container}>
+    <View style={commonStyles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a73e8" />
       
       {/* Fixed Header Section at the Top */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Dashboard</Text>
+      <View style={commonStyles.header}>
+        <Text style={commonStyles.headerTitle}>Dashboard</Text>
         <View style={styles.totalCard}>
           <View style={styles.cardContainerRow}>
             {/* Left Column: Total bank balance */}
@@ -242,7 +254,7 @@ export default function HomeScreen() {
 
         {/* Quick Actions Shortcuts */}
         <View style={styles.quickActionCard}>
-          <Text style={styles.sectionHeading}>Quick Actions</Text>
+          <Text style={commonStyles.sectionHeading}>Quick Actions</Text>
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.actionBtn} onPress={handleAddCash}>
               <Text style={styles.actionIcon}>💵</Text>
@@ -264,30 +276,23 @@ export default function HomeScreen() {
         {/* Miniature Bank Cards Carousel */}
         {accountsList.length > 0 && (
           <View style={styles.carouselContainer}>
-            <Text style={styles.sectionHeading}>Your Bank Accounts</Text>
+            <Text style={commonStyles.sectionHeading}>Your Bank Accounts</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.carouselScroll}
             >
-              {accountsList.map((acc) => {
-                const colors = getBankColor(acc.bank);
-                return (
-                  <TouchableOpacity
-                    key={`${acc.bank}-${acc.account}`}
-                    style={[styles.bankMiniCard, { backgroundColor: colors[0] }]}
-                    onPress={() => navigation.navigate('Accounts')}
-                    activeOpacity={0.9}
-                  >
-                    <Text style={styles.bankName}>{acc.bank}</Text>
-                    <Text style={styles.bankNumber}>•••• {acc.account}</Text>
-                    <View style={styles.cardBalanceRow}>
-                      <Text style={styles.bankBalanceLabel}>Balance</Text>
-                      <Text style={styles.bankBalance}>{formatAmount(acc.balance)}</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+              {accountsList.map((acc) => (
+                <BankCard
+                  key={`${acc.bank}-${acc.account}`}
+                  bank={acc.bank}
+                  account={acc.account}
+                  balance={acc.balance}
+                  cardType={acc.cardType}
+                  variant="mini"
+                  onPress={() => navigation.navigate('Accounts')}
+                />
+              ))}
             </ScrollView>
           </View>
         )}
@@ -295,7 +300,7 @@ export default function HomeScreen() {
         {/* Top Spending Analytics */}
         {topCategories.length > 0 && (
           <View style={styles.insightsCard}>
-            <Text style={styles.sectionHeading}>Spending Insights</Text>
+            <Text style={commonStyles.sectionHeading}>Spending Insights</Text>
             <View style={styles.insightsList}>
               {topCategories.map((cat, index) => {
                 const color = getCategoryColor(cat.category, index);
@@ -324,7 +329,7 @@ export default function HomeScreen() {
 
         {/* Recent Activity Section */}
         <View style={styles.recentActivityHeader}>
-          <Text style={styles.sectionHeading}>Recent Transactions</Text>
+          <Text style={commonStyles.sectionHeading}>Recent Transactions</Text>
           {expenses.length > 5 && (
             <TouchableOpacity onPress={() => navigation.navigate('History')}>
               <Text style={styles.seeAllText}>See All</Text>
@@ -333,9 +338,9 @@ export default function HomeScreen() {
         </View>
 
         {recentExpenses.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No transactions yet</Text>
-            <Text style={styles.emptySubtext}>Your recent activity will be listed here.</Text>
+          <View style={commonStyles.empty}>
+            <Text style={commonStyles.emptyText}>No transactions yet</Text>
+            <Text style={commonStyles.emptySubtext}>Your recent activity will be listed here.</Text>
           </View>
         ) : (
           <View style={styles.recentList}>
@@ -361,8 +366,8 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* Manual Transaction Float Trigger */}
-      <TouchableOpacity style={styles.fab} onPress={handleAddCash} activeOpacity={0.8}>
-        <Text style={styles.fabIcon}>+</Text>
+      <TouchableOpacity style={commonStyles.fab} onPress={handleAddCash} activeOpacity={0.8}>
+        <Text style={commonStyles.fabIcon}>+</Text>
       </TouchableOpacity>
 
       <EditTransactionModal
@@ -381,27 +386,11 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
+
   scrollContent: {
     paddingBottom: 100,
   },
-  header: {
-    backgroundColor: '#1a73e8',
-    paddingTop: 48,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 16,
-  },
+
   totalCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
     borderRadius: 16,
@@ -465,12 +454,7 @@ const styles = StyleSheet.create({
     color: '#ef9a9a',
     marginTop: 1,
   },
-  sectionHeading: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#202124',
-    marginBottom: 12,
-  },
+
   quickActionCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -506,46 +490,7 @@ const styles = StyleSheet.create({
     paddingRight: 16,
     gap: 12,
   },
-  bankMiniCard: {
-    width: 160,
-    height: 100,
-    borderRadius: 14,
-    padding: 12,
-    justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  bankName: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#fff',
-    opacity: 0.95,
-  },
-  bankNumber: {
-    fontSize: 10,
-    color: '#fff',
-    opacity: 0.7,
-    marginTop: -16,
-  },
-  cardBalanceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  bankBalanceLabel: {
-    fontSize: 8,
-    color: '#fff',
-    opacity: 0.8,
-    textTransform: 'uppercase',
-  },
-  bankBalance: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fff',
-  },
+
   insightsCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -707,48 +652,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  empty: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginHorizontal: 16,
-    padding: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e8eaed',
-  },
-  emptyText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#5f6368',
-  },
-  emptySubtext: {
-    fontSize: 11,
-    color: '#80868b',
-    marginTop: 4,
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    backgroundColor: '#1a73e8',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  fabIcon: {
-    fontSize: 28,
-    color: '#fff',
-    fontWeight: '700',
-    marginTop: -2,
-  },
+
   aiInsightsCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
