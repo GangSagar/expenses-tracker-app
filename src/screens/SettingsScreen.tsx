@@ -23,9 +23,12 @@ import {
   insertExpense,
   clearAllExpenses,
 } from '../database/expenseRepo';
+import commonStyles from '../styles/commonStyles';
 import CalendarModal from '../components/CalendarModal';
 import { processIncomingMessage } from '../services/messageService';
 import { processTransaction } from '../services/expenseService';
+import { resetSpamClassifier } from '../core/classifier/spamClassifier';
+import { resetMerchantMap } from '../core/classifier/merchantMap';
 
 const { MessageModule } = NativeModules;
 
@@ -40,6 +43,8 @@ export default function SettingsScreen() {
   const [syncProgress, setSyncProgress] = useState('');
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [keyboardSpace, setKeyboardSpace] = useState(0);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [proposedTransactions, setProposedTransactions] = useState<any[]>([]);
 
   const requestSmsPermission = async (): Promise<boolean> => {
     if (Platform.OS !== 'android') return true;
@@ -82,74 +87,72 @@ export default function SettingsScreen() {
     }
 
     setSyncing(true);
-    setSyncProgress('Querying SMS messages...');
+    setSyncProgress('Querying SMS inbox...');
 
     try {
-      // 2. Fetch past SMS messages in pages to avoid large single-response truncation
-      setSyncProgress('Fetching SMS messages (paged)...');
-      let importedCount = 0;
-      const PAGE_SIZE = 500;
-      let offset = 0;
+      // 2. Fetch all historical SMS messages since selected start date
+      // This single fetch query is safe and fully compatible across all devices
+      const pageJson = await MessageModule.fetchPastMessages(startTs);
+      const rawList =
+        typeof pageJson === 'string' ? JSON.parse(pageJson) : pageJson;
 
-      while (true) {
-        const pageJson = await MessageModule.fetchPastMessagesPaged(
-          startTs,
-          PAGE_SIZE,
-          offset,
+      if (!rawList || rawList.length === 0) {
+        setSyncing(false);
+        Alert.alert(
+          'No Messages Found',
+          'No messages were found from transactional senders in your SMS inbox.',
         );
-        const page =
-          typeof pageJson === 'string' ? JSON.parse(pageJson) : pageJson;
-        console.log(
-          `Fetched page with ${
-            page.length
-          } messages (offset ${offset}) from SMS inbox since ${new Date(
-            startTs,
-          ).toLocaleDateString()}`,
-        );
+        return;
+      }
 
-        setSyncProgress(`Processing ${page.length} messages...`);
+      setSyncProgress(`Parsing ${rawList.length} messages...`);
 
-        for (const msg of page) {
-          const parsed = processIncomingMessage({
-            body: msg.body,
-            sender: msg.sender,
-            source: 'sms',
-          });
+      const proposed: any[] = [];
+      let tempCounter = 0;
 
-          if (parsed) {
-            parsed.timestamp = msg.timestamp;
+      for (const msg of rawList) {
+        const parsed = processIncomingMessage({
+          body: msg.body,
+          sender: msg.sender,
+          source: 'sms',
+        });
 
-            const duplicate = isDuplicateTransaction(
-              parsed.amount!,
-              parsed.timestamp,
-              parsed.referenceId || undefined,
-            );
+        if (parsed) {
+          parsed.timestamp = msg.timestamp;
 
-            if (!duplicate) {
-              const processed = processTransaction(parsed);
-              if (processed && processed.decision !== 'discard') {
-                insertExpense(processed.expense);
-                importedCount++;
-              }
+          const duplicate = isDuplicateTransaction(
+            parsed.amount!,
+            parsed.timestamp,
+            parsed.referenceId || undefined,
+            parsed.rawMessage || undefined,
+          );
+
+          if (!duplicate) {
+            const processed = processTransaction(parsed);
+            if (processed && processed.decision !== 'discard') {
+              proposed.push({
+                ...processed.expense,
+                tempId: `temp_${Date.now()}_${tempCounter++}`,
+                checked: true, // Default to checked
+              });
             }
           }
         }
-
-        if (!page || page.length < PAGE_SIZE) {
-          break;
-        }
-        offset += PAGE_SIZE;
       }
 
-      // 4. Reload expenses list from store
-      loadExpenses();
-
-      // 5. Done!
       setSyncing(false);
-      Alert.alert(
-        'Sync Complete',
-        `Successfully scanned SMS records. Imported ${importedCount} new transactions!`,
-      );
+
+      if (proposed.length === 0) {
+        Alert.alert(
+          'Already Synced',
+          'No new transactions were found. All transactional records since this date are already in your ledger!',
+        );
+        return;
+      }
+
+      // Show preview
+      setProposedTransactions(proposed);
+      setPreviewVisible(true);
     } catch (err: any) {
       console.error('History sync failed:', err);
       setSyncing(false);
@@ -158,6 +161,42 @@ export default function SettingsScreen() {
         err.message || 'An error occurred during transaction sync.',
       );
     }
+  };
+
+  const handleApproveSync = () => {
+    try {
+      let importedCount = 0;
+      for (const tx of proposedTransactions) {
+        if (tx.checked) {
+          const expenseData = { ...tx };
+          delete (expenseData as any).tempId;
+          delete (expenseData as any).checked;
+          insertExpense(expenseData);
+          importedCount++;
+        }
+      }
+
+      loadExpenses();
+      setPreviewVisible(false);
+      setProposedTransactions([]);
+
+      Alert.alert(
+        'Sync Complete',
+        `Successfully imported ${importedCount} transactions to your ledger!`,
+      );
+    } catch (err: any) {
+      Alert.alert('Import Failed', err.message || 'Failed to save transactions.');
+    }
+  };
+
+  const toggleSelectTransaction = (tempId: string) => {
+    setProposedTransactions(prev =>
+      prev.map(tx => (tx.tempId === tempId ? { ...tx, checked: !tx.checked } : tx)),
+    );
+  };
+
+  const toggleSelectAll = (select: boolean) => {
+    setProposedTransactions(prev => prev.map(tx => ({ ...tx, checked: select })));
   };
 
   // Contacts permission, scratchpad notes, and smart budget state
@@ -288,10 +327,12 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: () => {
             clearAllExpenses();
+            resetSpamClassifier();
+            resetMerchantMap();
             loadExpenses(); // Reload to reflect empty state
             Alert.alert(
               'Data Deleted',
-              'All transaction data has been permanently deleted.',
+              'All transaction data and dynamic AI models have been permanently reset.',
             );
           },
         },
@@ -356,10 +397,39 @@ export default function SettingsScreen() {
     }, 150);
   };
 
+  const getCategoryEmoji = (category: string) => {
+    switch (category) {
+      case 'Food & Dining': return '🍔';
+      case 'Travel': return '🚗';
+      case 'Shopping': return '🛍️';
+      case 'Groceries': return '🛒';
+      case 'Bills & Recharge': return '📱';
+      case 'Entertainment': return '🎬';
+      case 'Health': return '🏥';
+      case 'Finance': return '💳';
+      case 'Education': return '📚';
+      case 'Self-transfers': return '🔄';
+      case 'Transfers': return '💸';
+      case 'Games': return '🎮';
+      default: return '📦';
+    }
+  };
+
+  const formatDate = (ts: number) => {
+    return new Date(ts).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const selectedCount = proposedTransactions.filter(t => t.checked).length;
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Settings</Text>
+    <View style={commonStyles.container}>
+      <View style={commonStyles.header}>
+        <Text style={commonStyles.headerTitle}>Settings</Text>
       </View>
 
       <KeyboardAvoidingView
@@ -591,27 +661,148 @@ export default function SettingsScreen() {
             }}
           />
         </Modal>
+
+        {/* Sync Preview Modal */}
+        <Modal
+          visible={previewVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => {
+            setPreviewVisible(false);
+            setProposedTransactions([]);
+          }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.previewModalBox}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.modalTitle}>Sync Preview</Text>
+                  <Text style={styles.modalSubtitle}>
+                    Select the transactions you want to import
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    setPreviewVisible(false);
+                    setProposedTransactions([]);
+                  }}
+                >
+                  <Text style={styles.modalClose}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Selection Bar */}
+              <View style={styles.selectionBar}>
+                <Text style={styles.selectionInfo}>
+                  Selected: <Text style={styles.boldText}>{selectedCount}</Text> of{' '}
+                  {proposedTransactions.length}
+                </Text>
+                <View style={styles.selectionActions}>
+                  {selectedCount === proposedTransactions.length ? (
+                    <TouchableOpacity onPress={() => toggleSelectAll(false)}>
+                      <Text style={styles.selectionActionText}>Deselect All</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity onPress={() => toggleSelectAll(true)}>
+                      <Text style={styles.selectionActionText}>Select All</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              {/* Transactions List */}
+              <ScrollView style={styles.previewList}>
+                {proposedTransactions.map(tx => {
+                  const emoji = getCategoryEmoji(tx.category);
+                  return (
+                    <TouchableOpacity
+                      key={tx.tempId}
+                      style={styles.previewRow}
+                      onPress={() => toggleSelectTransaction(tx.tempId)}
+                      activeOpacity={0.8}
+                    >
+                      {/* Checkbox */}
+                      <View
+                        style={[
+                          styles.checkboxCircle,
+                          tx.checked && styles.checkboxChecked,
+                        ]}
+                      >
+                        {tx.checked && <Text style={styles.checkMark}>✓</Text>}
+                      </View>
+
+                      {/* Category Icon */}
+                      <View style={styles.categoryCircle}>
+                        <Text style={styles.categoryEmoji}>{emoji}</Text>
+                      </View>
+
+                      {/* Details */}
+                      <View style={styles.previewDetails}>
+                        <Text style={styles.previewMerchant} numberOfLines={1}>
+                          {tx.merchant}
+                        </Text>
+                        <Text style={styles.previewMeta}>
+                          {tx.category} • {formatDate(tx.timestamp)}
+                        </Text>
+                        {tx.bank && (
+                          <Text style={styles.previewBank}>
+                            {tx.paymentMode?.toUpperCase()} • {tx.bank}
+                          </Text>
+                        )}
+                      </View>
+
+                      {/* Amount */}
+                      <Text
+                        style={[
+                          styles.previewAmount,
+                          tx.transactionType === 'credit'
+                            ? styles.amountCredit
+                            : styles.amountDebit,
+                        ]}
+                      >
+                        {tx.transactionType === 'credit' ? '+' : '-'} ₹
+                        {tx.amount.toFixed(2)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Footer */}
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  style={styles.cancelBtn}
+                  onPress={() => {
+                    setPreviewVisible(false);
+                    setProposedTransactions([]);
+                  }}
+                >
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.approveBtn,
+                    selectedCount === 0 && styles.approveBtnDisabled,
+                  ]}
+                  onPress={handleApproveSync}
+                  disabled={selectedCount === 0}
+                >
+                  <Text style={styles.approveBtnText}>
+                    Import Selected ({selectedCount})
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    backgroundColor: '#1a73e8',
-    paddingTop: 48,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#fff',
-  },
+
   content: {
     padding: 16,
   },
@@ -884,5 +1075,157 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     fontWeight: '500',
+  },
+  previewModalBox: {
+    width: '90%',
+    height: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
+  selectionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e8eaed',
+    marginVertical: 12,
+  },
+  selectionInfo: {
+    fontSize: 13,
+    color: '#5f6368',
+  },
+  boldText: {
+    fontWeight: '700',
+    color: '#202124',
+  },
+  selectionActions: {
+    flexDirection: 'row',
+  },
+  selectionActionText: {
+    fontSize: 13,
+    color: '#1a73e8',
+    fontWeight: '600',
+  },
+  previewList: {
+    flex: 1,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f3f4',
+  },
+  checkboxCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#dadce0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  checkboxChecked: {
+    backgroundColor: '#1a73e8',
+    borderColor: '#1a73e8',
+  },
+  checkMark: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  categoryCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f1f3f4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  categoryEmoji: {
+    fontSize: 20,
+  },
+  previewDetails: {
+    flex: 1,
+  },
+  previewMerchant: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#202124',
+  },
+  previewMeta: {
+    fontSize: 11,
+    color: '#5f6368',
+    marginTop: 2,
+  },
+  previewBank: {
+    fontSize: 9,
+    color: '#9aa0a6',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  previewAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'right',
+    marginLeft: 8,
+  },
+  amountCredit: {
+    color: '#137333',
+  },
+  amountDebit: {
+    color: '#202124',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f3f4',
+    paddingTop: 12,
+    marginTop: 8,
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    backgroundColor: '#f1f3f4',
+  },
+  cancelBtnText: {
+    color: '#5f6368',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  approveBtn: {
+    flex: 2,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    backgroundColor: '#1a73e8',
+  },
+  approveBtnDisabled: {
+    backgroundColor: '#dadce0',
+  },
+  approveBtnText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });
