@@ -27,8 +27,8 @@ export function isTransactionalSender(sender: string): boolean {
     return false;
   }
 
-  // Allow short numeric shortcodes (3-6 digits) used by some banks/services
-  if (/^\d{3,6}$/.test(sender)) {
+  // Allow short numeric shortcodes (3-9 digits) used by some banks/services
+  if (/^\d{3,9}$/.test(sender)) {
     return true;
   }
 
