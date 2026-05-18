@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Share,
@@ -15,7 +14,9 @@ import {
   NativeModules,
   Keyboard,
 } from 'react-native';
+import styles from '../styles/SettingsScreenStyles';
 import { useExpenseStore } from '../hooks/useExpenses';
+
 import {
   getSetting,
   setSetting,
@@ -46,6 +47,13 @@ export default function SettingsScreen() {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [proposedTransactions, setProposedTransactions] = useState<any[]>([]);
 
+  // Real-time terminal logging states for past sync flow
+  const [syncLogs, setSyncLogs] = useState<string[]>([]);
+  const [syncProgressPct, setSyncProgressPct] = useState(0);
+  const [processedCounts, setProcessedCounts] = useState({ found: 0, dups: 0, junk: 0 });
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'scanning' | 'scan_done' | 'importing' | 'import_done'>('idle');
+  const logsScrollViewRef = React.useRef<ScrollView>(null);
+
   const requestSmsPermission = async (): Promise<boolean> => {
     if (Platform.OS !== 'android') return true;
     try {
@@ -72,6 +80,24 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleProceedToPreview = () => {
+    setSyncing(false);
+    setPreviewVisible(true);
+  };
+
+  const handleCloseScanner = () => {
+    setSyncing(false);
+    setSyncStatus('idle');
+    setSyncLogs([]);
+  };
+
+  const handleFinishImport = () => {
+    setSyncing(false);
+    setSyncStatus('idle');
+    setSyncLogs([]);
+    setProposedTransactions([]);
+  };
+
   const handleSyncHistory = async (startTs: number | null) => {
     setCalendarVisible(false);
     if (!startTs) return;
@@ -86,8 +112,21 @@ export default function SettingsScreen() {
       return;
     }
 
+    const startDateString = new Date(startTs).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+
     setSyncing(true);
+    setSyncStatus('scanning');
     setSyncProgress('Querying SMS inbox...');
+    setSyncProgressPct(0);
+    setSyncLogs([
+      `🔍 Initializing secure ledger scanner...`,
+      `📅 Target: Fetching inbox messages since ${startDateString}`,
+    ]);
+    setProcessedCounts({ found: 0, dups: 0, junk: 0 });
 
     try {
       // 2. Fetch all historical SMS messages since selected start date
@@ -97,20 +136,56 @@ export default function SettingsScreen() {
         typeof pageJson === 'string' ? JSON.parse(pageJson) : pageJson;
 
       if (!rawList || rawList.length === 0) {
-        setSyncing(false);
-        Alert.alert(
-          'No Messages Found',
-          'No messages were found from transactional senders in your SMS inbox.',
-        );
+        if (__DEV__) {
+          setSyncStatus('scan_done');
+          setSyncProgressPct(100);
+          setSyncProgress('Inbox query complete.');
+          setSyncLogs(prev => [
+            ...prev,
+            `⚠️ No transactional SMS messages found in the selected date range.`,
+          ]);
+        } else {
+          setSyncing(false);
+          setSyncStatus('idle');
+          Alert.alert(
+            'Already Synced',
+            'No transactional SMS messages found in your inbox for this date range.',
+          );
+        }
         return;
       }
 
-      setSyncProgress(`Parsing ${rawList.length} messages...`);
+      setSyncProgress(`Preparing scan...`);
+      if (__DEV__) {
+        setSyncLogs(prev => [
+          ...prev,
+          `📥 Inbox scanned successfully. Found ${rawList.length} messages.`,
+          `⚙️ Running transaction extraction algorithms...`,
+        ]);
+      }
+
+      // Calculate dynamic delay per message scan so total sync animation takes ~3.5 seconds
+      const delay = __DEV__ 
+        ? Math.max(2, Math.min(40, Math.floor(3500 / rawList.length)))
+        : 0;
 
       const proposed: any[] = [];
       let tempCounter = 0;
+      let found = 0;
+      let dups = 0;
+      let junk = 0;
 
-      for (const msg of rawList) {
+      for (let i = 0; i < rawList.length; i++) {
+        const msg = rawList[i];
+        
+        // Wait to allow React rendering log stream
+        if (__DEV__) {
+          await new Promise<void>(resolve => setTimeout(() => resolve(), delay));
+          const progressPct = Math.round(((i + 1) / rawList.length) * 100);
+          setSyncProgressPct(progressPct);
+          setSyncProgress(`Scanning: ${i + 1} of ${rawList.length} (${progressPct}%)`);
+        }
+
         const parsed = processIncomingMessage({
           body: msg.body,
           sender: msg.sender,
@@ -127,7 +202,16 @@ export default function SettingsScreen() {
             parsed.rawMessage || undefined,
           );
 
-          if (!duplicate) {
+          if (duplicate) {
+            dups++;
+            if (__DEV__) {
+              setProcessedCounts({ found, dups, junk });
+              setSyncLogs(prev => [
+                ...prev,
+                `🛡️ Dup: Skip ₹${parsed.amount?.toFixed(2)} at ${parsed.merchant || 'Merchant'} (already recorded)`,
+              ]);
+            }
+          } else {
             const processed = processTransaction(parsed);
             if (processed && processed.decision !== 'discard') {
               proposed.push({
@@ -135,57 +219,160 @@ export default function SettingsScreen() {
                 tempId: `temp_${Date.now()}_${tempCounter++}`,
                 checked: true, // Default to checked
               });
+              found++;
+              if (__DEV__) {
+                setProcessedCounts({ found, dups, junk });
+                setSyncLogs(prev => [
+                  ...prev,
+                  `✅ Found: Extracted ₹${parsed.amount?.toFixed(2)} spent at ${processed.expense.merchant} (${parsed.bank || 'Bank'})`,
+                ]);
+              }
+            } else {
+              junk++;
+              if (__DEV__) {
+                setProcessedCounts({ found, dups, junk });
+                setSyncLogs(prev => [
+                  ...prev,
+                  `🗑️ Junk: Filtered non-txn message from ${msg.sender}`,
+                ]);
+              }
+            }
+          }
+        } else {
+          junk++;
+          if (__DEV__) {
+            setProcessedCounts({ found, dups, junk });
+            // Log only 1 of 8 skipped non-txn messages to prevent terminal clutter
+            if (i % 8 === 0) {
+              setSyncLogs(prev => [
+                ...prev,
+                `⏭️ Skip: Non-transactional alert from ${msg.sender}`,
+              ]);
             }
           }
         }
       }
 
-      setSyncing(false);
-
-      if (proposed.length === 0) {
-        Alert.alert(
-          'Already Synced',
-          'No new transactions were found. All transactional records since this date are already in your ledger!',
-        );
-        return;
-      }
-
-      // Show preview
       setProposedTransactions(proposed);
-      setPreviewVisible(true);
+
+      if (__DEV__) {
+        setSyncProgressPct(100);
+        setSyncProgress(`Scan complete. ${found} new transactions ready for preview.`);
+        setSyncLogs(prev => [
+          ...prev,
+          `\n🎉 Scanning Complete!`,
+          `📊 Summary: Found ${found} new, filtered ${dups} duplicates, skipped ${junk} non-txn items.`,
+        ]);
+        setSyncStatus('scan_done');
+      } else {
+        // Instant skip in production!
+        setSyncing(false);
+        setSyncStatus('idle');
+        if (proposed.length === 0) {
+          Alert.alert(
+            'Already Synced',
+            'No new transactions were found. All transactional records since this date are already in your ledger!',
+          );
+        } else {
+          setPreviewVisible(true);
+        }
+      }
     } catch (err: any) {
       console.error('History sync failed:', err);
-      setSyncing(false);
-      Alert.alert(
-        'Sync Failed',
-        err.message || 'An error occurred during transaction sync.',
-      );
+      if (__DEV__) {
+        setSyncProgress('Scan failed.');
+        setSyncLogs(prev => [
+          ...prev,
+          `\n❌ Scan process aborted with error: ${err.message || 'Unknown error'}`,
+        ]);
+        setSyncStatus('scan_done');
+      } else {
+        setSyncing(false);
+        setSyncStatus('idle');
+        Alert.alert(
+          'Sync Failed',
+          err.message || 'An error occurred during transaction sync.',
+        );
+      }
     }
   };
 
-  const handleApproveSync = () => {
-    try {
-      let importedCount = 0;
-      for (const tx of proposedTransactions) {
-        if (tx.checked) {
-          const expenseData = { ...tx };
-          delete (expenseData as any).tempId;
-          delete (expenseData as any).checked;
-          insertExpense(expenseData);
-          importedCount++;
+  const handleApproveSync = async () => {
+    setPreviewVisible(false);
+
+    if (!__DEV__) {
+      // Instant SQLite writes in production!
+      try {
+        let importedCount = 0;
+        for (const tx of proposedTransactions) {
+          if (tx.checked) {
+            const expenseData = { ...tx };
+            delete (expenseData as any).tempId;
+            delete (expenseData as any).checked;
+            insertExpense(expenseData);
+            importedCount++;
+          }
         }
+        loadExpenses();
+        setProposedTransactions([]);
+        Alert.alert(
+          'Sync Complete',
+          `Successfully imported ${importedCount} transactions to your ledger!`,
+        );
+      } catch (err: any) {
+        Alert.alert('Import Failed', err.message || 'Failed to save transactions.');
+      }
+      return;
+    }
+
+    // Interactive CLI terminal stream in development!
+    setSyncing(true);
+    setSyncStatus('importing');
+    setSyncProgressPct(0);
+    setSyncProgress('Preparing SQLite transaction import...');
+
+    try {
+      const toImport = proposedTransactions.filter(tx => tx.checked);
+      setSyncLogs(prev => [
+        ...prev,
+        `\n💾 COMMITTING ${toImport.length} SELECTED TRANSACTIONS TO SQLITE DATABASE...`,
+      ]);
+
+      let count = 0;
+      for (const tx of toImport) {
+        // Wait 150ms per transaction for a high-fidelity visual committing stream
+        await new Promise<void>(resolve => setTimeout(() => resolve(), 150));
+        
+        const expenseData = { ...tx };
+        delete (expenseData as any).tempId;
+        delete (expenseData as any).checked;
+        insertExpense(expenseData);
+        count++;
+
+        const pct = Math.round((count / toImport.length) * 100);
+        setSyncProgressPct(pct);
+        setSyncProgress(`Imported: ${count} of ${toImport.length} (${pct}%)`);
+        
+        setSyncLogs(prev => [
+          ...prev,
+          `💾 [${count}/${toImport.length}] Saved: ₹${expenseData.amount.toFixed(2)} spent at ${expenseData.merchant} to history`,
+        ]);
       }
 
-      loadExpenses();
-      setPreviewVisible(false);
-      setProposedTransactions([]);
+      setSyncLogs(prev => [
+        ...prev,
+        `\n🎉 TRANSACTION IMPORT SUCCESSFUL!`,
+        `✅ ${count} records permanently synchronized and indexed in your local ledger.`,
+      ]);
 
-      Alert.alert(
-        'Sync Complete',
-        `Successfully imported ${importedCount} transactions to your ledger!`,
-      );
+      loadExpenses();
+      setSyncStatus('import_done');
     } catch (err: any) {
-      Alert.alert('Import Failed', err.message || 'Failed to save transactions.');
+      setSyncLogs(prev => [
+        ...prev,
+        `\n❌ Database transaction import failed: ${err.message || 'Unknown SQLite error'}`,
+      ]);
+      setSyncStatus('import_done');
     }
   };
 
@@ -474,19 +661,17 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>SMS Transaction Sync</Text>
             <View style={styles.syncContainer}>
-              {syncing ? (
+              {syncing && !__DEV__ ? (
                 <View style={styles.loaderContainer}>
                   <Text style={styles.syncProgressTitle}>
-                    Syncing SMS Ledger
-                  </Text>
-                  <Text style={styles.syncProgressSubtitle}>
-                    {syncProgress}
+                    🔄 Syncing SMS Ledger...
                   </Text>
                 </View>
               ) : (
                 <TouchableOpacity
                   style={styles.syncItem}
                   onPress={() => setCalendarVisible(true)}
+                  disabled={syncing}
                 >
                   <View style={{ flex: 1, marginRight: 8 }}>
                     <Text style={styles.itemTitle}>Sync Past Transactions</Text>
@@ -662,6 +847,129 @@ export default function SettingsScreen() {
           />
         </Modal>
 
+        {/* Sync Progress CLI Overlay Modal */}
+        <Modal
+          visible={syncing && __DEV__}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {}}
+        >
+          <View style={styles.terminalOverlay}>
+            <View style={styles.terminalBox}>
+              <Text style={styles.terminalHeaderTitle}>🤖 LEDGER CO-PROCESSOR ACTIVE</Text>
+              <Text style={styles.terminalHeaderSubtitle}>
+                {syncProgress}
+              </Text>
+              
+              {/* Progress Bar Container */}
+              <View style={styles.progressBarBg}>
+                <View style={[
+                  styles.progressBarFill, 
+                  { 
+                    width: `${syncProgressPct}%`,
+                    backgroundColor: syncStatus === 'importing' || syncStatus === 'import_done' ? '#33b3ff' : '#00ff00' 
+                  }
+                ]} />
+              </View>
+
+              {/* Scrolling Terminal View */}
+              <ScrollView
+                ref={logsScrollViewRef}
+                style={styles.terminalScroll}
+                contentContainerStyle={styles.terminalScrollContent}
+                onContentSizeChange={() => logsScrollViewRef.current?.scrollToEnd({ animated: true })}
+                showsVerticalScrollIndicator={true}
+              >
+                {syncLogs.map((log, idx) => {
+                  let logColor = '#00ff00'; // Green default for Found
+                  if (log.startsWith('🛡️') || log.startsWith('⚠️')) logColor = '#ffb300'; // Orange for Dup / Warning
+                  if (log.startsWith('🗑️') || log.startsWith('❌')) logColor = '#ff3333'; // Red/Gray for Junk/Error
+                  if (log.startsWith('⏭️')) logColor = '#888888'; // Gray for Skip
+                  if (log.startsWith('🔍') || log.startsWith('📥') || log.startsWith('⚙️') || log.startsWith('💾')) logColor = '#33b3ff'; // Light blue for Info/Import
+                  
+                  return (
+                    <Text key={idx} style={[styles.terminalText, { color: logColor }]}>
+                      {log}
+                    </Text>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Real-time counters or Phase Action Buttons depending on status */}
+              {syncStatus === 'scanning' && (
+                <View style={styles.statsSummary}>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statCount}>{processedCounts.found}</Text>
+                    <Text style={styles.statLabel}>Found</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={[styles.statCount, { color: '#ffb300' }]}>{processedCounts.dups}</Text>
+                    <Text style={styles.statLabel}>Duplicates</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={[styles.statCount, { color: '#888888' }]}>{processedCounts.junk}</Text>
+                    <Text style={styles.statLabel}>Junk/Skip</Text>
+                  </View>
+                </View>
+              )}
+
+              {syncStatus === 'scan_done' && (
+                <View style={styles.terminalActions}>
+                  {proposedTransactions.length > 0 ? (
+                    <TouchableOpacity
+                      style={styles.terminalBtnPrimary}
+                      onPress={handleProceedToPreview}
+                    >
+                      <Text style={styles.terminalBtnTextPrimary}>
+                        Review & Import {proposedTransactions.length} Transactions ➔
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.terminalBtnSecondary}
+                      onPress={handleCloseScanner}
+                    >
+                      <Text style={styles.terminalBtnTextSecondary}>
+                        Close Scanner
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+              {syncStatus === 'importing' && (
+                <View style={styles.statsSummary}>
+                  <View style={[styles.statBox, { borderColor: '#33b3ff' }]}>
+                    <Text style={[styles.statCount, { color: '#33b3ff' }]}>
+                      {proposedTransactions.filter(tx => tx.checked).length}
+                    </Text>
+                    <Text style={styles.statLabel}>Total Selected</Text>
+                  </View>
+                  <View style={[styles.statBox, { borderColor: '#33b3ff' }]}>
+                    <Text style={[styles.statCount, { color: '#33b3ff' }]}>
+                      {syncLogs.filter(l => l.includes('Saved:')).length}
+                    </Text>
+                    <Text style={styles.statLabel}>Committed</Text>
+                  </View>
+                </View>
+              )}
+
+              {syncStatus === 'import_done' && (
+                <View style={styles.terminalActions}>
+                  <TouchableOpacity
+                    style={styles.terminalBtnSuccess}
+                    onPress={handleFinishImport}
+                  >
+                    <Text style={styles.terminalBtnTextSuccess}>
+                      Sync Ledger & Close ➔
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </View>
+        </Modal>
+
         {/* Sync Preview Modal */}
         <Modal
           visible={previewVisible}
@@ -801,431 +1109,3 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-
-  content: {
-    padding: 16,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#666',
-    textTransform: 'uppercase',
-    marginBottom: 8,
-    paddingHorizontal: 4,
-  },
-  item: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 6,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 6,
-  },
-  actionHalfBtn: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  itemTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#1a1a1a',
-  },
-  itemDescription: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 2,
-  },
-  itemValue: {
-    fontSize: 14,
-    color: '#666',
-  },
-  arrow: {
-    fontSize: 18,
-    color: '#ccc',
-  },
-  actionIcon: {
-    fontSize: 20,
-  },
-  actionIconLarge: {
-    fontSize: 26,
-    marginBottom: 6,
-  },
-  dangerItem: {
-    borderWidth: 1,
-    borderColor: '#fce8e6',
-    backgroundColor: '#fff',
-  },
-  dangerTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#d93025',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalBox: {
-    width: '90%',
-    height: '70%',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#202124',
-  },
-  modalClose: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#666',
-  },
-  modalInstructions: {
-    fontSize: 13,
-    color: '#5f6368',
-    lineHeight: 18,
-    marginBottom: 16,
-  },
-  jsonTextInput: {
-    flex: 1,
-    backgroundColor: '#f1f3f4',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 13,
-    color: '#202124',
-    textAlignVertical: 'top',
-    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
-    marginBottom: 16,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mergeBtn: {
-    backgroundColor: '#e8f0fe',
-  },
-  mergeBtnText: {
-    color: '#1a73e8',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  overwriteBtn: {
-    backgroundColor: '#d93025',
-  },
-  overwriteBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  statusBadgeContainer: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#f1f3f4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  grantedText: {
-    color: '#137333',
-  },
-  requestText: {
-    color: '#1a73e8',
-  },
-  scratchpadHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  savingText: {
-    fontSize: 11,
-    color: '#1a73e8',
-    fontWeight: '500',
-  },
-  savedText: {
-    fontSize: 11,
-    color: '#137333',
-    fontWeight: '500',
-  },
-  notepadContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e8eaed',
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  notepadInput: {
-    fontSize: 14,
-    color: '#202124',
-    minHeight: 120,
-    lineHeight: 20,
-  },
-  budgetContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e8eaed',
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  budgetInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f1f3f4',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    minWidth: 100,
-    borderWidth: 1,
-    borderColor: '#dadce0',
-  },
-  currencySymbol: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#202124',
-    marginRight: 4,
-  },
-  budgetInput: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#202124',
-    padding: 0,
-  },
-  syncContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e8eaed',
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  syncItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-  },
-  loaderContainer: {
-    paddingVertical: 8,
-    alignItems: 'center',
-    width: '100%',
-  },
-  syncProgressTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1a73e8',
-    marginBottom: 4,
-  },
-  syncProgressSubtitle: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-  },
-  previewModalBox: {
-    width: '90%',
-    height: '80%',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  modalSubtitle: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
-  selectionBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e8eaed',
-    marginVertical: 12,
-  },
-  selectionInfo: {
-    fontSize: 13,
-    color: '#5f6368',
-  },
-  boldText: {
-    fontWeight: '700',
-    color: '#202124',
-  },
-  selectionActions: {
-    flexDirection: 'row',
-  },
-  selectionActionText: {
-    fontSize: 13,
-    color: '#1a73e8',
-    fontWeight: '600',
-  },
-  previewList: {
-    flex: 1,
-  },
-  previewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f3f4',
-  },
-  checkboxCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: '#dadce0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  checkboxChecked: {
-    backgroundColor: '#1a73e8',
-    borderColor: '#1a73e8',
-  },
-  checkMark: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  categoryCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f1f3f4',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  categoryEmoji: {
-    fontSize: 20,
-  },
-  previewDetails: {
-    flex: 1,
-  },
-  previewMerchant: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#202124',
-  },
-  previewMeta: {
-    fontSize: 11,
-    color: '#5f6368',
-    marginTop: 2,
-  },
-  previewBank: {
-    fontSize: 9,
-    color: '#9aa0a6',
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  previewAmount: {
-    fontSize: 14,
-    fontWeight: '700',
-    textAlign: 'right',
-    marginLeft: 8,
-  },
-  amountCredit: {
-    color: '#137333',
-  },
-  amountDebit: {
-    color: '#202124',
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f3f4',
-    paddingTop: 12,
-    marginTop: 8,
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: '#f1f3f4',
-  },
-  cancelBtnText: {
-    color: '#5f6368',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  approveBtn: {
-    flex: 2,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: '#1a73e8',
-  },
-  approveBtnDisabled: {
-    backgroundColor: '#dadce0',
-  },
-  approveBtnText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-});
