@@ -1,4 +1,8 @@
-import { isDuplicateTransaction } from '../database/expenseRepo';
+import {
+  isDuplicateTransaction,
+  SELECT_EXPENSE_BY_REF_SQL,
+  SELECT_EXPENSE_DEDUP_WINDOW_SQL,
+} from '../database/expenseRepo';
 import { getDatabase } from '../database/db';
 
 // Mock getDatabase to return a mock execute function
@@ -29,7 +33,7 @@ describe('isDuplicateTransaction (SQLite Ledger)', () => {
 
     expect(result).toBe(true);
     expect(mockExecute).toHaveBeenCalledWith(
-      'SELECT id FROM expenses WHERE reference_id = ?',
+      SELECT_EXPENSE_BY_REF_SQL,
       ['TXN123456']
     );
   });
@@ -44,8 +48,8 @@ describe('isDuplicateTransaction (SQLite Ledger)', () => {
 
     expect(result).toBe(true);
     expect(mockExecute).toHaveBeenCalledWith(
-      'SELECT id FROM expenses WHERE timestamp = ? AND amount = ?',
-      [1621245600000, 200.0]
+      SELECT_EXPENSE_DEDUP_WINDOW_SQL,
+      [200.0, 1621245600000 - 15 * 60 * 1000, 1621245600000 + 15 * 60 * 1000]
     );
   });
 
@@ -63,6 +67,12 @@ describe('isDuplicateTransaction (SQLite Ledger)', () => {
 
     expect(result).toBe(false);
     expect(mockExecute).toHaveBeenCalledTimes(2);
+    expect(mockExecute).toHaveBeenNthCalledWith(1, SELECT_EXPENSE_BY_REF_SQL, ['TXN999999']);
+    expect(mockExecute).toHaveBeenNthCalledWith(2, SELECT_EXPENSE_DEDUP_WINDOW_SQL, [
+      150.0,
+      1621245600000 - 15 * 60 * 1000,
+      1621245600000 + 15 * 60 * 1000,
+    ]);
   });
 
   it('should return false if no duplicates are found (without referenceId)', () => {
@@ -76,8 +86,8 @@ describe('isDuplicateTransaction (SQLite Ledger)', () => {
     expect(result).toBe(false);
     expect(mockExecute).toHaveBeenCalledTimes(1);
     expect(mockExecute).toHaveBeenCalledWith(
-      'SELECT id FROM expenses WHERE timestamp = ? AND amount = ?',
-      [1621245600000, 300.0]
+      SELECT_EXPENSE_DEDUP_WINDOW_SQL,
+      [300.0, 1621245600000 - 15 * 60 * 1000, 1621245600000 + 15 * 60 * 1000]
     );
   });
 });
