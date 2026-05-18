@@ -150,7 +150,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   loadExpenses: () => {
     set({ loading: true });
     try {
-      const expenses = getAllExpenses(100);
+      const expenses = getAllExpenses(2000);
       set({ expenses, loading: false });
     } catch (e) {
       console.error('Failed to load expenses', e);
@@ -260,7 +260,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         });
       }
 
-      const reloaded = getAllExpenses(100);
+      const reloaded = getAllExpenses(2000);
       set({ expenses: reloaded });
     } catch (e) {
       console.error('Failed to import expenses', e);
@@ -296,7 +296,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       }
 
       // Reload expenses from DB to ensure state consistency
-      const reloaded = getAllExpenses(100);
+      const reloaded = getAllExpenses(2000);
       set({ expenses: reloaded });
     } catch (e) {
       console.error('Failed to settle contact splits', e);
@@ -331,7 +331,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       }
 
       // Reload expenses from DB
-      const reloaded = getAllExpenses(100);
+      const reloaded = getAllExpenses(2000);
       set({ expenses: reloaded });
     } catch (e) {
       console.error('Failed to unsettle contact splits', e);
@@ -360,7 +360,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       );
 
       // Reload
-      const reloaded = getAllExpenses(100);
+      const reloaded = getAllExpenses(2000);
       set({ expenses: reloaded });
     } catch (e) {
       console.error('Failed to toggle split paid status', e);
@@ -405,7 +405,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       const count = deduplicateDatabaseDb();
       // Reload expenses completely since many items could have been modified
       if (count > 0) {
-        const reloaded = getAllExpenses(100);
+        const reloaded = getAllExpenses(2000);
         set({ expenses: reloaded });
       }
       return count;

@@ -53,7 +53,11 @@ export function processTransaction(
     referenceId: parsed.referenceId || undefined,
   };
 
-  if (isSpam(parsed.rawMessage)) {
+  // Strongly bypass spam trashing if it has both an account number and a bank detected!
+  // Spammers/promotions do not know your exact account/card number, so these are 100% genuine bank alerts.
+  const isGenuineBankAlert = parsed.bank && parsed.account;
+
+  if (!isGenuineBankAlert && isSpam(parsed.rawMessage)) {
     expense.isInvalid = true;
     expense.trashReason = 'spam';
     decision = 'auto_save'; // Save directly to trash without popup
