@@ -1,43 +1,41 @@
 import { useEffect, useRef } from 'react';
 import { NativeEventEmitter, NativeModules, AppState } from 'react-native';
-import {
-  processIncomingMessage,
-  IncomingMessage,
-} from '../services/messageService';
-import { processTransaction, saveExpense } from '../services/expenseService';
+import { IncomingMessage } from '../services/messageService';
+import { saveExpense } from '../services/expenseService';
+import { orchestrateTransaction } from '../services/transactionOrchestrator';
 import { useExpenseStore } from './useExpenses';
-
 
 const { MessageModule } = NativeModules;
 const messageEmitter = new NativeEventEmitter(MessageModule);
 
 export function useMessageListener() {
   const addExpense = useExpenseStore(state => state.addExpense);
-  const queuePendingExpense = useExpenseStore(state => state.queuePendingExpense);
+  const queuePendingExpense = useExpenseStore(
+    state => state.queuePendingExpense,
+  );
   const listenerRef = useRef<any>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     const processMessage = (message: IncomingMessage) => {
-      const parsed = processIncomingMessage(message);
-      if (!parsed) {
-        console.log(`Message from ${message.sender} dropped (not a valid transaction)`);
+      const orchestrated = orchestrateTransaction(message);
+      if (!orchestrated) {
+        console.log(`Message from ${message.sender} dropped by orchestrator`);
         return;
       }
 
-      const result = processTransaction(parsed);
-      if (!result) {
-        console.log(`Message from ${message.sender} dropped (could not extract amount)`);
-        return;
-      }
-
-      const { expense, decision } = result;
-      console.log(`Message from ${message.sender} parsed! Decision: ${decision}`);
+      const { expense, decision } = orchestrated.processedExpense;
+      console.log(
+        `Message from ${message.sender} parsed! Decision: ${decision}`,
+      );
 
       switch (decision) {
         case 'auto_save': {
-          const displayMerchant = expense.merchant && expense.merchant !== 'Unknown' ? expense.merchant : 'Unknown';
+          const displayMerchant =
+            expense.merchant && expense.merchant !== 'Unknown'
+              ? expense.merchant
+              : 'Unknown';
           if (
             AppState.currentState === 'background' ||
             AppState.currentState === 'inactive'
@@ -52,12 +50,17 @@ export function useMessageListener() {
             console.log(`Auto-saved expense to DB with ID: ${id}`);
             addExpense({ ...expense, id } as any);
           } else {
-            console.log('Expense was not saved (possibly duplicate or failed insert).');
+            console.log(
+              'Expense was not saved (possibly duplicate or failed insert).',
+            );
           }
           break;
         }
         case 'show_popup': {
-          const displayMerchant = expense.merchant && expense.merchant !== 'Unknown' ? expense.merchant : 'Unknown';
+          const displayMerchant =
+            expense.merchant && expense.merchant !== 'Unknown'
+              ? expense.merchant
+              : 'Unknown';
           if (
             AppState.currentState === 'background' ||
             AppState.currentState === 'inactive'
@@ -83,7 +86,9 @@ export function useMessageListener() {
         if (!isMounted) return;
         const pending = JSON.parse(pendingStr) as IncomingMessage[];
         if (pending.length > 0) {
-          console.log(`Processing ${pending.length} pending offline messages...`);
+          console.log(
+            `Processing ${pending.length} pending offline messages...`,
+          );
           pending.forEach(msg => processMessage(msg));
         }
       } catch (e) {
@@ -107,7 +112,9 @@ export function useMessageListener() {
           sender: event.sender,
           source: event.source,
         };
-        console.log(`Live message received from ${message.sender} via ${message.source}`);
+        console.log(
+          `Live message received from ${message.sender} via ${message.source}`,
+        );
         processMessage(message);
       },
     );

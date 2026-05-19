@@ -51,13 +51,20 @@ export const CREATE_SETTINGS_TABLE_SQL = `
   );
 `;
 
+export const CREATE_CLASSIFIER_STATE_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS classifier_state (
+    key TEXT PRIMARY KEY,
+    model_json TEXT NOT NULL
+  );
+`;
+
 let db: QuickSQLiteConnection | null = null;
 
 export function getDatabase(): QuickSQLiteConnection {
   if (!db) {
     db = open({ name: DB_NAME });
     runMigrations(db);
-    
+
     // Load saved merchants into memory
     const savedMerchants = loadMerchantCategories();
     initMerchantMap(savedMerchants);
@@ -94,13 +101,18 @@ function runMigrations(database: QuickSQLiteConnection): void {
 
   // Migration for v1.0.3: Add display_name to merchant_categories
   try {
-    database.execute('ALTER TABLE merchant_categories ADD COLUMN display_name TEXT;');
+    database.execute(
+      'ALTER TABLE merchant_categories ADD COLUMN display_name TEXT;',
+    );
   } catch {
     // Column might already exist
   }
 
   // Create settings table for persistence
   database.execute(CREATE_SETTINGS_TABLE_SQL);
+
+  // Migration for v1.5.0: Add classifier_state table for BayesClassifier persistence
+  database.execute(CREATE_CLASSIFIER_STATE_TABLE_SQL);
 
   // Migration for v1.0.4: Add available_balance column to expenses
   try {
@@ -125,7 +137,9 @@ function runMigrations(database: QuickSQLiteConnection): void {
 
   // Migration for v1.0.6: Add is_invalid column to expenses
   try {
-    database.execute('ALTER TABLE expenses ADD COLUMN is_invalid INTEGER DEFAULT 0;');
+    database.execute(
+      'ALTER TABLE expenses ADD COLUMN is_invalid INTEGER DEFAULT 0;',
+    );
   } catch {
     // Column might already exist
   }
