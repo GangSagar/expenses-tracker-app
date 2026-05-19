@@ -1,6 +1,18 @@
 import { create } from 'zustand';
 import { Expense, Category, ExpenseSplit } from '../types/expense';
-import { getAllExpenses, updateExpense as updateExpenseDb, saveMerchantCategory, insertExpense as insertExpenseDb, exportAllExpensesData, clearAllExpenses, deleteExpense as deleteExpenseDb, invalidateExpense as invalidateExpenseDb, updateTrashReason as updateTrashReasonDb, deduplicateDatabase as deduplicateDatabaseDb } from '../database/expenseRepo';
+import {
+  getAllExpenses,
+  updateExpense as updateExpenseDb,
+  saveMerchantCategory,
+  insertExpense as insertExpenseDb,
+  exportAllExpensesData,
+  clearAllExpenses,
+  deleteExpense as deleteExpenseDb,
+  invalidateExpense as invalidateExpenseDb,
+  updateTrashReason as updateTrashReasonDb,
+  deduplicateDatabase as deduplicateDatabaseDb,
+  getWindowedExpenses,
+} from '../database/expenseRepo';
 import { setMerchantMapping } from '../core/classifier/merchantMap';
 
 interface ExpenseState {
@@ -10,7 +22,17 @@ interface ExpenseState {
   loadExpenses: () => void;
   addExpense: (expense: Expense) => void;
   addManualExpense: (expense: Omit<Expense, 'id'>) => void;
-  updateExpense: (id: number, alias: string | undefined, merchant: string, category: Category, bank?: string, paymentMode?: string, amount?: number, splits?: any[]) => void;
+  updateExpense: (
+    id: number,
+    alias: string | undefined,
+    merchant: string,
+    category: Category,
+    bank?: string,
+    paymentMode?: string,
+    amount?: number,
+    splits?: any[],
+    transactionType?: 'debit' | 'credit',
+  ) => void;
   queuePendingExpense: (expense: Omit<Expense, 'id'>) => void;
   popPendingExpense: () => void;
   exportExpenses: () => Expense[];
@@ -27,7 +49,7 @@ interface ExpenseState {
 // Helper to automatically apply credit repayments to pending contact splits
 function applyRepaymentIfApplicable(
   expense: Omit<Expense, 'id'> & { id?: number },
-  currentExpenses: Expense[]
+  currentExpenses: Expense[],
 ): Omit<Expense, 'id'> & { id?: number } {
   if (expense.transactionType !== 'credit' || expense.isInvalid) {
     return expense;
@@ -36,11 +58,15 @@ function applyRepaymentIfApplicable(
   // 1. Get all unique contact names that have pending splits where we are owed money
   const pendingSplitsByContact: Record<
     string,
-    { amount: number; splits: { expenseId: number; splitIndex: number; sp: any }[] }
+    {
+      amount: number;
+      splits: { expenseId: number; splitIndex: number; sp: any }[];
+    }
   > = {};
 
   for (const exp of currentExpenses) {
-    if (!exp.splits || exp.splits.length === 0 || !exp.id || exp.isInvalid) continue;
+    if (!exp.splits || exp.splits.length === 0 || !exp.id || exp.isInvalid)
+      continue;
 
     for (let i = 0; i < exp.splits.length; i++) {
       const sp: ExpenseSplit = exp.splits[i];
@@ -53,7 +79,11 @@ function applyRepaymentIfApplicable(
         pendingSplitsByContact[name] = { amount: 0, splits: [] };
       }
       pendingSplitsByContact[name].amount += Number(sp.amount) || 0;
-      pendingSplitsByContact[name].splits.push({ expenseId: exp.id, splitIndex: i, sp });
+      pendingSplitsByContact[name].splits.push({
+        expenseId: exp.id,
+        splitIndex: i,
+        sp,
+      });
     }
   }
 
@@ -119,7 +149,7 @@ function applyRepaymentIfApplicable(
       exp.bank,
       exp.paymentMode,
       exp.amount,
-      updatedSplits
+      updatedSplits,
     );
 
     // Update in memory copy as well
@@ -150,7 +180,8 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   loadExpenses: () => {
     set({ loading: true });
     try {
-      const expenses = getAllExpenses(2000);
+      // Load last 30 days for the windowed view; screens paginate older data on demand
+      const expenses = getWindowedExpenses(30);
       set({ expenses, loading: false });
     } catch (e) {
       console.error('Failed to load expenses', e);
@@ -168,7 +199,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         processed.bank,
         processed.paymentMode,
         processed.amount,
-        processed.splits
+        processed.splits,
       );
     }
     set(state => ({ expenses: [processed as Expense, ...state.expenses] }));
@@ -185,10 +216,29 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
   },
 
-  updateExpense: (id, alias, merchant, category, bank, paymentMode, amount, splits) => {
+  updateExpense: (
+    id,
+    alias,
+    merchant,
+    category,
+    bank,
+    paymentMode,
+    amount,
+    splits,
+    transactionType,
+  ) => {
     try {
-      updateExpenseDb(id, merchant, category, bank, paymentMode, amount, splits);
-      
+      updateExpenseDb(
+        id,
+        merchant,
+        category,
+        bank,
+        paymentMode,
+        amount,
+        splits,
+        transactionType,
+      );
+
       // Smart Remember: Update the memory map and DB map using alias
       const effectiveAlias = alias || merchant;
       if (effectiveAlias && effectiveAlias !== 'Unknown') {
@@ -197,19 +247,20 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       }
 
       set(state => ({
-        expenses: state.expenses.map(e => 
-          e.id === id 
-            ? { 
-                ...e, 
-                merchant, 
-                category, 
-                bank, 
+        expenses: state.expenses.map(e =>
+          e.id === id
+            ? {
+                ...e,
+                merchant,
+                category,
+                bank,
                 paymentMode: paymentMode as any,
                 amount: amount !== undefined ? amount : e.amount,
-                splits: splits
-              } 
-            : e
-        )
+                splits: splits,
+                transactionType: transactionType || e.transactionType,
+              }
+            : e,
+        ),
       }));
     } catch (e) {
       console.error('Failed to update expense', e);
@@ -238,7 +289,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       if (overwrite) {
         clearAllExpenses();
       }
-      
+
       // Batch insert each imported item
       for (const item of imported) {
         insertExpenseDb({
@@ -268,30 +319,33 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
   },
 
-  settleContactSplits: (contactName) => {
+  settleContactSplits: contactName => {
     try {
       const expenses = get().expenses;
-      
+
       // Find all expenses that have a split with this contact name
-      const affected = expenses.filter(e => 
-        e.splits && e.splits.some(s => s.contactName === contactName && !s.isPaid)
+      const affected = expenses.filter(
+        e =>
+          e.splits &&
+          e.splits.some(s => s.contactName === contactName && !s.isPaid),
       );
 
       for (const e of affected) {
         if (!e.id) continue;
-        const updatedSplits = e.splits?.map(s => 
-          s.contactName === contactName ? { ...s, isPaid: true } : s
-        ) || [];
+        const updatedSplits =
+          e.splits?.map(s =>
+            s.contactName === contactName ? { ...s, isPaid: true } : s,
+          ) || [];
 
         // Save to DB
         updateExpenseDb(
-          e.id, 
-          e.merchant, 
-          e.category, 
-          e.bank, 
-          e.paymentMode, 
-          e.amount, 
-          updatedSplits
+          e.id,
+          e.merchant,
+          e.category,
+          e.bank,
+          e.paymentMode,
+          e.amount,
+          updatedSplits,
         );
       }
 
@@ -303,30 +357,33 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
   },
 
-  unsettleContactSplits: (contactName) => {
+  unsettleContactSplits: contactName => {
     try {
       const expenses = get().expenses;
-      
+
       // Find all expenses that have a settled split with this contact name
-      const affected = expenses.filter(e => 
-        e.splits && e.splits.some(s => s.contactName === contactName && s.isPaid)
+      const affected = expenses.filter(
+        e =>
+          e.splits &&
+          e.splits.some(s => s.contactName === contactName && s.isPaid),
       );
 
       for (const e of affected) {
         if (!e.id) continue;
-        const updatedSplits = e.splits?.map(s => 
-          s.contactName === contactName ? { ...s, isPaid: false } : s
-        ) || [];
+        const updatedSplits =
+          e.splits?.map(s =>
+            s.contactName === contactName ? { ...s, isPaid: false } : s,
+          ) || [];
 
         // Save to DB
         updateExpenseDb(
-          e.id, 
-          e.merchant, 
-          e.category, 
-          e.bank, 
-          e.paymentMode, 
-          e.amount, 
-          updatedSplits
+          e.id,
+          e.merchant,
+          e.category,
+          e.bank,
+          e.paymentMode,
+          e.amount,
+          updatedSplits,
         );
       }
 
@@ -344,19 +401,19 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       const expense = expenses.find(e => e.id === expenseId);
       if (!expense || !expense.splits) return;
 
-      const updatedSplits = expense.splits.map(s => 
-        s.contactName === contactName ? { ...s, isPaid: !s.isPaid } : s
+      const updatedSplits = expense.splits.map(s =>
+        s.contactName === contactName ? { ...s, isPaid: !s.isPaid } : s,
       );
 
       // Save to DB
       updateExpenseDb(
-        expense.id!, 
-        expense.merchant, 
-        expense.category, 
-        expense.bank, 
-        expense.paymentMode, 
-        expense.amount, 
-        updatedSplits
+        expense.id!,
+        expense.merchant,
+        expense.category,
+        expense.bank,
+        expense.paymentMode,
+        expense.amount,
+        updatedSplits,
       );
 
       // Reload
@@ -367,7 +424,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
   },
 
-  deleteExpense: (id) => {
+  deleteExpense: id => {
     try {
       deleteExpenseDb(id);
       set(state => ({
@@ -382,7 +439,9 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     try {
       invalidateExpenseDb(id, isInvalid);
       set(state => ({
-        expenses: state.expenses.map(e => e.id === id ? { ...e, isInvalid } : e),
+        expenses: state.expenses.map(e =>
+          e.id === id ? { ...e, isInvalid } : e,
+        ),
       }));
     } catch (e) {
       console.error('Failed to invalidate expense', e);
@@ -393,7 +452,9 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     try {
       updateTrashReasonDb(id, reason);
       set(state => ({
-        expenses: state.expenses.map(e => e.id === id ? { ...e, trashReason: reason as any } : e),
+        expenses: state.expenses.map(e =>
+          e.id === id ? { ...e, trashReason: reason as any } : e,
+        ),
       }));
     } catch (e) {
       console.error('Failed to update trash reason', e);

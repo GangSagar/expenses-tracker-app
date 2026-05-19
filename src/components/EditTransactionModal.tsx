@@ -30,6 +30,7 @@ interface Props {
     paymentMode?: string,
     amount?: number,
     splits?: ExpenseSplit[],
+    transactionType?: 'debit' | 'credit',
   ) => void;
   onAddManual?: (expense: Omit<Expense, 'id'>) => void;
   isAddMode?: boolean;
@@ -51,6 +52,7 @@ export default function EditTransactionModal({
   const [isSplit, setIsSplit] = useState(false);
   const [splits, setSplits] = useState<ExpenseSplit[]>([]);
   const [owedByMe, setOwedByMe] = useState(false);
+  const [transactionType, setTransactionType] = useState<'debit' | 'credit'>('debit');
 
   // Contact Picker States
   const [contacts, setContacts] = useState<any[]>([]);
@@ -138,6 +140,7 @@ export default function EditTransactionModal({
         setIsSplit(false);
         setSplits([]);
         setOwedByMe(false);
+        setTransactionType(expense?.transactionType || 'debit');
       } else {
         // Edit existing expense
         setMerchant(expense.merchant);
@@ -149,6 +152,7 @@ export default function EditTransactionModal({
         setSplits(expense.splits || []);
         const initialOwedByMe = expense.splits && expense.splits.length > 0 ? !!expense.splits[0].owedByMe : false;
         setOwedByMe(initialOwedByMe);
+        setTransactionType(expense.transactionType);
       }
     }
   }, [expense, visible, isAddMode]);
@@ -235,7 +239,7 @@ export default function EditTransactionModal({
           timestamp: Date.now(),
           source: 'manual',
           rawMessage: `Manual Cash Transaction: ${finalMerchant}`,
-          transactionType: 'debit',
+          transactionType,
           bank: bank.trim() || undefined,
           paymentMode,
           splits: finalSplits,
@@ -252,6 +256,7 @@ export default function EditTransactionModal({
         paymentMode,
         isLocked ? undefined : finalAmount,
         finalSplits,
+        transactionType,
       );
     }
     onClose();
@@ -322,6 +327,42 @@ export default function EditTransactionModal({
               placeholder="e.g. Swiggy, Cash spent"
               placeholderTextColor="#999"
             />
+
+            <Text style={styles.label}>Transaction Type</Text>
+            <View style={styles.grid}>
+              <TouchableOpacity
+                style={[
+                  styles.chip,
+                  transactionType === 'debit' && styles.chipActiveDebit,
+                ]}
+                onPress={() => setTransactionType('debit')}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    transactionType === 'debit' && styles.chipTextActiveDebit,
+                  ]}
+                >
+                  Expense (Sent)
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.chip,
+                  transactionType === 'credit' && styles.chipActiveCredit,
+                ]}
+                onPress={() => setTransactionType('credit')}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    transactionType === 'credit' && styles.chipTextActiveCredit,
+                  ]}
+                >
+                  Income (Received)
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <Text style={styles.label}>Bank / Card (Optional)</Text>
             <TextInput
@@ -648,12 +689,30 @@ const styles = StyleSheet.create({
   chipActive: {
     backgroundColor: '#1a73e8',
   },
+  chipActiveDebit: {
+    backgroundColor: '#fce8e6',
+    borderWidth: 1,
+    borderColor: '#f5c2c2',
+  },
+  chipActiveCredit: {
+    backgroundColor: '#e6f4ea',
+    borderWidth: 1,
+    borderColor: '#a3cfbb',
+  },
   chipText: {
     fontSize: 13,
     color: '#333',
   },
   chipTextActive: {
     color: '#fff',
+  },
+  chipTextActiveDebit: {
+    color: '#c5221f',
+    fontWeight: '700',
+  },
+  chipTextActiveCredit: {
+    color: '#137333',
+    fontWeight: '700',
   },
   splitHeader: {
     flexDirection: 'row',
