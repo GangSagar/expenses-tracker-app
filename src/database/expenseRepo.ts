@@ -15,13 +15,13 @@ export const INSERT_EXPENSE_SQL = `
 
 export const UPDATE_EXPENSE_WITH_AMOUNT_SQL = `
   UPDATE expenses 
-  SET merchant = ?, category = ?, bank = ?, payment_mode = ?, amount = ?, splits = ? 
+  SET merchant = ?, category = ?, bank = ?, payment_mode = ?, amount = ?, splits = ?, transaction_type = COALESCE(?, transaction_type)
   WHERE id = ?
 `;
 
 export const UPDATE_EXPENSE_SQL = `
   UPDATE expenses 
-  SET merchant = ?, category = ?, bank = ?, payment_mode = ?, splits = ? 
+  SET merchant = ?, category = ?, bank = ?, payment_mode = ?, splits = ?, transaction_type = COALESCE(?, transaction_type)
   WHERE id = ?
 `;
 
@@ -44,6 +44,10 @@ export const SELECT_EXPENSE_DEDUP_WINDOW_SQL = `
 
 export const GET_ALL_EXPENSES_SQL = `
   SELECT * FROM expenses WHERE is_duplicate = 0 ORDER BY timestamp DESC LIMIT ? OFFSET ?
+`;
+
+export const GET_WINDOWED_EXPENSES_SQL = `
+  SELECT * FROM expenses WHERE is_duplicate = 0 AND timestamp >= ? ORDER BY timestamp DESC
 `;
 
 export const GET_EXPENSES_BY_CATEGORY_SQL = `
@@ -145,10 +149,11 @@ export function updateExpense(
   paymentMode?: string,
   amount?: number,
   splits?: any[],
+  transactionType?: 'debit' | 'credit',
 ): void {
   const db = getDatabase();
   const splitsStr = splits ? JSON.stringify(splits) : null;
-  
+
   if (amount !== undefined) {
     db.execute(UPDATE_EXPENSE_WITH_AMOUNT_SQL, [
       merchant,
@@ -157,6 +162,7 @@ export function updateExpense(
       paymentMode || 'unknown',
       amount,
       splitsStr,
+      transactionType || null,
       id,
     ]);
   } else {
@@ -166,6 +172,7 @@ export function updateExpense(
       bank || null,
       paymentMode || 'unknown',
       splitsStr,
+      transactionType || null,
       id,
     ]);
   }
@@ -185,7 +192,7 @@ export function isDuplicateTransaction(
   rawMessage?: string,
 ): boolean {
   const db = getDatabase();
-  
+
   // 1. Check unique reference ID if present
   if (referenceId) {
     const result = db.execute(SELECT_EXPENSE_BY_REF_SQL, [referenceId]);
@@ -197,7 +204,7 @@ export function isDuplicateTransaction(
     const result = db.execute(SELECT_EXPENSE_BY_RAW_SQL, [rawMessage]);
     if (result.rows && result.rows.length > 0) return true;
   }
-  
+
   // 3. Check identical amount within a 15-minute window to absorb live listener and manual entry timestamp drifts
   const DEDUP_WINDOW_MS = 15 * 60 * 1000;
   const result = db.execute(SELECT_EXPENSE_DEDUP_WINDOW_SQL, [
@@ -214,6 +221,13 @@ export function getAllExpenses(
 ): Expense[] {
   const db = getDatabase();
   const result = db.execute(GET_ALL_EXPENSES_SQL, [limit, offset]);
+  return mapRows(result.rows?._array || []);
+}
+
+export function getWindowedExpenses(days: number = 30): Expense[] {
+  const db = getDatabase();
+  const since = Date.now() - days * 24 * 60 * 60 * 1000;
+  const result = db.execute(GET_WINDOWED_EXPENSES_SQL, [since]);
   return mapRows(result.rows?._array || []);
 }
 
@@ -244,15 +258,18 @@ export function saveMerchantCategory(
   ]);
 }
 
-export function loadMerchantCategories(): Record<string, { category: Category, displayName?: string }> {
+export function loadMerchantCategories(): Record<
+  string,
+  { category: Category; displayName?: string }
+> {
   const db = getDatabase();
   const result = db.execute(LOAD_MERCHANT_CATEGORIES_SQL);
-  const map: Record<string, { category: Category, displayName?: string }> = {};
+  const map: Record<string, { category: Category; displayName?: string }> = {};
   const rows = result.rows?._array || [];
   for (const row of rows) {
-    map[row.merchant] = { 
-      category: row.category as Category, 
-      displayName: row.display_name || undefined 
+    map[row.merchant] = {
+      category: row.category as Category,
+      displayName: row.display_name || undefined,
     };
   }
   return map;
@@ -276,7 +293,10 @@ export function deleteExpense(id: number): void {
   db.execute(DELETE_EXPENSE_SQL, [id]);
 }
 
-export function deleteTransactionsForAccount(bank: string, account: string): void {
+export function deleteTransactionsForAccount(
+  bank: string,
+  account: string,
+): void {
   const db = getDatabase();
   db.execute(DELETE_TRANSACTIONS_FOR_ACCOUNT_SQL, [bank, account]);
 }
@@ -298,10 +318,10 @@ export function updateTrashReason(id: number, reason: string | null): void {
 export function deduplicateDatabase(): number {
   const db = getDatabase();
   const expenses = exportAllExpensesData().filter(e => !e.isInvalid);
-  
+
   // Sort by timestamp asc
   expenses.sort((a, b) => a.timestamp - b.timestamp);
-  
+
   let duplicateCount = 0;
   const DEDUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -309,35 +329,37 @@ export function deduplicateDatabase(): number {
   for (let i = 0; i < expenses.length; i++) {
     const current = expenses[i];
     if (current.isInvalid) continue; // Already marked as dup in this loop
-    
+
     for (let j = i + 1; j < expenses.length; j++) {
       const next = expenses[j];
-      
+
       // Stop checking if next transaction is beyond 5 mins
       if (next.timestamp - current.timestamp > DEDUP_WINDOW_MS) {
         break;
       }
-      
+
       if (next.isInvalid) continue;
 
       const sameAmount = current.amount === next.amount;
-      const sameMerchant = normalizeMerchant(current.merchant) === normalizeMerchant(next.merchant);
+      const sameMerchant =
+        normalizeMerchant(current.merchant) ===
+        normalizeMerchant(next.merchant);
       const sameType = current.transactionType === next.transactionType;
-      
+
       if (sameAmount && sameMerchant && sameType) {
         // Mark next as duplicate
         next.isInvalid = true;
         next.trashReason = 'duplicate';
         duplicateCount++;
-        
+
         db.execute(
           'UPDATE expenses SET is_invalid = 1, trash_reason = ? WHERE id = ?',
-          ['duplicate', next.id]
+          ['duplicate', next.id],
         );
       }
     }
   }
-  
+
   return duplicateCount;
 }
 
@@ -391,7 +413,10 @@ function mapRows(rows: any[]): Expense[] {
       bank: row.bank,
       paymentMode: row.payment_mode,
       isDuplicate: row.is_duplicate === 1,
-      availableBalance: row.available_balance !== null && row.available_balance !== undefined ? Number(row.available_balance) : undefined,
+      availableBalance:
+        row.available_balance !== null && row.available_balance !== undefined
+          ? Number(row.available_balance)
+          : undefined,
       splits: splits,
       referenceId: row.reference_id || undefined,
       isInvalid: row.is_invalid === 1,
