@@ -2,8 +2,10 @@ import { Expense, ParsedTransaction } from '../types/expense';
 import { classify } from '../core/classifier';
 import { calculateConfidence } from '../core/confidence';
 import { isDuplicate } from '../core/dedup';
-import { isSpam } from '../core/classifier/spamClassifier';
 import { insertExpense, getRecentExpenses } from '../database/expenseRepo';
+import { RetryQueue } from '../utils/RetryQueue';
+
+const expenseRetryQueue = new RetryQueue<Omit<Expense, 'id'>>();
 
 export type ExpenseDecision = 'auto_save' | 'show_popup' | 'discard';
 
@@ -53,16 +55,6 @@ export function processTransaction(
     referenceId: parsed.referenceId || undefined,
   };
 
-  // Strongly bypass spam trashing if it has both an account number and a bank detected!
-  // Spammers/promotions do not know your exact account/card number, so these are 100% genuine bank alerts.
-  const isGenuineBankAlert = parsed.bank && parsed.account;
-
-  if (!isGenuineBankAlert && isSpam(parsed.rawMessage)) {
-    expense.isInvalid = true;
-    expense.trashReason = 'spam';
-    decision = 'auto_save'; // Save directly to trash without popup
-  }
-
   return { expense, decision };
 }
 
@@ -73,5 +65,13 @@ export function saveExpense(expense: Omit<Expense, 'id'>): number | null {
     return null;
   }
 
-  return insertExpense(expense);
+  try {
+    return insertExpense(expense);
+  } catch (e) {
+    console.warn('[saveExpense] DB insert failed — queuing for retry:', e);
+    expenseRetryQueue.enqueue(expense);
+    // Flush asynchronously; callers treat null as "not saved yet"
+    expenseRetryQueue.flush(item => insertExpense(item));
+    return null;
+  }
 }
