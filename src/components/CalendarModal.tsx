@@ -201,7 +201,8 @@ const styles = StyleSheet.create({
   },
   weekdaysRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    width: 280,
+    alignSelf: 'center',
     marginBottom: 8,
   },
   weekdayLabel: {
@@ -214,7 +215,8 @@ const styles = StyleSheet.create({
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    width: 280,
+    alignSelf: 'center',
   },
   dayCell: {
     width: 40,
