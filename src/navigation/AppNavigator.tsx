@@ -5,8 +5,7 @@ import { Text } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import SplitsScreen from '../screens/SplitsScreen';
-import SettingsScreen from '../screens/SettingsScreen';
-
+import SettingsScreen from '../features/profile/ProfileScreen';
 import AccountsScreen from '../screens/AccountsScreen';
 
 const Tab = createMaterialTopTabNavigator();

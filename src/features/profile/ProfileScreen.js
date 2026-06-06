@@ -9,31 +9,32 @@ import {
   Modal,
   TextInput,
   Platform,
-  PermissionsAndroid,
   KeyboardAvoidingView,
   NativeModules,
   Keyboard,
 } from 'react-native';
-import styles from '../styles/SettingsScreenStyles';
-import { useExpenseStore } from '../hooks/useExpenses';
+import styles from '../../styles/SettingsScreenStyles';
+import commonStyles from '../../styles/commonStyles';
+import { useExpenseStore } from '../../hooks/useExpenses';
 
 import {
-  getSetting,
-  setSetting,
   isDuplicateTransaction,
   insertExpense,
   clearAllExpenses,
-} from '../database/expenseRepo';
-import commonStyles from '../styles/commonStyles';
-import CalendarModal from '../components/CalendarModal';
-import { processIncomingMessage } from '../services/messageService';
-import { processTransaction } from '../services/expenseService';
-import { resetSpamClassifier } from '../core/classifier/spamClassifier';
-import { resetMerchantMap } from '../core/classifier/merchantMap';
+} from '../../database/expenseRepo';
+import CalendarModal from '../../components/CalendarModal';
+import { processIncomingMessage } from '../../services/messageService';
+import { processTransaction } from '../../services/expenseService';
+import { resetSpamClassifier } from '../../core/classifier/spamClassifier';
+import { resetMerchantMap } from '../../core/classifier/merchantMap';
+
+import ProfileAvatar from './components/ProfileAvatar';
+import ProfileStats from './components/ProfileStats';
+import { useProfileData } from './hooks/useProfileData';
 
 const { MessageModule } = NativeModules;
 
-export default function SettingsScreen() {
+export default function ProfileScreen() {
   const { exportExpenses, importExpenses, loadExpenses, runDeduplication } =
     useExpenseStore();
   const [importModalVisible, setImportModalVisible] = useState(false);
@@ -45,18 +46,21 @@ export default function SettingsScreen() {
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [keyboardSpace, setKeyboardSpace] = useState(0);
   const [previewVisible, setPreviewVisible] = useState(false);
-  const [proposedTransactions, setProposedTransactions] = useState<any[]>([]);
+  const [proposedTransactions, setProposedTransactions] = useState([]);
 
   // Real-time terminal logging states for past sync flow
-  const [syncLogs, setSyncLogs] = useState<string[]>([]);
+  const [syncLogs, setSyncLogs] = useState([]);
   const [syncProgressPct, setSyncProgressPct] = useState(0);
   const [processedCounts, setProcessedCounts] = useState({ found: 0, dups: 0, junk: 0 });
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'scanning' | 'scan_done' | 'importing' | 'import_done'>('idle');
-  const logsScrollViewRef = React.useRef<ScrollView>(null);
+  const [syncStatus, setSyncStatus] = useState('idle');
+  const logsScrollViewRef = React.useRef(null);
 
-  const requestSmsPermission = async (): Promise<boolean> => {
+  const { budget, handleBudgetChange, note, setNote, isSaving } = useProfileData();
+
+  const requestSmsPermission = async () => {
     if (Platform.OS !== 'android') return true;
     try {
+      const { PermissionsAndroid } = require('react-native');
       const hasPermission = await PermissionsAndroid.check(
         PermissionsAndroid.PERMISSIONS.READ_SMS,
       );
@@ -98,7 +102,7 @@ export default function SettingsScreen() {
     setProposedTransactions([]);
   };
 
-  const handleSyncHistory = async (startTs: number | null) => {
+  const handleSyncHistory = async (startTs) => {
     setCalendarVisible(false);
     if (!startTs) return;
 
@@ -130,7 +134,6 @@ export default function SettingsScreen() {
 
     try {
       // 2. Fetch all historical SMS messages since selected start date
-      // This single fetch query is safe and fully compatible across all devices
       const pageJson = await MessageModule.fetchPastMessages(startTs);
       const rawList =
         typeof pageJson === 'string' ? JSON.parse(pageJson) : pageJson;
@@ -169,7 +172,7 @@ export default function SettingsScreen() {
         ? Math.max(2, Math.min(40, Math.floor(3500 / rawList.length)))
         : 0;
 
-      const proposed: any[] = [];
+      const proposed = [];
       let tempCounter = 0;
       let found = 0;
       let dups = 0;
@@ -180,7 +183,7 @@ export default function SettingsScreen() {
         
         // Wait to allow React rendering log stream
         if (__DEV__) {
-          await new Promise<void>(resolve => setTimeout(() => resolve(), delay));
+          await new Promise(resolve => setTimeout(() => resolve(), delay));
           const progressPct = Math.round(((i + 1) / rawList.length) * 100);
           setSyncProgressPct(progressPct);
           setSyncProgress(`Scanning: ${i + 1} of ${rawList.length} (${progressPct}%)`);
@@ -196,7 +199,7 @@ export default function SettingsScreen() {
           parsed.timestamp = msg.timestamp;
 
           const duplicate = isDuplicateTransaction(
-            parsed.amount!,
+            parsed.amount,
             parsed.timestamp,
             parsed.referenceId || undefined,
             parsed.rawMessage || undefined,
@@ -277,7 +280,7 @@ export default function SettingsScreen() {
           setPreviewVisible(true);
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('History sync failed:', err);
       if (__DEV__) {
         setSyncProgress('Scan failed.');
@@ -307,8 +310,8 @@ export default function SettingsScreen() {
         for (const tx of proposedTransactions) {
           if (tx.checked) {
             const expenseData = { ...tx };
-            delete (expenseData as any).tempId;
-            delete (expenseData as any).checked;
+            delete expenseData.tempId;
+            delete expenseData.checked;
             insertExpense(expenseData);
             importedCount++;
           }
@@ -319,7 +322,7 @@ export default function SettingsScreen() {
           'Sync Complete',
           `Successfully imported ${importedCount} transactions to your ledger!`,
         );
-      } catch (err: any) {
+      } catch (err) {
         Alert.alert('Import Failed', err.message || 'Failed to save transactions.');
       }
       return;
@@ -341,11 +344,11 @@ export default function SettingsScreen() {
       let count = 0;
       for (const tx of toImport) {
         // Wait 150ms per transaction for a high-fidelity visual committing stream
-        await new Promise<void>(resolve => setTimeout(() => resolve(), 150));
+        await new Promise(resolve => setTimeout(() => resolve(), 150));
         
         const expenseData = { ...tx };
-        delete (expenseData as any).tempId;
-        delete (expenseData as any).checked;
+        delete expenseData.tempId;
+        delete expenseData.checked;
         insertExpense(expenseData);
         count++;
 
@@ -367,7 +370,7 @@ export default function SettingsScreen() {
 
       loadExpenses();
       setSyncStatus('import_done');
-    } catch (err: any) {
+    } catch (err) {
       setSyncLogs(prev => [
         ...prev,
         `\n❌ Database transaction import failed: ${err.message || 'Unknown SQLite error'}`,
@@ -376,86 +379,15 @@ export default function SettingsScreen() {
     }
   };
 
-  const toggleSelectTransaction = (tempId: string) => {
+  const toggleSelectTransaction = (tempId) => {
     setProposedTransactions(prev =>
       prev.map(tx => (tx.tempId === tempId ? { ...tx, checked: !tx.checked } : tx)),
     );
   };
 
-  const toggleSelectAll = (select: boolean) => {
+  const toggleSelectAll = (select) => {
     setProposedTransactions(prev => prev.map(tx => ({ ...tx, checked: select })));
   };
-
-  // Contacts permission, scratchpad notes, and smart budget state
-  const [_contactsPermission, setContactsPermission] = useState<
-    'granted' | 'denied' | 'checking'
-  >('checking');
-  const [note, setNote] = useState('');
-  const [budget, setBudget] = useState('20000');
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    checkContactsPermission();
-    // Load persisted scratchpad note
-    const savedNote = getSetting('future_updates_note', '');
-    setNote(savedNote);
-    // Load persisted budget limit
-    const savedBudget = getSetting('monthly_budget_limit', '20000');
-    setBudget(savedBudget);
-  }, []);
-
-  useEffect(() => {
-    // Save note after 1s of inactivity
-    const timeout = setTimeout(() => {
-      if (note !== getSetting('future_updates_note', '')) {
-        setIsSaving(true);
-        setSetting('future_updates_note', note);
-        setTimeout(() => setIsSaving(false), 500);
-      }
-    }, 1000);
-    return () => clearTimeout(timeout);
-  }, [note]);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', e => {
-      if (Platform.OS === 'android') {
-        setKeyboardSpace(e.endCoordinates.height);
-      }
-    });
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardSpace(0);
-    });
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
-
-  const checkContactsPermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const hasIt = await PermissionsAndroid.check(
-          PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
-        );
-        setContactsPermission(hasIt ? 'granted' : 'denied');
-      } catch (err) {
-        console.warn(err);
-        setContactsPermission('denied');
-      }
-    } else {
-      setContactsPermission('granted');
-    }
-  };
-
-  // contact permission request handled inline where needed
-
-  const handleBudgetChange = (text: string) => {
-    const cleaned = text.replace(/[^0-9]/g, '');
-    setBudget(cleaned);
-    setSetting('monthly_budget_limit', cleaned);
-  };
-
-  // notification settings helper removed (unused)
 
   const handleExport = async () => {
     try {
@@ -474,7 +406,7 @@ export default function SettingsScreen() {
       if (result.action === Share.sharedAction) {
         Alert.alert('Export Successful', 'Your expense data has been shared.');
       }
-    } catch (error: any) {
+    } catch (error) {
       Alert.alert(
         'Export Error',
         error.message || 'An error occurred during export.',
@@ -527,7 +459,7 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleImport = (overwrite: boolean) => {
+  const handleImport = (overwrite) => {
     if (!jsonInput.trim()) {
       Alert.alert('Empty Input', 'Please paste the backup JSON data first.');
       return;
@@ -558,7 +490,7 @@ export default function SettingsScreen() {
                 );
                 setImportModalVisible(false);
                 setJsonInput('');
-              } catch (e: any) {
+              } catch (e) {
                 Alert.alert(
                   'Import Failed',
                   e.message || 'The data structure is invalid.',
@@ -576,15 +508,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const scrollViewRef = React.useRef<ScrollView>(null);
-
-  const handleNoteFocus = () => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 150);
-  };
-
-  const getCategoryEmoji = (category: string) => {
+  const getCategoryEmoji = (category) => {
     switch (category) {
       case 'Food & Dining': return '🍔';
       case 'Travel': return '🚗';
@@ -602,7 +526,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const formatDate = (ts: number) => {
+  const formatDate = (ts) => {
     return new Date(ts).toLocaleDateString('en-IN', {
       day: 'numeric',
       month: 'short',
@@ -612,15 +536,41 @@ export default function SettingsScreen() {
   };
 
   const selectedCount = proposedTransactions.filter(t => t.checked).length;
+  const scrollViewRef = React.useRef(null);
+
+  const handleNoteFocus = () => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 150);
+  };
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', e => {
+      if (Platform.OS === 'android') {
+        setKeyboardSpace(e.endCoordinates.height);
+      }
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardSpace(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const scrollPadding = { paddingBottom: keyboardSpace > 0 ? keyboardSpace + 20 : 16 };
+  const progressFillStyle = {
+    width: `${syncProgressPct}%`,
+    backgroundColor: syncStatus === 'importing' || syncStatus === 'import_done' ? '#33b3ff' : '#00ff00'
+  };
 
   return (
     <View style={commonStyles.container}>
-      <View style={commonStyles.header}>
-        <Text style={commonStyles.headerTitle}>Settings</Text>
-      </View>
+      <ProfileAvatar />
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 100}
       >
@@ -628,35 +578,11 @@ export default function SettingsScreen() {
           ref={scrollViewRef}
           contentContainerStyle={[
             styles.content,
-            { paddingBottom: keyboardSpace > 0 ? keyboardSpace + 20 : 16 },
+            scrollPadding,
           ]}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Permissions section removed as requested - permissions are handled dynamically */}
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Smart Budget Settings</Text>
-            <View style={styles.budgetContainer}>
-              <View style={{ flex: 1, marginRight: 12 }}>
-                <Text style={styles.itemTitle}>Monthly Budget Limit</Text>
-                <Text style={styles.itemDescription}>
-                  Sets your target monthly expense limit for AI projections
-                </Text>
-              </View>
-              <View style={styles.budgetInputWrapper}>
-                <Text style={styles.currencySymbol}>₹</Text>
-                <TextInput
-                  style={styles.budgetInput}
-                  keyboardType="numeric"
-                  value={budget}
-                  onChangeText={handleBudgetChange}
-                  placeholder="20000"
-                  placeholderTextColor="#999"
-                  maxLength={7}
-                />
-              </View>
-            </View>
-          </View>
+          <ProfileStats budget={budget} onBudgetChange={handleBudgetChange} />
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>SMS Transaction Sync</Text>
@@ -673,7 +599,7 @@ export default function SettingsScreen() {
                   onPress={() => setCalendarVisible(true)}
                   disabled={syncing}
                 >
-                  <View style={{ flex: 1, marginRight: 8 }}>
+                  <View style={styles.flexLabelContainer}>
                     <Text style={styles.itemTitle}>Sync Past Transactions</Text>
                     <Text style={styles.itemDescription}>
                       Scan past bank SMS messages starting from a custom date to
@@ -690,7 +616,7 @@ export default function SettingsScreen() {
             <Text style={styles.sectionTitle}>Data Management</Text>
 
             <TouchableOpacity style={styles.item} onPress={handleDeduplicate}>
-              <View style={{ flex: 1, marginRight: 8 }}>
+              <View style={styles.flexLabelContainer}>
                 <Text style={styles.itemTitle}>Deduplicate Data</Text>
                 <Text style={styles.itemDescription}>
                   Scan and automatically move duplicate transactions to Trash
@@ -750,7 +676,7 @@ export default function SettingsScreen() {
               style={[styles.item, styles.dangerItem]}
               onPress={handleDeleteAllData}
             >
-              <View style={{ flex: 1, marginRight: 8 }}>
+              <View style={styles.flexLabelContainer}>
                 <Text style={styles.dangerTitle}>Delete All Data</Text>
                 <Text style={styles.itemDescription}>
                   Permanently erase all your transaction records
@@ -865,10 +791,7 @@ export default function SettingsScreen() {
               <View style={styles.progressBarBg}>
                 <View style={[
                   styles.progressBarFill, 
-                  { 
-                    width: `${syncProgressPct}%`,
-                    backgroundColor: syncStatus === 'importing' || syncStatus === 'import_done' ? '#33b3ff' : '#00ff00' 
-                  }
+                  progressFillStyle
                 ]} />
               </View>
 
@@ -903,11 +826,11 @@ export default function SettingsScreen() {
                     <Text style={styles.statLabel}>Found</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={[styles.statCount, { color: '#ffb300' }]}>{processedCounts.dups}</Text>
+                    <Text style={[styles.statCount, styles.statCountWarning]}>{processedCounts.dups}</Text>
                     <Text style={styles.statLabel}>Duplicates</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={[styles.statCount, { color: '#888888' }]}>{processedCounts.junk}</Text>
+                    <Text style={[styles.statCount, styles.statCountJunk]}>{processedCounts.junk}</Text>
                     <Text style={styles.statLabel}>Junk/Skip</Text>
                   </View>
                 </View>
@@ -939,14 +862,14 @@ export default function SettingsScreen() {
 
               {syncStatus === 'importing' && (
                 <View style={styles.statsSummary}>
-                  <View style={[styles.statBox, { borderColor: '#33b3ff' }]}>
-                    <Text style={[styles.statCount, { color: '#33b3ff' }]}>
+                  <View style={[styles.statBox, styles.statBoxInfo]}>
+                    <Text style={[styles.statCount, styles.statCountInfo]}>
                       {proposedTransactions.filter(tx => tx.checked).length}
                     </Text>
                     <Text style={styles.statLabel}>Total Selected</Text>
                   </View>
-                  <View style={[styles.statBox, { borderColor: '#33b3ff' }]}>
-                    <Text style={[styles.statCount, { color: '#33b3ff' }]}>
+                  <View style={[styles.statBox, styles.statBoxInfo]}>
+                    <Text style={[styles.statCount, styles.statCountInfo]}>
                       {syncLogs.filter(l => l.includes('Saved:')).length}
                     </Text>
                     <Text style={styles.statLabel}>Committed</Text>
@@ -983,7 +906,7 @@ export default function SettingsScreen() {
           <View style={styles.modalOverlay}>
             <View style={styles.previewModalBox}>
               <View style={styles.modalHeader}>
-                <View style={{ flex: 1, marginRight: 8 }}>
+                <View style={styles.flexLabelContainer}>
                   <Text style={styles.modalTitle}>Sync Preview</Text>
                   <Text style={styles.modalSubtitle}>
                     Select the transactions you want to import
@@ -1108,4 +1031,3 @@ export default function SettingsScreen() {
     </View>
   );
 }
-
