@@ -27,9 +27,11 @@ export function generateBudgetInsights(
   monthlyBudget: number,
 ): BudgetInsight {
   const now = new Date();
+  const sumAmounts = expenses.reduce((sum, e) => sum + (e.isInvalid ? 0 : e.amount || 0), 0);
+  const maxTs = expenses.reduce((max, e) => Math.max(max, e.isInvalid ? 0 : e.timestamp || 0), 0);
   const cacheKey = `${now.getFullYear()}-${now.getMonth()}-${
     expenses.length
-  }-${monthlyBudget}`;
+  }-${monthlyBudget}-${sumAmounts}-${maxTs}`;
   if (_cache && _cache.key === cacheKey) {
     return _cache.result;
   }
