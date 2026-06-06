@@ -16,6 +16,13 @@ import Contacts from 'react-native-contacts';
 import { Category, Expense, PaymentMode, ExpenseSplit } from '../types/expense';
 import { CATEGORIES, PAYMENT_MODES } from '../constants/appOptions';
 import { useExpenseStore } from '../hooks/useExpenses';
+import { getSetting, setSetting } from '../database/expenseRepo';
+
+interface RecentContact {
+  displayName: string;
+  phone?: string;
+  recordID?: string;
+}
 
 interface Props {
   expense: Expense | null;
@@ -60,6 +67,9 @@ export default function EditTransactionModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const [activeSplitIndex, setActiveSplitIndex] = useState<number | null>(null);
+  const [recentContacts, setRecentContacts] = useState<RecentContact[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<any[]>([]);
+  const [selectedContactKeys, setSelectedContactKeys] = useState<string[]>([]);
 
   const requestContactsPermission = async () => {
     if (Platform.OS === 'android') {
@@ -83,8 +93,42 @@ export default function EditTransactionModal({
     return true;
   };
 
-  const handleOpenContactPicker = async (index: number) => {
+  const saveSelectedContactToRecent = (contact: any) => {
+    const name = contact.displayName || `${contact.givenName || ''} ${contact.familyName || ''}`.trim() || 'Unknown';
+    const phone = contact.phoneNumbers && contact.phoneNumbers.length > 0 ? contact.phoneNumbers[0].number : '';
+    const recordID = contact.recordID || '';
+
+    let recent: RecentContact[] = [];
+    try {
+      const raw = getSetting('recent_split_contacts', '[]');
+      recent = JSON.parse(raw);
+    } catch (e) {
+      console.error('Failed to parse recent contacts', e);
+    }
+
+    recent = recent.filter(c => c.displayName !== name);
+    recent.unshift({ displayName: name, phone, recordID });
+    recent = recent.slice(0, 10);
+
+    setSetting('recent_split_contacts', JSON.stringify(recent));
+  };
+
+  const handleOpenContactPicker = async (index: number | null) => {
     setActiveSplitIndex(index);
+    setSelectedContacts([]);
+    setSelectedContactKeys([]);
+    setSearchQuery('');
+
+    // Load recent contacts from setting
+    try {
+      const raw = getSetting('recent_split_contacts', '[]');
+      const parsedRecent = JSON.parse(raw) as RecentContact[];
+      setRecentContacts(parsedRecent);
+    } catch (e) {
+      console.error('Failed to load recent contacts', e);
+      setRecentContacts([]);
+    }
+
     const hasPermission = await requestContactsPermission();
     if (hasPermission) {
       setContactModalVisible(true);
@@ -119,13 +163,83 @@ export default function EditTransactionModal({
     setFilteredContacts(filtered);
   };
 
-  const selectContact = (contact: any) => {
-    if (activeSplitIndex !== null) {
-      const name = contact.displayName || `${contact.givenName || ''} ${contact.familyName || ''}`.trim() || 'Unknown';
-      updateSplit(activeSplitIndex, 'contactName', name);
+  const toggleSelectContact = (contact: any) => {
+    const name = contact.displayName || `${contact.givenName || ''} ${contact.familyName || ''}`.trim() || 'Unknown';
+    const key = contact.recordID || name;
+    if (selectedContactKeys.includes(key)) {
+      setSelectedContactKeys(selectedContactKeys.filter(k => k !== key));
+      setSelectedContacts(selectedContacts.filter(c => {
+        const cName = c.displayName || `${c.givenName || ''} ${c.familyName || ''}`.trim() || 'Unknown';
+        return (c.recordID || cName) !== key;
+      }));
+    } else {
+      setSelectedContactKeys([...selectedContactKeys, key]);
+      setSelectedContacts([...selectedContacts, contact]);
     }
+  };
+
+  const handleConfirmContacts = () => {
+    if (selectedContacts.length === 0) {
+      setContactModalVisible(false);
+      return;
+    }
+
+    // Save all selected contacts to recent history
+    selectedContacts.forEach(saveSelectedContactToRecent);
+
+    let updatedSplits = [...splits];
+
+    selectedContacts.forEach((contact, idx) => {
+      const name = contact.displayName || `${contact.givenName || ''} ${contact.familyName || ''}`.trim() || 'Unknown';
+      
+      if (activeSplitIndex !== null && idx === 0) {
+        // Populate the active split row
+        updatedSplits[activeSplitIndex] = {
+          ...updatedSplits[activeSplitIndex],
+          contactName: name,
+        };
+      } else {
+        // Append as a new split row
+        updatedSplits.push({
+          contactName: name,
+          amount: 0,
+          owedByMe,
+        });
+      }
+    });
+
+    setSplits(updatedSplits);
     setContactModalVisible(false);
+    setSelectedContacts([]);
+    setSelectedContactKeys([]);
     setSearchQuery('');
+  };
+
+  const getContactsListData = () => {
+    if (searchQuery.trim().length > 0) {
+      // Searching: just show filtered list of all contacts
+      return filteredContacts;
+    }
+    
+    const listData: any[] = [];
+    if (recentContacts.length > 0) {
+      listData.push({ isHeader: true, title: 'Recent Contacts' });
+      listData.push(
+        ...recentContacts.map(rc => ({
+          recordID: rc.recordID,
+          displayName: rc.displayName,
+          phoneNumbers: rc.phone ? [{ label: 'mobile', number: rc.phone }] : [],
+          isRecent: true,
+        }))
+      );
+    }
+    
+    if (filteredContacts.length > 0) {
+      listData.push({ isHeader: true, title: 'All Contacts' });
+      listData.push(...filteredContacts);
+    }
+    
+    return listData;
   };
 
   useEffect(() => {
@@ -472,7 +586,10 @@ export default function EditTransactionModal({
 
                 <View style={styles.splitActions}>
                   <TouchableOpacity style={styles.addSplitBtn} onPress={addSplit}>
-                    <Text style={styles.addSplitBtnText}>+ Add Person</Text>
+                    <Text style={styles.addSplitBtnText}>+ Add Empty</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.addContactsBtn} onPress={() => handleOpenContactPicker(null)}>
+                    <Text style={styles.addContactsBtnText}>👤 Select Contacts</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.splitEquallyBtn} onPress={splitEqually}>
                     <Text style={styles.splitEquallyBtnText}>Split Equally</Text>
@@ -542,36 +659,76 @@ export default function EditTransactionModal({
         <View style={styles.contactModalOverlay}>
           <View style={styles.contactModalBox}>
             <View style={styles.contactModalHeader}>
-              <Text style={styles.contactModalTitle}>Select Contact</Text>
-              <TouchableOpacity onPress={() => setContactModalVisible(false)}>
+              <Text style={styles.contactModalTitle}>Select Contacts</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setContactModalVisible(false);
+                  setSelectedContacts([]);
+                  setSelectedContactKeys([]);
+                  setSearchQuery('');
+                }}
+              >
                 <Text style={styles.contactCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              style={styles.contactSearchInput}
-              value={searchQuery}
-              onChangeText={handleSearchContacts}
-              placeholder="Search contacts by name or phone..."
-              placeholderTextColor="#999"
-            />
+            <View style={styles.searchBarContainer}>
+              <TextInput
+                style={styles.contactSearchInput}
+                value={searchQuery}
+                onChangeText={handleSearchContacts}
+                placeholder="Search contacts by name or phone..."
+                placeholderTextColor="#999"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity
+                  style={styles.clearSearchBtn}
+                  onPress={() => handleSearchContacts('')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.clearSearchText}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
             <FlatList
-              data={filteredContacts}
-              keyExtractor={(item, index) => item.recordID || String(index)}
+              data={getContactsListData()}
+              keyExtractor={(item, index) => item.isHeader ? `header_${index}` : (item.recordID || `${item.displayName}_${index}`)}
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => {
+                if (item.isHeader) {
+                  return (
+                    <View style={styles.contactSectionHeader}>
+                      <Text style={styles.contactSectionHeaderText}>{item.title}</Text>
+                    </View>
+                  );
+                }
+
                 const name = item.displayName || `${item.givenName || ''} ${item.familyName || ''}`.trim() || 'Unknown';
                 const initial = name.charAt(0).toUpperCase();
                 const phone = item.phoneNumbers && item.phoneNumbers.length > 0 ? item.phoneNumbers[0].number : '';
+                const key = item.recordID || name;
+                const isSelected = selectedContactKeys.includes(key);
+
                 return (
-                  <TouchableOpacity style={styles.contactItem} onPress={() => selectContact(item)}>
-                    <View style={styles.contactAvatar}>
-                      <Text style={styles.contactAvatarText}>{initial}</Text>
+                  <TouchableOpacity
+                    style={[styles.contactItem, isSelected && styles.contactItemSelected]}
+                    onPress={() => toggleSelectContact(item)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.contactAvatar, isSelected && styles.contactAvatarSelected]}>
+                      {isSelected ? (
+                        <Text style={styles.contactAvatarText}>✓</Text>
+                      ) : (
+                        <Text style={styles.contactAvatarText}>{initial}</Text>
+                      )}
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.contactName}>{name}</Text>
                       {phone ? <Text style={styles.contactPhone}>{phone}</Text> : null}
+                    </View>
+                    <View style={[styles.checkboxCircle, isSelected && styles.checkboxCircleSelected]}>
+                      {isSelected && <View style={styles.checkboxInnerCircle} />}
                     </View>
                   </TouchableOpacity>
                 );
@@ -582,6 +739,32 @@ export default function EditTransactionModal({
                 </View>
               }
             />
+
+            <View style={styles.contactModalFooter}>
+              <TouchableOpacity
+                style={styles.contactCancelBtn}
+                onPress={() => {
+                  setContactModalVisible(false);
+                  setSelectedContacts([]);
+                  setSelectedContactKeys([]);
+                  setSearchQuery('');
+                }}
+              >
+                <Text style={styles.contactCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.contactConfirmBtn,
+                  selectedContacts.length === 0 && styles.contactConfirmBtnDisabled
+                ]}
+                onPress={handleConfirmContacts}
+                disabled={selectedContacts.length === 0}
+              >
+                <Text style={styles.contactConfirmBtnText}>
+                  Add Selected ({selectedContacts.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -962,14 +1145,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#666',
   },
-  contactSearchInput: {
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#f1f3f4',
     borderRadius: 10,
-    paddingHorizontal: 16,
+    marginBottom: 16,
+    paddingRight: 8,
+  },
+  contactSearchInput: {
+    flex: 1,
+    paddingLeft: 16,
+    paddingRight: 8,
     paddingVertical: 10,
     fontSize: 15,
     color: '#202124',
-    marginBottom: 16,
+  },
+  clearSearchBtn: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clearSearchText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#5f6368',
   },
   contactItem: {
     flexDirection: 'row',
@@ -1011,5 +1211,97 @@ const styles = StyleSheet.create({
   contactEmptyText: {
     fontSize: 14,
     color: '#9aa0a6',
+  },
+  addContactsBtn: {
+    flex: 1.2,
+    paddingVertical: 10,
+    backgroundColor: '#e8f0fe',
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d2e3fc',
+  },
+  addContactsBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1a73e8',
+  },
+  contactSectionHeader: {
+    backgroundColor: '#f1f3f4',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  contactSectionHeaderText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#5f6368',
+    textTransform: 'uppercase',
+  },
+  contactItemSelected: {
+    backgroundColor: '#f8f9fa',
+  },
+  contactAvatarSelected: {
+    backgroundColor: '#34a853',
+  },
+  checkboxCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#dadce0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4,
+  },
+  checkboxCircleSelected: {
+    borderColor: '#1a73e8',
+    backgroundColor: '#1a73e8',
+  },
+  checkboxInnerCircle: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fff',
+  },
+  contactModalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f3f4',
+    paddingTop: 12,
+  },
+  contactCancelBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#f1f3f4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactCancelBtnText: {
+    fontSize: 14,
+    color: '#5f6368',
+    fontWeight: '600',
+  },
+  contactConfirmBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#1a73e8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactConfirmBtnDisabled: {
+    backgroundColor: '#dadce0',
+  },
+  contactConfirmBtnText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '600',
   },
 });
