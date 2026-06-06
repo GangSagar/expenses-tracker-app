@@ -115,8 +115,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e8eaed',
   },
-  insightsList: {
+  insightsScrollPages: {
+    // Container for paginated ScrollView pages
+  },
+  insightsPage: {
     gap: 12,
+    alignItems: 'stretch',
   },
   insightItem: {
     width: '100%',
@@ -145,6 +149,23 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 3,
+  },
+  paginationDotsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 6,
+  },
+  paginationDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#dadce0',
+  },
+  paginationDotActive: {
+    backgroundColor: '#1a73e8',
+    width: 12,
   },
   recentActivityHeader: {
     flexDirection: 'row',
