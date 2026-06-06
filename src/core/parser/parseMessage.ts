@@ -28,12 +28,36 @@ function extractAmount(message: string): number | null {
 }
 
 function detectTransactionType(message: string): TransactionType {
-  if (DEBIT_REGEX.test(message)) {
+  const hasDebit = DEBIT_REGEX.test(message);
+  const hasCredit = CREDIT_REGEX.test(message);
+
+  if (hasDebit && hasCredit) {
+    // Both are present. We need to disambiguate.
+    
+    // Case 1: "credited to" or "Cr. to" - check who is receiving it.
+    // If it's "credited to" or "Cr. to" a third party (i.e. not followed by "your", "my", "A/c", "Ac", "account", "card"),
+    // then it's a debit from the user's perspective.
+    // e.g. "debited ... and credited to SWIGGY" -> debit
+    // e.g. "Dr. from A/c ... and Cr. to harshithrn@ybl" -> debit
+    const creditedToPayeeMatch = message.match(/\b(?:credit|credited|Cr\.?)\s+to\s+(?!your|my|A\/c|Ac|account|card|acc\b)\w+/i);
+    if (creditedToPayeeMatch) {
+      return 'debit';
+    }
+
+    // Case 2: "payment... received" or "payment... credited"
+    // e.g. "Payment of INR 35,115.90 has been received" -> credit
+    if (/\breceived\b/i.test(message) || /\bcredited\b/i.test(message)) {
+      return 'credit';
+    }
+
+    // Case 3: Default to debit if both are present but no clear indicator
     return 'debit';
   }
-  if (CREDIT_REGEX.test(message)) {
+
+  if (hasCredit) {
     return 'credit';
   }
+
   return 'debit';
 }
 

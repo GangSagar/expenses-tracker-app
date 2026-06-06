@@ -1,5 +1,5 @@
 import { parseMessage } from '../core/parser/parseMessage';
-import { isTransactionMessage } from '../core/parser/filters';
+import { isTransactionMessage, isTransactionalSender } from '../core/parser/filters';
 import samples from './__fixtures__/sms-samples.json';
 
 describe('parseMessage', () => {
@@ -97,6 +97,40 @@ describe('parseMessage - transaction type detection', () => {
       'sms'
     );
     expect(result.transactionType).toBe('credit');
+  });
+
+  it('detects recharge as debit', () => {
+    const result = parseMessage('Recharge of Rs.100 successful', 'JD-HDFCBK', 'sms');
+    expect(result.transactionType).toBe('debit');
+    expect(isTransactionMessage('Recharge of Rs.100 successful')).toBe(true);
+  });
+
+  it('detects payment as debit', () => {
+    const result = parseMessage('Payment of Rs.150 done to Merchant', 'JD-HDFCBK', 'sms');
+    expect(result.transactionType).toBe('debit');
+    expect(isTransactionMessage('Payment of Rs.150 done to Merchant')).toBe(true);
+  });
+
+  it('detects withdraw/withdrew/withdrawal as debit', () => {
+    const result1 = parseMessage('Cash withdraw of Rs.5000 from ATM', 'JD-HDFCBK', 'sms');
+    expect(result1.transactionType).toBe('debit');
+    expect(isTransactionMessage('Cash withdraw of Rs.5000 from ATM')).toBe(true);
+
+    const result2 = parseMessage('Withdrew Rs.2000 from ATM', 'JD-HDFCBK', 'sms');
+    expect(result2.transactionType).toBe('debit');
+    expect(isTransactionMessage('Withdrew Rs.2000 from ATM')).toBe(true);
+  });
+
+  it('detects transacted as debit', () => {
+    const result = parseMessage('You have transacted Rs.200 on Card', 'JD-HDFCBK', 'sms');
+    expect(result.transactionType).toBe('debit');
+    expect(isTransactionMessage('You have transacted Rs.200 on Card')).toBe(true);
+  });
+
+  it('detects misspelling recieved/recieve as credit', () => {
+    const result = parseMessage('Rs.500 recieved from John', 'JD-HDFCBK', 'sms');
+    expect(result.transactionType).toBe('credit');
+    expect(isTransactionMessage('Rs.500 recieved from John')).toBe(true);
   });
 });
 
@@ -294,3 +328,38 @@ describe('Unicode Alphanumeric Normalization', () => {
     expect(parsed!.availableBalance).toBe(2248.58);
   });
 });
+
+describe('isTransactionalSender', () => {
+  it('accepts standard Indian SMS prefix format headers', () => {
+    expect(isTransactionalSender('VM-HDFCBK')).toBe(true);
+    expect(isTransactionalSender('AD-ICICIB')).toBe(true);
+    expect(isTransactionalSender('VK-SBIIND')).toBe(true);
+    expect(isTransactionalSender('JX-BOBSMS')).toBe(true);
+  });
+
+  it('accepts alphanumeric commercial headers without hyphens', () => {
+    expect(isTransactionalSender('HDFCBK')).toBe(true);
+    expect(isTransactionalSender('AXISBK')).toBe(true);
+    expect(isTransactionalSender('PhonePe')).toBe(true);
+    expect(isTransactionalSender('FPLPAY')).toBe(true);
+    expect(isTransactionalSender('CRED')).toBe(true);
+    expect(isTransactionalSender('RZRPAY')).toBe(true);
+    expect(isTransactionalSender('PAYTM')).toBe(true);
+  });
+
+  it('accepts numeric bank shortcodes', () => {
+    expect(isTransactionalSender('567676')).toBe(true);
+    expect(isTransactionalSender('12345')).toBe(true);
+  });
+
+  it('rejects standard individual 10-digit mobile numbers', () => {
+    expect(isTransactionalSender('9876543210')).toBe(false);
+    expect(isTransactionalSender('+919876543210')).toBe(false);
+  });
+
+  it('rejects explicitly ignored spam/carrier balance senders', () => {
+    expect(isTransactionalSender('VM-JioBal')).toBe(false);
+    expect(isTransactionalSender('AD-VILBAL')).toBe(false);
+  });
+});
+
