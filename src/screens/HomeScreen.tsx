@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   StatusBar,
+  Dimensions,
 } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useExpenseStore } from '../hooks/useExpenses';
@@ -19,6 +20,7 @@ import { generateBudgetInsights } from '../services/advisorService';
 import commonStyles from '../styles/commonStyles';
 import styles from '../styles/HomeScreenStyles';
 
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const { expenses, loading, loadExpenses, updateExpense, addManualExpense } = useExpenseStore();
@@ -30,6 +32,7 @@ export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const [budgetLimit, setBudgetLimit] = useState(20000);
   const [hiddenAccounts, setHiddenAccounts] = useState<string[]>([]);
+  const [activePageIndex, setActivePageIndex] = useState(0);
 
   useEffect(() => {
     loadExpenses();
@@ -48,6 +51,18 @@ export default function HomeScreen() {
       }
     }
   }, [isFocused]);
+
+  const handleRefresh = useCallback(() => {
+    loadExpenses();
+    const saved = getSetting('monthly_budget_limit', '20000');
+    setBudgetLimit(Number(saved) || 20000);
+    try {
+      const savedHidden = getSetting('hidden_accounts', '[]');
+      setHiddenAccounts(JSON.parse(savedHidden));
+    } catch (e) {
+      console.error('Failed to parse hidden accounts', e);
+    }
+  }, [loadExpenses]);
 
   const activeExpenses = expenses.filter(e => !e.isInvalid);
 
@@ -111,9 +126,11 @@ export default function HomeScreen() {
     accountsList.push({ bank, account, balance, cardType });
   }
 
-  // 2. Calculate Category Insights (Top 3 Debits)
+  // 2. Calculate Category Insights (Top 3 Debits for the current month)
+  const today = new Date();
+  const startOfMonthTs = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
   const categoryTotals = activeExpenses
-    .filter(e => e.transactionType === 'debit')
+    .filter(e => e.transactionType === 'debit' && e.timestamp >= startOfMonthTs && e.timestamp <= today.getTime())
     .reduce((acc, e) => {
       const cat = e.category || 'Other';
       acc[cat] = (acc[cat] || 0) + e.amount;
@@ -128,8 +145,23 @@ export default function HomeScreen() {
       amount,
       percentage: totalDebit > 0 ? (amount / totalDebit) * 100 : 0,
     }))
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 3);
+    .sort((a, b) => b.amount - a.amount);
+
+  const cardInnerWidth = screenWidth - 64;
+
+  const handleInsightsScroll = (event: any) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    if (slideSize > 0) {
+      const index = Math.round(event.nativeEvent.contentOffset.x / slideSize);
+      setActivePageIndex(index);
+    }
+  };
+
+  const pageSize = 3;
+  const categoryPages: typeof topCategories[] = [];
+  for (let i = 0; i < topCategories.length; i += pageSize) {
+    categoryPages.push(topCategories.slice(i, i + pageSize));
+  }
 
 
 
@@ -207,7 +239,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={loadExpenses} />
+          <RefreshControl refreshing={loading} onRefresh={handleRefresh} />
         }
       >
 
@@ -302,29 +334,53 @@ export default function HomeScreen() {
         {topCategories.length > 0 && (
           <View style={styles.insightsCard}>
             <Text style={commonStyles.sectionHeading}>Spending Insights</Text>
-            <View style={styles.insightsList}>
-              {topCategories.map((cat, index) => {
-                const color = getCategoryColor(cat.category, index);
-                return (
-                  <View key={cat.category} style={styles.insightItem}>
-                    <View style={styles.insightHeader}>
-                      <Text style={styles.insightCategory}>{cat.category}</Text>
-                      <Text style={styles.insightAmount}>
-                        ₹{cat.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({cat.percentage.toFixed(2)}%)
-                      </Text>
-                    </View>
-                    <View style={styles.progressBg}>
-                      <View
-                        style={[
-                          styles.progressFill,
-                          { backgroundColor: color, width: `${cat.percentage}%` },
-                        ]}
-                      />
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={handleInsightsScroll}
+              scrollEventThrottle={16}
+              contentContainerStyle={styles.insightsScrollPages}
+            >
+              {categoryPages.map((page, pageIdx) => (
+                <View key={pageIdx} style={[styles.insightsPage, { width: cardInnerWidth }]}>
+                  {page.map((cat, index) => {
+                    const color = getCategoryColor(cat.category, pageIdx * pageSize + index);
+                    return (
+                      <View key={cat.category} style={styles.insightItem}>
+                        <View style={styles.insightHeader}>
+                          <Text style={styles.insightCategory}>{cat.category}</Text>
+                          <Text style={styles.insightAmount}>
+                            ₹{cat.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({cat.percentage.toFixed(2)}%)
+                          </Text>
+                        </View>
+                        <View style={styles.progressBg}>
+                          <View
+                            style={[
+                              styles.progressFill,
+                              { backgroundColor: color, width: `${cat.percentage}%` },
+                            ]}
+                          />
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
+            </ScrollView>
+            {categoryPages.length > 1 && (
+              <View style={styles.paginationDotsContainer}>
+                {categoryPages.map((_, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.paginationDot,
+                      idx === activePageIndex ? styles.paginationDotActive : null,
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
           </View>
         )}
 
