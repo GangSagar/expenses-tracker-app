@@ -194,6 +194,9 @@ export default function AccountsScreen() {
     }
   }
 
+  // Sort anomalies by detection date descending (newest first)
+  anomalies.sort((a, b) => b.endDate - a.endDate);
+
   // Handle toggling CC vs Debit
   const toggleAccountType = (bank: string, account: string) => {
     const key = `account_type::${bank}::${account}`;
