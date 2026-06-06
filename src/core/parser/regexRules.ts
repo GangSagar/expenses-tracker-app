@@ -5,20 +5,22 @@ export const AMOUNT_REGEX =
 
 // ─── Transaction Type ─────────────────────────────────────────────────────────
 // DEBIT keywords — covers:
-//   Standard        : debited, spent, paid, withdrawn, purchase, paying, sent
+//   Standard        : debited, spent, paid, withdrawn, purchase, paying, sent, payment
 //   SBI / BOB / PNB : deducted, debit (stem only)
 //   IndusInd        : debit
 //   RTGS / wire     : transferred, transfer
 //   Axis short form : trf
+//   Additional      : withdrew, withdraw, withdrawal, purchased, charged, recharge, billed, billing
 export const DEBIT_REGEX =
-  /\b(?:debited?|spent|paid|withdrawn|purchase|paying|sent|deducted|transferred?|trf|Dr\.?)\b/i;
+  /\b(?:debit|debited|spent|spend|spends|spending|paid|paying|payment|payments|pay|pays|withdrawn|withdrew|withdraw|withdrawal|withdrawals|purchase|purchased|purchases|purchasing|sent|send|sending|deducted|deduct|deducts|deduction|deductions|transferred|transfer|transfers|transferring|trf|charged?|charges?|recharged?|recharges?|recharging|billed?|billing|transact|transacted|transacting|transaction|transactions|Dr\.?)\b/i;
 
 // CREDIT keywords — covers:
 //   Standard : credited, received, refund, reversed, deposited
 //   SBI      : credit (stem only)
 //   Kotak    : added
+//   Additional: credit, receive, receives, receiving, recieved, recieve, refunded, reverse, reversal, deposit, added, add, adds
 export const CREDIT_REGEX =
-  /\b(?:credited?|received|refund|reversed|deposited|added|Cr\.?)\b/i;
+  /\b(?:credit|credited|credits|received|receive|receives|receiving|recieved|recieve|refund|refunded|refunds|reversed|reverse|reversal|reversals|deposited|deposit|deposits|added|add|adds|Cr\.?)\b/i;
 
 // ─── Account Number ────────────────────────────────────────────────────────────
 // Supports masking styles used by different banks:

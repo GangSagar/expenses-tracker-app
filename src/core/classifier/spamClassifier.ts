@@ -105,10 +105,12 @@ export function isSpam(text: string): boolean {
   let logPSpam = Math.log(pSpam);
   let logPHam = Math.log(pHam);
 
+  let matchedTokens = 0;
   for (const token of tokens) {
     const stats = currentState.wordFrequencies[token];
     if (!stats) continue; // Skip completely unknown tokens to avoid bias and underflow!
 
+    matchedTokens++;
     // Laplace smoothing (add 1)
     const countSpam = stats.spam;
     const countHam = stats.ham;
@@ -120,6 +122,12 @@ export function isSpam(text: string): boolean {
 
     logPSpam += Math.log(probTokenGivenSpam);
     logPHam += Math.log(probTokenGivenHam);
+  }
+
+  // If we found no matching tokens in the message, we have zero evidence to mark it as spam.
+  // Returning true based solely on the prior probability (if spamCount > hamCount) is incorrect.
+  if (matchedTokens === 0) {
+    return false;
   }
 
   // If the log probability of spam is greater than ham, it's spam

@@ -39,18 +39,19 @@ export function processIncomingMessage(
     return null;
   }
 
-  // Step 3: Early spam check — cheaper than regex parsing; model is a no-op until trained
-  if (isSpam(cleanBody)) {
-    console.log(`❌ Dropped: Bayesian spam classifier rejected message early.`);
+  // Step 3: Parse the message
+  const parsed = parseMessage(cleanBody, cleanSender, message.source);
+
+  // Step 4: Must have an amount to be a valid transaction
+  if (parsed.amount === null) {
+    console.log(`❌ Dropped: Could not extract an AMOUNT from the message.`);
     return null;
   }
 
-  // Step 4: Parse the message
-  const parsed = parseMessage(cleanBody, cleanSender, message.source);
-
-  // Step 5: Must have an amount to be a valid transaction
-  if (parsed.amount === null) {
-    console.log(`❌ Dropped: Could not extract an AMOUNT from the message.`);
+  // Step 5: Spam check with genuine-bank bypass (requires parsed bank and account)
+  const isGenuineBankAlert = !!(parsed.bank && parsed.account);
+  if (!isGenuineBankAlert && isSpam(cleanBody)) {
+    console.log(`❌ Dropped: Bayesian spam classifier rejected message.`);
     return null;
   }
 

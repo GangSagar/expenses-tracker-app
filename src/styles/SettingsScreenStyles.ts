@@ -572,6 +572,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.5,
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  budgetLabelContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  statBoxInfo: {
+    borderColor: '#33b3ff',
+  },
+  statCountInfo: {
+    color: '#33b3ff',
+  },
+  statCountWarning: {
+    color: '#ffb300',
+  },
+  statCountJunk: {
+    color: '#888888',
+  },
 });
 
 export default styles;

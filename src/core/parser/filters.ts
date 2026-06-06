@@ -46,6 +46,11 @@ export function isTransactionalSender(sender: string): boolean {
   if (TRANSACTIONAL_SENDER_REGEX.test(sender)) {
     return true;
   }
+  // Accept standard alphanumeric sender headers without hyphens (e.g. FPLPAY, RZRPAY, CRED, HDFCBK, AXISBK, PhonePe)
+  // These headers typically contain at least one letter, and are 3 to 12 characters long.
+  if (/^(?=.*[A-Za-z])[A-Za-z0-9-]{3,12}$/.test(sender)) {
+    return true;
+  }
   // For notification sources, sender will be a package name — always accept
   if (sender.includes('.')) {
     return true;
