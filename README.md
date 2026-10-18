@@ -1,136 +1,254 @@
-# 📱 Smart Expense Tracker (v1.3.1)
-
-> Last updated: 2026-05-18
+# 📱 Smart Expense Tracker
 
 [![React Native](https://img.shields.io/badge/React_Native-0.85.3-blue.svg?logo=react&logoColor=white)](https://reactnative.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![SQLite](https://img.shields.io/badge/SQLite-Quick--SQLite-green.svg?logo=sqlite&logoColor=white)](https://github.com/margelo/react-native-quick-sqlite)
-[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
+[![Privacy First](https://img.shields.io/badge/Privacy-100%25_Offline-success.svg)]()
 [![Tests](https://img.shields.io/badge/Tests-100%25_Passing-brightgreen.svg)]()
 
-An automated, privacy-first personal Android expense tracker that seamlessly parses incoming bank SMS alerts and payment notifications, extracts transactional meta-data, categorizes your expenses locally, and manages your actual cash-flow.
+**Smart Expense Tracker** is an automated, 100% offline, privacy-first personal finance application for Android. It eliminates the hassle of manual expense logging by automatically parsing transactional bank SMS messages and payment notifications in real time — keeping your financial records accurate, organized, and strictly on your device.
 
 ---
 
-## ✨ Premium Upgrades in v1.0.5
+## 📚 Project Documentation
 
-### 🌈 Dynamic Card Hashing & Card Carousel Reset
+Detailed system specifications, architectural diagrams, engineering plans, and test methodologies are documented in the [`docs/`](./docs) directory:
 
-- **Hash-Based Card Coloring**: All Debit cards now render in unique, gorgeous colors from a curated palette of 16 premium dual-tone gradients. The color is selected using a deterministic hash of the card's `bankName` and `accountNumber`, giving every card a distinct visual style while preserving specific color branding for top tier banks (ICICI, HDFC, SBI, BOB, BOI).
-- **Scroll Offset Auto-Snapping**: Dynamic tab switching on the Accounts carousel now instantly snaps the scroll viewport back to index `0`. This fixes layout cut-offs when switching from multiple debit cards to a single credit card.
+| Document | File Link | Summary & Contents |
+| :--- | :--- | :--- |
+| **Product Requirements Document (PRD)** | [`docs/PRD.md`](./docs/PRD.md) | Executive summary, user personas, core functional requirements (FR-1 to FR-7), privacy non-negotiables, non-goals, and success KPIs. |
+| **Technical Requirements Document (TRD)** | [`docs/TRD.md`](./docs/TRD.md) | System architecture, tech stack justification, native Android subsystems, processing engine algorithms, SQLite schemas, and performance criteria. |
+| **Architecture Specification (HLD & LLD)** | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | High-Level Design (HLD) & Low-Level Design (LLD) with Mermaid diagrams covering system context, processing state machines, and database ERD. |
+| **Interactive Architecture Diagram** | [`docs/architecture.drawio`](./docs/architecture.drawio) | Complete diagrams.net (`draw.io`) multi-sheet diagram containing:<br>• **Sheet 1: `HLD`** (System boundaries, native bridge, persistence & Jaeger tracing)<br>• **Sheet 2: `LLD`** (Method signatures, regex pipelines, state machines & SQLite schema). |
+| **Implementation Plan & Roadmap** | [`docs/IMPLEMENTATION_PLAN.md`](./docs/IMPLEMENTATION_PLAN.md) | Phased engineering execution lifecycle (Phases 1-5), Work Breakdown Structure (WBS), risk analysis, and future milestone roadmap. |
+| **Testing & QA Strategy** | [`docs/TESTING_STRATEGY.md`](./docs/TESTING_STRATEGY.md) | Test pyramid, 12 test suites (103+ unit tests), physical device ADB SMS collection harness, headless CLI runner, and release acceptance checklist. |
+| **Git Revision History & Audit** | [`docs/REVISION_HISTORY.md`](./docs/REVISION_HISTORY.md) | Exhaustive chronological audit of every git commit (`e381d05` through `05555e4` to present), release milestones (v1.0.3 to v1.5.0), and architectural deep dives. |
 
-### 🤝 Smart Ledger Auto-Repayment & Settlement Flexibility
+## 💡 Why Smart Expense Tracker?
 
-- **Automated Credit Repayment Matching**: Incoming credit transactions (payments received from friends via SMS, UPI, or manual logs) are scanned against active splits. If a match is found using case-insensitive word-boundary regex (`\b${contactName}\b`), the app:
-  1. Marks outstanding splits owed by that contact as paid/settled (`isPaid = true`) chronologically (oldest first) up to the received amount.
-  2. Appends a settled split entry to the incoming credit transaction itself, registering the payment inside the split ledger history for flawless bookkeeping.
-- **Accidental Click Protection**: Native `Alert` confirmation dialogs protect all split adjustments.
-- **Individual Split Toggling**: Tapping any split item inside the ledger lets you settle a single active split or unsettle a single settled split back to active instantly.
-- **Mistake Recovery Button**: Added an **"Unsettle All Balances"** button. If you bulk-settle a contact by mistake, a single tap fully restores all their splits to active/unpaid!
+Most expense tracking apps either:
+1. **Require tedious manual entry** for every cup of coffee, which leads to abandoned tracking after a few days.
+2. **Upload your financial data to remote cloud servers**, compromising your privacy and exposing your account numbers and transaction history.
 
-### 📊 Personal Finance Dashboard & Live Reconciliation (v1.0.4)
-
-- **Rebuilt Dashboard UI**: Slides miniature cards detailing real-time balances, progress bars showing your top 3 spending categories, and interactive quick action chips for manual cash and pre-built split bills.
-- **Strict Anti-Spam Message Filtration**: General cellular operator spams, advertisements, OTPs, and network notifications are filtered out before parsing.
-- **Live Bank Reconciliation**: Automatically flags discrepancies between expected and actual chronological balances, offering anomalies cards to let users pre-fill and log missing transactions.
-
----
-
-## 📝 Changelog
-
-### v1.3.1 — 2026-05-18
-
-- Fix: Improved SMS backfill reliability using timestamp-based paging to avoid truncated bridge responses when importing historical SMS.
-- Fix: Accept short numeric transactional senders (3–6 digits) so shortcode-based bank messages are included in backfills; 10-digit personal numbers remain excluded.
-- Chore: Applied ESLint autofixes and removed unused variables to reduce warnings and improve code quality.
-
-## 🛠️ Tech Stack
-
-| Layer             | Technology                  | Key Advantage                                 |
-| :---------------- | :-------------------------- | :-------------------------------------------- |
-| **Mobile App**    | React Native 0.85           | New Architecture & High-performance rendering |
-| **Native Bridge** | Kotlin                      | Event-driven Broadcast Receivers & Services   |
-| **Database**      | `react-native-quick-sqlite` | High-speed C++ direct SQLite binding          |
-| **State**         | Zustand                     | Light-weight, high-frequency reactive state   |
-| **Navigation**    | React Navigation 7          | Tab-based premium navigation system           |
+**Smart Expense Tracker solves both problems:**
+* **Zero Manual Effort**: Incoming bank SMS messages and UPI notifications are automatically extracted, categorized, and reconciled.
+* **100% Offline & Private**: No analytics, no cloud backend, and no external network calls. All data processing and database operations happen strictly on your device using an ultra-fast local SQLite engine.
 
 ---
 
-## 📂 Project Structure
+## 🌟 Key Features
+
+### 📩 Automatic SMS & Notification Tracking
+- Seamlessly extracts **amount**, **type** (debit / credit), **payment mode** (UPI, Card, ATM, Net Banking), **merchant name**, **bank name**, and **account number**.
+- Captures real-time push notifications from popular payment apps (Google Pay, PhonePe, Paytm, etc.).
+- Robust anti-spam filters automatically ignore OTPs, promotional SMS, cellular operator ads, and personal chats.
+
+### 💳 Accounts & Card Management
+- Track balances across multiple bank accounts and credit cards in one unified dashboard.
+- Interactive card carousel with dynamic visual styling tailored to each bank (SBI, HDFC, ICICI, Axis, Bank of Baroda, etc.).
+- Automatic balance reconciliation against your bank's reported available balance to keep your ledger synchronized.
+
+### 🤝 Bill Splitting & Smart Ledger
+- Split expenses effortlessly with friends or roommates directly from any logged transaction.
+- **Smart Auto-Repayment**: When a friend transfers money back via UPI or bank transfer, the app automatically matches the contact name, marks outstanding debts as settled, and logs the repayment history.
+- Accidental click protection with single-tap unsettle and bulk balance restoration options.
+
+### 🏷️ Intelligent Categorization
+- Automatically tags expenses into categories (Food & Dining, Groceries, Shopping, Travel, Bills, Entertainment, etc.).
+- Learns from your habits: renaming a merchant or updating a category applies intelligently across future transactions.
+
+### 📊 Clean Analytics & Cash Flow Insights
+- Visual breakdown of monthly spending trends, burn rate, and top expenditure categories.
+- Full chronological transaction history with multi-filter search (by date range, category, payment mode, or account).
+
+### ⚡ Ultra-Low Battery & Resource Footprint
+- Built with event-driven native Android broadcast receivers (`SmsReceiver` and `NotificationListenerService`).
+- The app wakes up momentarily when a financial alert arrives, logs the entry in milliseconds, and immediately goes back to sleep — consuming less than 1% battery per day.
+
+---
+
+## 📥 How to Download & Install the App
+
+### Option 1: Build & Install via APK (Direct to Phone)
+
+If you have the source repository, you can generate a standalone Android APK directly:
+
+1. **Build the Debug APK**:
+   ```bash
+   cd android
+   ./gradlew assembleDebug
+   ```
+2. The generated APK will be located at:
+   ```
+   android/app/build/outputs/apk/debug/app-debug.apk
+   ```
+3. Transfer this file to your phone and tap to install, or install it over USB using `adb`:
+   ```bash
+   adb install android/app/build/outputs/apk/debug/app-debug.apk
+   ```
+
+---
+
+## ⚙️ Essential Permissions Setup
+
+For automatic transaction detection to work, Android requires two runtime permissions:
+
+1. **SMS Permission**:
+   - `Settings → Apps → ExpenseTracker → Permissions → SMS → Allow`
+   - *Why?* Allows the local parser to read incoming bank debit and credit alerts.
+2. **Notification Listener Access**:
+   - `Settings → Apps → Special app access → Notification access → Enable ExpenseTracker`
+   - *Why?* Allows instant capture of UPI payment notifications (e.g., GPay, Paytm) even when no SMS is sent.
+
+> [!NOTE]
+> All processing happens locally inside the app. No message or notification content ever leaves your phone.
+
+---
+
+## 🚀 Developer Quick Start
+
+### Prerequisites
+- **Node.js**: `>= 22.11.0` (LTS recommended)
+- **JDK**: Version `17`
+- **Android Studio**: Android SDK 26+ (API 34/35/36)
+- Connected physical Android device (with USB debugging enabled) or an Android Virtual Device (AVD).
+
+### 1. Environment Setup
+
+Ensure your shell exports the Android SDK paths.
+
+#### Linux / macOS (`~/.bashrc` or `~/.zshrc`)
+```bash
+export ANDROID_HOME=$HOME/Android/Sdk           # On macOS: $HOME/Library/Android/sdk
+export ANDROID_SDK_ROOT=$ANDROID_HOME
+export PATH=$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
+```
+Reload your terminal: `source ~/.bashrc` (or `source ~/.zshrc`).
+
+#### Windows
+- Set environment variables `ANDROID_HOME` and `ANDROID_SDK_ROOT` to `%LOCALAPPDATA%\Android\Sdk`.
+- Add `%ANDROID_HOME%\emulator` and `%ANDROID_HOME%\platform-tools` to your system `Path`.
+
+### 2. Install & Configure
+
+```bash
+# Clone the repository
+git clone https://github.com/GangSagar/expenses-tracker-app.git
+cd expenses-tracker-app
+
+# Install dependencies
+# (A postinstall hook will validate Node version and auto-configure android/local.properties)
+npm install
+```
+
+### 3. Run the App
+
+```bash
+# 1. Start your Android Emulator (or connect your physical device via USB)
+emulator -avd Medium_Phone_API_36 &
+
+# 2. Terminal 1: Start the Metro bundler
+npm start
+
+# 3. Terminal 2: Build and deploy to your device
+npm run android
+```
+
+---
+
+## 🛠️ Troubleshooting & Common Setup Issues
+
+| Problem | Root Cause | Solution |
+| :--- | :--- | :--- |
+| **`TypeError: configs.toReversed is not a function`** | Running Node < 20 (e.g., default Node 18 from Linux package managers). | Upgrade to Node 22+: <br>`nvm install 22 && nvm use 22` |
+| **`SDK location not found. Define a valid SDK location...`** | `android/local.properties` is missing and `ANDROID_HOME` is unset. | Run `npm run setup:android` or copy `android/local.properties.example` to `android/local.properties` with your SDK path. |
+| **`Failed to launch emulator. Reason: No emulators found...`** | `emulator` binary is not in your `$PATH`. | Add `$ANDROID_HOME/emulator` to your shell `PATH` in `~/.bashrc`, or launch the emulator via Android Studio's **Device Manager**. |
+| **`PANIC: Cannot find AVD system path. Please define ANDROID_SDK_ROOT`** | Apt package `google-android-emulator-installer` hijacked `/usr/bin/emulator`. | Remove the apt package with `sudo apt remove google-android-emulator-installer` and ensure `$ANDROID_HOME/emulator` precedes `/usr/bin` in your `$PATH`. |
+| **App closes immediately / `SoLoaderDSONotFoundError: couldn't find DSO to load: libreactnative.so`** | APK only built for `arm64-v8a` while desktop emulator runs `x86_64`. | In `android/gradle.properties`, ensure `reactNativeArchitectures=arm64-v8a,x86_64`. |
+
+---
+
+## 🏗️ Architecture & Tech Stack
 
 ```
 src/
 ├── core/
-│   ├── parser/          # Regex rules, filters, and transaction extraction
-│   ├── classifier/      # Custom rules + dynamic user merchant-to-category maps
-│   ├── confidence/      # Intent & quality verification scoring
-│   └── dedup/           # Multi-source duplicate transaction prevention
-├── database/            # Migrations & expense repository layers
-├── services/            # Background transaction processing pipeline
-├── hooks/               # Unified Zustand store (auto-repayments, active splits, etc.)
-├── screens/             # HomeScreen, HistoryScreen, SplitsScreen (ledger), AccountsScreen
-├── components/          # Transaction editing modals & dialogs
-├── constants/           # appOptions.ts (Global unified lists)
-└── types/               # TypeScript type definitions
+│   ├── parser/          # Regex patterns, bank matching & transaction extraction
+│   ├── classifier/      # Spending category rules & merchant mappings
+│   ├── confidence/      # Transaction validation & quality scoring
+│   └── dedup/           # Multi-source duplicate transaction detection
+├── database/            # SQLite schemas, repositories & migrations
+├── services/            # Background SMS & notification listener pipeline
+├── hooks/               # Zustand reactive store (accounts, splits, transactions)
+├── screens/             # HomeScreen, HistoryScreen, SplitsScreen, AccountsScreen, SettingsScreen
+├── components/          # Cards, modals, lists & custom UI widgets
+└── types/               # TypeScript data models and interfaces
 ```
+
+| Layer | Technology | Key Role |
+| :--- | :--- | :--- |
+| **Framework** | React Native 0.85 | High-performance cross-platform rendering |
+| **Native Bridge** | Kotlin | Event-driven Broadcast Receivers & Android Services |
+| **Database** | `react-native-quick-sqlite` | C++ direct SQLite binding for instant local storage |
+| **State Management** | Zustand | Lightweight reactive state store |
+| **Navigation** | React Navigation 7 | Native gesture and tab-based navigation |
 
 ---
 
-## 🚀 Getting Started
+## 🧪 Testing
 
-### Prerequisites
-
-- **Node.js**: `22.11.0+`
-- **Android Studio**: Android SDK 26+
-- **JDK**: Version `17`
-- A physical Android device or emulator with Google Play Services.
-
-### Setup
+The project maintains a complete Jest test suite covering parser regex rules, transaction categorization, and state logic:
 
 ```bash
-npm install
+# Run all core unit test suites
+npm test -- --testPathIgnorePatterns="collected-real"
+
+# Run tests in watch mode
+npm test -- --watch
+
+# Run headless CLI SMS diagnostic runner (test SMS parsing without building APK)
+npm run parse -- --sender "HDFCBK" --msg "Dear Customer, A/c XX1234 debited for Rs 450.00 at SWIGGY"
 ```
 
-### Development Run
+### 📱 Collecting Real Test Cases from Your Phone
+You can automatically extract real bank messages from your phone and turn them into local test scenarios:
 
-```bash
-# Terminal 1: Launch Metro bundler
-npm start
-
-# Terminal 2: Build & install onto connected device
-npm run android
-```
-
-### Necessary Device Permissions
-
-After loading the app on your Android device, manually grant the following permissions:
-
-1. **SMS Permission**: `Settings → Apps → ExpenseTracker → Permissions → Allow SMS`
-2. **Notification Listener Access**: `Settings → Apps → Special app access → Notification access → Enable ExpenseTracker`
+1. Connect your phone via USB with USB Debugging enabled.
+2. In the app on your phone, go to **Settings → Backfill Ledger** to import your messages.
+3. Run the automated collector:
+   ```bash
+   npm run test:collect
+   ```
+   This will:
+   - Extract raw transaction messages from your phone's local SQLite database.
+   - Save unique scenarios into `src/__tests__/__fixtures__/collected-real-samples.json`.
+   - Auto-generate `src/__tests__/collected-real.test.ts`.
+4. Run tests against your real phone's scenarios:
+   ```bash
+   npm test src/__tests__/collected-real.test.ts
+   ```
 
 ---
 
-## 🧪 Automated Testing Suite
+## 🔍 Local OpenTelemetry & Jaeger Monitoring
 
-We maintain a rigorous Jest test suite with 100% simulated mock coverage for SQLite databases, React Navigation stacks, and React Native native emitter bridges.
+The app includes built-in OpenTelemetry tracing to monitor SMS parsing performance, SQLite queries, and message pipelines in real time with zero external cloud dependencies.
 
-### Run All Test Suites
-
+### 1. Start Local Jaeger
 ```bash
-npm run test
+npm run jaeger:start
 ```
+* **Jaeger Web Dashboard**: Open [http://localhost:16686](http://localhost:16686) in your browser.
+* **OTLP Receiver**: Listening on port `4318` (`/v1/traces`).
+* The script automatically configures `adb reverse tcp:4318 tcp:4318` for any connected physical phones or emulators.
 
-### Target Parser Module Individually
-
-```bash
-npm test src/__tests__/parser.test.ts
-```
-
-_All parser rules, classifier strategies, duplicate calculations, and layout render checks are configured inside [jest.setup.js](file:///home/harshit/Desktop/Projects/ExpenseTracker/jest.setup.js) for instantaneous Node-based execution._
+### 2. View Traces
+As messages are parsed or transactions inserted into SQLite, spans are automatically exported to Jaeger:
+* Select `expense-tracker-mobile` from the **Service** dropdown.
+* Click **Find Traces** to inspect detailed execution timing, flamegraphs, and span attributes.
 
 ---
 
-## 🔒 Privacy & Performance Focus
+## 📄 License
 
-- **Zero External Calls**: All transactional SMS messages are parsed and categorized locally. Your financial data never leaves your device.
-- **Ultra-Low Battery Footprint**: The application wakes up momentarily in response to native platform broadcast events (`SmsReceiver` and `NotificationListenerService`) and sleeps immediately, consuming `~1%` battery daily.
+This project is licensed under the MIT License.
