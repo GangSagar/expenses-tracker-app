@@ -1,0 +1,176 @@
+<mxfile host="65bd71144e">
+    <diagram id="sheet_hld" name="HLD">
+        <mxGraphModel dx="34755" dy="32470" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="950" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="hld_title" value="EXPENSE TRACKER - HIGH-LEVEL DESIGN (HLD)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontColor=#0F172A;fontStyle=1;fontFamily=Helvetica;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="20" width="1450" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="hld_subtitle" value="System Boundaries, Native OS Event Interception, Processing Pipeline, Persistence, and Observability" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#475569;fontFamily=Helvetica;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="50" width="1450" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_device" value="Device &amp; OS Layer (Android)" style="rounded=1;arcSize=5;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;fontColor=#334155;fontSize=14;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=top;spacingTop=10;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="80" width="220" height="600" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_native" value="Native Android Layer (Kotlin)" style="rounded=1;arcSize=5;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#BBF7D0;strokeWidth=2;fontColor=#166534;fontSize=14;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=top;spacingTop=10;" parent="1" vertex="1">
+                    <mxGeometry x="310" y="80" width="240" height="600" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_processing" value="Processing Engine (React Native / JS)" style="rounded=1;arcSize=5;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#BFDBFE;strokeWidth=2;fontColor=#1E40AF;fontSize=14;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=top;spacingTop=10;" parent="1" vertex="1">
+                    <mxGeometry x="590" y="80" width="460" height="600" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_storage" value="Storage &amp; UI Tier" style="rounded=1;arcSize=5;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#FBCFE8;strokeWidth=2;fontColor=#9D174D;fontSize=14;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=top;spacingTop=10;" parent="1" vertex="1">
+                    <mxGeometry x="1090" y="80" width="410" height="600" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_sms" value="SMS Message&lt;br/&gt;&lt;span style=&quot;font-size:10px;color:#64748B;&quot;&gt;Telephony Broadcast&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#64748B;strokeWidth=1.5;fontColor=#0F172A;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="180" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_notif" value="App Notification&lt;br/&gt;&lt;span style=&quot;font-size:10px;color:#64748B;&quot;&gt;StatusBarNotification&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#64748B;strokeWidth=1.5;fontColor=#0F172A;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="380" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_sms_rec" value="SmsReceiver&lt;br/&gt;&lt;span style=&quot;font-weight: normal; font-size: 11px;&quot;&gt;(BroadcastReceiver)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#15803D;strokeWidth=1.5;fontColor=#14532D;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="335" y="180" width="190" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_turbo_bridge" value="MessageModule&lt;br/&gt;&lt;span style=&quot;font-weight: normal; font-size: 11px;&quot;&gt;(TurboModules JSI Bridge)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#15803D;strokeWidth=1.5;fontColor=#14532D;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="335" y="280" width="190" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_notif_svc" value="NotificationListener&lt;br/&gt;&lt;span style=&quot;font-weight: normal; font-size: 11px;&quot;&gt;(NotificationListenerService)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#15803D;strokeWidth=1.5;fontColor=#14532D;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="335" y="380" width="190" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_filter" value="Filter Pipeline&lt;br/&gt;&lt;span style=&quot;font-weight: normal; font-size: 11px;&quot;&gt;(Sender &amp; Debit/Credit Signal)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1D4ED8;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="615" y="280" width="180" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_discard" value="Discard / Ignore&lt;br/&gt;&lt;span style=&quot;font-size:10px;&quot;&gt;(OTP, Promo, Low Confidence)&lt;/span&gt;" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#991B1B;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="615" y="480" width="180" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_parser" value="Message Parser&lt;br/&gt;&lt;span style=&quot;font-weight: normal; font-size: 11px;&quot;&gt;(Amount, Merchant, Bank, Mode)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1D4ED8;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="845" y="180" width="180" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_dedup" value="Duplicate Detection&lt;br/&gt;&lt;span style=&quot;font-weight: normal; font-size: 11px;&quot;&gt;(15-min Sliding Window &amp; Ref ID)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1D4ED8;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="845" y="280" width="180" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_classifier" value="Classifier &amp; Bayes Spam&lt;br/&gt;&lt;span style=&quot;font-weight: normal; font-size: 11px;&quot;&gt;(Rule &amp; Learned Merchant Map)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1D4ED8;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="845" y="380" width="180" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_scorer" value="Confidence &amp; Repayment Matcher&lt;br/&gt;&lt;span style=&quot;font-weight: normal; font-size: 11px;&quot;&gt;(Auto-Split Settle on Credit)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1D4ED8;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="845" y="480" width="180" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_ui" value="React Native App UI&lt;br/&gt;&lt;span style=&quot;font-weight: normal; font-size: 11px;&quot;&gt;(Zustand 5 + React Nav 7)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BE185D;strokeWidth=1.5;fontColor=#831843;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="1120" y="180" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_sqlite" value="SQLite DB&lt;br/&gt;&lt;span style=&quot;font-weight: normal; font-size: 11px;&quot;&gt;(react-native-quick-sqlite C++)&lt;/span&gt;" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFFFFF;strokeColor=#BE185D;strokeWidth=1.5;fontColor=#831843;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="1120" y="470" width="160" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_otel" value="OpenTelemetry Service&lt;br/&gt;&lt;span style=&quot;font-weight: normal; font-size: 11px;&quot;&gt;(OTLP JSON Tracing Client)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#B45309;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="1310" y="280" width="170" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_jaeger" value="Local Jaeger Server&lt;br/&gt;&lt;span style=&quot;font-weight: normal; font-size: 11px;&quot;&gt;(Port 16686 / 4318)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;strokeWidth=1.5;fontColor=#78350F;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="1310" y="480" width="170" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_hld_1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#64748B;strokeWidth=1.5;endArrow=classic;" parent="1" source="node_sms" target="node_sms_rec" edge="1"/>
+                <mxCell id="e_hld_2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#64748B;strokeWidth=1.5;endArrow=classic;" parent="1" source="node_notif" target="node_notif_svc" edge="1"/>
+                <mxCell id="e_hld_3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#15803D;strokeWidth=1.5;endArrow=classic;" parent="1" source="node_sms_rec" target="node_turbo_bridge" edge="1"/>
+                <mxCell id="e_hld_4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#15803D;strokeWidth=1.5;endArrow=classic;" parent="1" source="node_notif_svc" target="node_turbo_bridge" edge="1"/>
+                <mxCell id="e_hld_5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#1D4ED8;strokeWidth=1.5;endArrow=classic;" parent="1" source="node_turbo_bridge" target="node_filter" edge="1"/>
+                <mxCell id="e_hld_6" value="Valid Transaction" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#059669;strokeWidth=1.5;endArrow=classic;fontColor=#047857;fontSize=10;fontStyle=1;" parent="1" source="node_filter" target="node_parser" edge="1"/>
+                <mxCell id="e_hld_7" value="Spam / OTP" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#DC2626;strokeWidth=1.5;endArrow=classic;fontColor=#B91C1C;fontSize=10;fontStyle=1;" parent="1" source="node_filter" target="node_discard" edge="1"/>
+                <mxCell id="e_hld_8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#1D4ED8;strokeWidth=1.5;endArrow=classic;" parent="1" source="node_parser" target="node_dedup" edge="1"/>
+                <mxCell id="e_hld_9" value="Unique" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#059669;strokeWidth=1.5;endArrow=classic;fontColor=#047857;fontSize=10;fontStyle=1;" parent="1" source="node_dedup" target="node_classifier" edge="1"/>
+                <mxCell id="e_hld_10" value="Duplicate" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#DC2626;strokeWidth=1.5;endArrow=classic;fontColor=#B91C1C;fontSize=10;fontStyle=1;" parent="1" source="node_dedup" target="node_discard" edge="1"/>
+                <mxCell id="e_hld_11" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#1D4ED8;strokeWidth=1.5;endArrow=classic;" parent="1" source="node_classifier" target="node_scorer" edge="1"/>
+                <mxCell id="e_hld_12" value="Commit" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#059669;strokeWidth=1.5;endArrow=classic;fontColor=#047857;fontSize=10;fontStyle=1;" parent="1" source="node_scorer" target="node_sqlite" edge="1"/>
+                <mxCell id="e_hld_13" value="Real-time Sync" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#BE185D;strokeWidth=1.5;endArrow=classic;startArrow=classic;fontColor=#9D174D;fontSize=10;fontStyle=1;" parent="1" source="node_sqlite" target="node_ui" edge="1"/>
+                <mxCell id="e_hld_14" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#F59E0B;strokeWidth=1.5;endArrow=classic;" parent="1" source="node_filter" target="node_otel" edge="1"/>
+                <mxCell id="e_hld_15" value="OTLP HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D97706;strokeWidth=1.5;endArrow=classic;fontColor=#B45309;fontSize=10;fontStyle=1;" parent="1" source="node_otel" target="node_jaeger" edge="1"/>
+                <mxCell id="hld_legend" value="Key Subsystem Summary: 1. Zero-Cloud Local-First Architecture | 2. Event-Driven Low-Battery Receivers | 3. Native C++ JSI SQLite Persistence | 4. Embedded Jaeger OTel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#E2E8F0;strokeWidth=1.5;fontColor=#1E293B;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="700" width="1450" height="40" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="sheet_lld" name="LLD">
+        <mxGraphModel dx="982" dy="952" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="lld_0"/>
+                <mxCell id="lld_1" parent="lld_0"/>
+                <mxCell id="lld_title" value="EXPENSE TRACKER - LOW-LEVEL DESIGN (LLD)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontColor=#0F172A;fontStyle=1;fontFamily=Helvetica;" parent="lld_1" vertex="1">
+                    <mxGeometry x="50" y="20" width="1450" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="lld_subtitle" value="Component Interfaces, Method Signatures, Regex Parsers, State Machine &amp; SQLite Schema" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#475569;fontFamily=Helvetica;" parent="lld_1" vertex="1">
+                    <mxGeometry x="50" y="50" width="1450" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="box_native" value="1. Native Android Modules (Kotlin)" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#86EFAC;strokeWidth=2;fontColor=#166534;fontSize=13;fontStyle=1;align=center;verticalAlign=top;spacingTop=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="50" y="90" width="320" height="640" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_sms_receiver" value="&lt;b&gt;SmsReceiver.kt&lt;/b&gt;&lt;br/&gt;+ onReceive(ctx, intent)&lt;br/&gt;- isTransactional(sender): bool&lt;br/&gt;&lt;i&gt;Priority 999 BroadcastReceiver&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#16A34A;fontSize=11;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="70" y="140" width="280" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_notif_listener" value="&lt;b&gt;NotificationListener.kt&lt;/b&gt;&lt;br/&gt;+ onNotificationPosted(sbn)&lt;br/&gt;- filterPackage(pkgName): bool&lt;br/&gt;&lt;i&gt;Target: GPay, PhonePe, Paytm, BHIM&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#16A34A;fontSize=11;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="70" y="240" width="280" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_message_bridge" value="&lt;b&gt;MessageModule.kt&lt;/b&gt;&lt;br/&gt;+ fetchPastMessages(start, promise)&lt;br/&gt;+ fetchPastMessagesSince(start, pSize, after, promise)&lt;br/&gt;&lt;i&gt;Cursor paging on content://sms/inbox&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#16A34A;fontSize=11;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="70" y="340" width="280" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_native_event" value="&lt;b&gt;DeviceEventEmitter&lt;/b&gt;&lt;br/&gt;&amp;bull; onSMSReceived (body, sender, ts)&lt;br/&gt;&amp;bull; onNotificationReceived (title, body, pkg)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#15803D;fontSize=11;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="70" y="450" width="280" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="box_core" value="2. Processing Pipeline &amp; Parser (TypeScript)" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#93C5FD;strokeWidth=2;fontColor=#1E40AF;fontSize=13;fontStyle=1;align=center;verticalAlign=top;spacingTop=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="400" y="90" width="370" height="640" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_message_service" value="&lt;b&gt;messageService.ts&lt;/b&gt;&lt;br/&gt;+ processIncomingMessage(msg: IncomingMessage)&lt;br/&gt;&amp;bull; Stage 1: Sender filter (regex)&lt;br/&gt;&amp;bull; Stage 2: Content blocklist (OTP, promo)&lt;br/&gt;&amp;bull; Stage 3: Bayes Spam Check&lt;br/&gt;&amp;bull; Stage 4: parseMessage() execution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;fontSize=11;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="420" y="140" width="330" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_parser_core" value="&lt;b&gt;parseMessage.ts &amp; regexRules.ts&lt;/b&gt;&lt;br/&gt;+ parseMessage(body, sender, source): ParsedTx&lt;br/&gt;&amp;bull; Amount: /(?:Rs\.?|INR|₹)\s*(\d+(?:[,\d]*)?(?:\.\d{1,2})?)/&lt;br/&gt;&amp;bull; Type: /(?:debited|spent|paid|withdrawn)/ vs /(?:credited|received)/&lt;br/&gt;&amp;bull; Mode: UPI / Credit Card / Debit Card / Netbanking / ATM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;fontSize=11;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="420" y="270" width="330" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_bank_map" value="&lt;b&gt;bankMap.ts&lt;/b&gt;&lt;br/&gt;+ detectBank(sender, body): string&lt;br/&gt;&amp;bull; Table: SBI, HDFC, ICICI, Axis, BOB, PNB, BOI, Kotak, PSB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;fontSize=11;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="420" y="400" width="330" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_dedup_service" value="&lt;b&gt;dedupService.ts&lt;/b&gt;&lt;br/&gt;+ isDuplicateTransaction(amt, ts, refId, rawMsg): bool&lt;br/&gt;&amp;bull; 1. Unique Bank Reference ID / UPI RRN&lt;br/&gt;&amp;bull; 2. Exact Raw Message Hash&lt;br/&gt;&amp;bull; 3. 15-Minute Floating Sliding Window" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;fontSize=11;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="420" y="480" width="330" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="box_storage" value="3. Storage &amp; Database Layer (C++ / SQLite)" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#F472B6;strokeWidth=2;fontColor=#831843;fontSize=13;fontStyle=1;align=center;verticalAlign=top;spacingTop=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="800" y="90" width="350" height="640" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_expense_repo" value="&lt;b&gt;expenseRepo.ts&lt;/b&gt;&lt;br/&gt;+ insertExpense(expense: Omit&lt;Expense, 'id'&gt;): number&lt;br/&gt;+ updateExpense(id, merchant, category, amt, splits): void&lt;br/&gt;+ getAllExpenses(limit, offset): Expense[]&lt;br/&gt;+ getMonthlyTotal(year, month): number&lt;br/&gt;+ getExpensesByCategory(category): Expense[]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DB2777;fontSize=11;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="820" y="140" width="310" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_db_schema" value="&lt;b&gt;SQLite Table: expenses&lt;/b&gt;&lt;br/&gt;&amp;bull; id (INTEGER PK AUTOINCREMENT)&lt;br/&gt;&amp;bull; amount (REAL NOT NULL)&lt;br/&gt;&amp;bull; merchant, alias, category (TEXT)&lt;br/&gt;&amp;bull; timestamp (INTEGER), source (TEXT)&lt;br/&gt;&amp;bull; transaction_type ('debit' | 'credit')&lt;br/&gt;&amp;bull; bank, account, payment_mode (TEXT)&lt;br/&gt;&amp;bull; is_duplicate, is_invalid (INTEGER)&lt;br/&gt;&amp;bull; available_balance (REAL)&lt;br/&gt;&amp;bull; splits, reference_id (TEXT)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DB2777;fontSize=10;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="820" y="270" width="310" height="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_quick_sqlite" value="&lt;b&gt;react-native-quick-sqlite (JSI)&lt;/b&gt;&lt;br/&gt;&amp;bull; Synchronous C++ binding to SQLite 3&lt;br/&gt;&amp;bull; DB: expense_tracker.db (Zero IPC lag)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE7F3;strokeColor=#BE185D;fontSize=11;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="820" y="460" width="310" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="box_ui" value="4. State &amp; UI Tier (Zustand / Nav)" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#FCD34D;strokeWidth=2;fontColor=#92400E;fontSize=13;fontStyle=1;align=center;verticalAlign=top;spacingTop=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="1180" y="90" width="350" height="640" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_zustand_store" value="&lt;b&gt;useExpenses.ts (Zustand 5 Store)&lt;/b&gt;&lt;br/&gt;+ expenses: Expense[]&lt;br/&gt;+ loadExpenses(): void&lt;br/&gt;+ addExpense(expense): void&lt;br/&gt;+ deleteExpense(id): void&lt;br/&gt;+ autoSettleRepayment(creditTx): void&lt;br/&gt;&lt;i&gt;Selective rendering, outside-React imperative access&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D97706;fontSize=11;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="1200" y="140" width="310" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_screens" value="&lt;b&gt;React Navigation 7 Screens&lt;/b&gt;&lt;br/&gt;&amp;bull; &lt;b&gt;HomeScreen&lt;/b&gt;: Burn rate, spend category progress&lt;br/&gt;&amp;bull; &lt;b&gt;HistoryScreen&lt;/b&gt;: Search, date filter, manual cash FAB&lt;br/&gt;&amp;bull; &lt;b&gt;AccountsScreen&lt;/b&gt;: Hashed color cards, balance sync&lt;br/&gt;&amp;bull; &lt;b&gt;SplitsScreen&lt;/b&gt;: Group splits ledger, auto-settle status&lt;br/&gt;&amp;bull; &lt;b&gt;SettingsScreen&lt;/b&gt;: Paged SMS backfill, export/import" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D97706;fontSize=10;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="1200" y="280" width="310" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="m_telemetry_client" value="&lt;b&gt;telemetryService.ts (OpenTelemetry)&lt;/b&gt;&lt;br/&gt;+ startSpan(name, attributes)&lt;br/&gt;+ traceSync&lt;T&gt;(name, attrs, fn)&lt;br/&gt;&amp;bull; Traces: sms.process_pipeline, db.insertExpense&lt;br/&gt;&amp;bull; Exports to local Jaeger via OTLP HTTP :4318" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#B45309;fontSize=11;align=left;spacingLeft=8;" parent="lld_1" vertex="1">
+                    <mxGeometry x="1200" y="430" width="310" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_lld_1" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#16A34A;endArrow=classic;" parent="lld_1" source="m_sms_receiver" target="m_message_bridge" edge="1"/>
+                <mxCell id="e_lld_2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#16A34A;endArrow=classic;" parent="lld_1" source="m_notif_listener" target="m_message_bridge" edge="1"/>
+                <mxCell id="e_lld_3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#16A34A;endArrow=classic;" parent="lld_1" source="m_message_bridge" target="m_native_event" edge="1"/>
+                <mxCell id="e_lld_4" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#2563EB;endArrow=classic;" parent="lld_1" source="m_native_event" target="m_message_service" edge="1"/>
+                <mxCell id="e_lld_5" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#2563EB;endArrow=classic;" parent="lld_1" source="m_message_service" target="m_parser_core" edge="1"/>
+                <mxCell id="e_lld_6" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#2563EB;endArrow=classic;" parent="lld_1" source="m_parser_core" target="m_bank_map" edge="1"/>
+                <mxCell id="e_lld_7" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#2563EB;endArrow=classic;" parent="lld_1" source="m_parser_core" target="m_dedup_service" edge="1"/>
+                <mxCell id="e_lld_8" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#DB2777;endArrow=classic;" parent="lld_1" source="m_dedup_service" target="m_expense_repo" edge="1"/>
+                <mxCell id="e_lld_9" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#DB2777;endArrow=classic;" parent="lld_1" source="m_expense_repo" target="m_db_schema" edge="1"/>
+                <mxCell id="e_lld_10" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#DB2777;endArrow=classic;" parent="lld_1" source="m_db_schema" target="m_quick_sqlite" edge="1"/>
+                <mxCell id="e_lld_11" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#D97706;endArrow=classic;startArrow=classic;" parent="lld_1" source="m_expense_repo" target="m_zustand_store" edge="1"/>
+                <mxCell id="e_lld_12" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#D97706;endArrow=classic;" parent="lld_1" source="m_zustand_store" target="m_screens" edge="1"/>
+                <mxCell id="e_lld_13" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#B45309;endArrow=classic;" parent="lld_1" source="m_message_service" target="m_telemetry_client" edge="1"/>
+                <mxCell id="e_lld_14" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#B45309;endArrow=classic;" parent="lld_1" source="m_expense_repo" target="m_telemetry_client" edge="1"/>
+                <mxCell id="lld_footer" value="SpendWise LLD Specifications - Zero-Cloud, High Performance Synchronous C++ JSI Storage, React Navigation 7, Local Jaeger Tracing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;fontColor=#334155;fontSize=12;fontFamily=Helvetica;fontStyle=1;align=center;verticalAlign=middle;" parent="lld_1" vertex="1">
+                    <mxGeometry x="50" y="750" width="1480" height="40" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
