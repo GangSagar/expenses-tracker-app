@@ -1,5 +1,6 @@
 import { Expense, Category } from '../types/expense';
 import { getDatabase } from './db';
+import { telemetry } from '../services/telemetryService';
 
 // ==========================================
 // Centralized Database SQL Command Constants
@@ -116,29 +117,40 @@ export const SET_SETTING_SQL = `
 // ==========================================
 
 export function insertExpense(expense: Omit<Expense, 'id'>): number {
-  const db = getDatabase();
-  const splitsStr = expense.splits ? JSON.stringify(expense.splits) : null;
-  const result = db.execute(INSERT_EXPENSE_SQL, [
-    expense.amount,
-    expense.merchant,
-    expense.alias || null,
-    expense.category,
-    expense.confidence,
-    expense.timestamp,
-    expense.source,
-    expense.rawMessage,
-    expense.transactionType,
-    expense.account || null,
-    expense.bank || null,
-    expense.paymentMode || 'unknown',
-    expense.isDuplicate ? 1 : 0,
-    expense.availableBalance !== undefined ? expense.availableBalance : null,
-    splitsStr,
-    expense.referenceId || null,
-    expense.isInvalid ? 1 : 0,
-    expense.trashReason || null,
-  ]);
-  return result.insertId ?? -1;
+  return telemetry.traceSync(
+    'db.insertExpense',
+    {
+      amount: expense.amount,
+      bank: expense.bank || 'unknown',
+      type: expense.transactionType,
+      source: expense.source,
+    },
+    () => {
+      const db = getDatabase();
+      const splitsStr = expense.splits ? JSON.stringify(expense.splits) : null;
+      const result = db.execute(INSERT_EXPENSE_SQL, [
+        expense.amount,
+        expense.merchant,
+        expense.alias || null,
+        expense.category,
+        expense.confidence,
+        expense.timestamp,
+        expense.source,
+        expense.rawMessage,
+        expense.transactionType,
+        expense.account || null,
+        expense.bank || null,
+        expense.paymentMode || 'unknown',
+        expense.isDuplicate ? 1 : 0,
+        expense.availableBalance !== undefined ? expense.availableBalance : null,
+        splitsStr,
+        expense.referenceId || null,
+        expense.isInvalid ? 1 : 0,
+        expense.trashReason || null,
+      ]);
+      return result.insertId ?? -1;
+    }
+  );
 }
 
 export function updateExpense(
@@ -219,30 +231,38 @@ export function getAllExpenses(
   limit: number = 50,
   offset: number = 0,
 ): Expense[] {
-  const db = getDatabase();
-  const result = db.execute(GET_ALL_EXPENSES_SQL, [limit, offset]);
-  return mapRows(result.rows?._array || []);
+  return telemetry.traceSync('db.getAllExpenses', { limit, offset }, () => {
+    const db = getDatabase();
+    const result = db.execute(GET_ALL_EXPENSES_SQL, [limit, offset]);
+    return mapRows(result.rows?._array || []);
+  });
 }
 
 export function getWindowedExpenses(days: number = 30): Expense[] {
-  const db = getDatabase();
-  const since = Date.now() - days * 24 * 60 * 60 * 1000;
-  const result = db.execute(GET_WINDOWED_EXPENSES_SQL, [since]);
-  return mapRows(result.rows?._array || []);
+  return telemetry.traceSync('db.getWindowedExpenses', { days }, () => {
+    const db = getDatabase();
+    const since = Date.now() - days * 24 * 60 * 60 * 1000;
+    const result = db.execute(GET_WINDOWED_EXPENSES_SQL, [since]);
+    return mapRows(result.rows?._array || []);
+  });
 }
 
 export function getExpensesByCategory(category: Category): Expense[] {
-  const db = getDatabase();
-  const result = db.execute(GET_EXPENSES_BY_CATEGORY_SQL, [category]);
-  return mapRows(result.rows?._array || []);
+  return telemetry.traceSync('db.getExpensesByCategory', { category }, () => {
+    const db = getDatabase();
+    const result = db.execute(GET_EXPENSES_BY_CATEGORY_SQL, [category]);
+    return mapRows(result.rows?._array || []);
+  });
 }
 
 export function getMonthlyTotal(year: number, month: number): number {
-  const db = getDatabase();
-  const startDate = new Date(year, month - 1, 1).getTime();
-  const endDate = new Date(year, month, 1).getTime();
-  const result = db.execute(GET_MONTHLY_TOTAL_SQL, [startDate, endDate]);
-  return result.rows?._array?.[0]?.total || 0;
+  return telemetry.traceSync('db.getMonthlyTotal', { year, month }, () => {
+    const db = getDatabase();
+    const startDate = new Date(year, month - 1, 1).getTime();
+    const endDate = new Date(year, month, 1).getTime();
+    const result = db.execute(GET_MONTHLY_TOTAL_SQL, [startDate, endDate]);
+    return result.rows?._array?.[0]?.total || 0;
+  });
 }
 
 export function saveMerchantCategory(
