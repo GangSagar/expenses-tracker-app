@@ -9,15 +9,20 @@ show_help() {
   echo "Usage: ./run test [options]"
   echo ""
   echo "Options:"
-  echo "  (no args)        Run all core unit test suites (103 passing tests)"
+  echo "  (no args)        Run all core unit test suites (599 passing tests)"
   echo "  --all, -a        Run all test suites including collected real SMS dumps"
   echo "  --watch, -w      Run Jest in interactive watch mode"
   echo "  --collect, -c    Harvest real bank SMS from connected phone via ADB"
+  echo "  --benchmark, -b  Benchmark parser throughput (e.g. ./run test -b 5000)"
   echo "  <test-path>      Run specific test file (e.g. ./run test src/__tests__/parser.test.ts)"
   echo "  --help, -h       Show this help message"
 }
 
 case "${1:-}" in
+  --benchmark|-b|benchmark)
+    echo "⚡ Running SMS parser throughput benchmark..."
+    node "$DIR/parse-cli.js" --benchmark "${2:-1000}"
+    ;;
   --all|-a|all)
     echo "🧪 Running all test suites..."
     npx jest

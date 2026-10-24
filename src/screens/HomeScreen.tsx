@@ -18,6 +18,7 @@ import { getSetting } from '../database/expenseRepo';
 import { generateBudgetInsights } from '../services/advisorService';
 import commonStyles from '../styles/commonStyles';
 import styles from '../styles/HomeScreenStyles';
+import { computeAccountSummaries } from '../utils/accountHelpers';
 
 
 export default function HomeScreen() {
@@ -61,54 +62,22 @@ export default function HomeScreen() {
 
   const currentBalance = totalCredits - totalDebits;
 
-  // 1. Calculate Account Balances for Carousel (using live math delta logic)
-  const accountGroups: Record<string, Expense[]> = {};
-  for (const e of activeExpenses) {
-    if (!e.bank || !e.account) continue;
-    const key = `${e.bank}::${e.account}`;
-    if (hiddenAccounts.includes(key)) continue; // Completely hide from calculations and UI
-    if (!accountGroups[key]) accountGroups[key] = [];
-    accountGroups[key].push(e);
-  }
-
+  // 1. Calculate Account Balances for Carousel (using shared helper)
+  const summaries = computeAccountSummaries(activeExpenses, hiddenAccounts);
   const accountsList: { bank: string; account: string; balance: number; cardType: 'cc' | 'debit' }[] = [];
-  for (const [key, list] of Object.entries(accountGroups)) {
-    const [bank, account] = key.split('::');
-    const sorted = [...list].sort((a, b) => a.timestamp - b.timestamp);
-    const latestWithBal = [...sorted]
-      .reverse()
-      .find(e => e.availableBalance !== undefined && e.availableBalance !== null);
-
-    let balance = 0;
-    if (latestWithBal && latestWithBal.availableBalance !== undefined) {
-      balance = latestWithBal.availableBalance;
-      const latestIdx = sorted.indexOf(latestWithBal);
-      for (let idx = latestIdx + 1; idx < sorted.length; idx++) {
-        const subsequent = sorted[idx];
-        if (subsequent.transactionType === 'debit') {
-          balance -= subsequent.amount;
-        } else {
-          balance += subsequent.amount;
-        }
-      }
-    } else {
-      // Fallback: Accumulate transaction deltas to get dynamic balance flow.
-      for (const item of sorted) {
-        if (item.transactionType === 'debit') {
-          balance -= item.amount;
-        } else {
-          balance += item.amount;
-        }
-      }
-    }
-
+  for (const s of summaries) {
     // Check persisted cardType override or auto default
-    const typeKey = `account_type::${bank}::${account}`;
+    const typeKey = `account_type::${s.bank}::${s.account}`;
     const saved = getSetting(typeKey);
-    const hasCCMode = list.some(e => e.paymentMode === 'cc' || /credit\s*card|cc\b/i.test(e.rawMessage));
-    const cardType = (saved || (hasCCMode ? 'cc' : 'debit')) as 'cc' | 'debit';
+    const hasCCMode = s.transactions.some(e => e.paymentMode === 'cc' || /credit\s*card|cc\b/i.test(e.rawMessage));
+    const cardType = (saved || (hasCCMode ? 'cc' : s.cardType)) as 'cc' | 'debit';
 
-    accountsList.push({ bank, account, balance, cardType });
+    accountsList.push({
+      bank: s.bank,
+      account: s.account,
+      balance: s.latestBalance,
+      cardType,
+    });
   }
 
   // 2. Calculate Category Insights (Top 3 Debits)
@@ -165,7 +134,7 @@ export default function HomeScreen() {
   return (
     <View style={commonStyles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a73e8" />
-      
+
       {/* Fixed Header Section at the Top */}
       <View style={commonStyles.header}>
         <Text style={commonStyles.headerTitle}>Dashboard</Text>
@@ -218,23 +187,23 @@ export default function HomeScreen() {
             <View style={[
               styles.insightsBadge,
               insights.status === 'good' ? styles.insightsBadgeGood :
-              insights.status === 'warning' ? styles.insightsBadgeWarning :
-              styles.insightsBadgeDanger
+                insights.status === 'warning' ? styles.insightsBadgeWarning :
+                  styles.insightsBadgeDanger
             ]}>
               <Text style={[
                 styles.insightsBadgeText,
                 insights.status === 'good' ? styles.badgeTextGood :
-                insights.status === 'warning' ? styles.badgeTextWarning :
-                styles.badgeTextDanger
+                  insights.status === 'warning' ? styles.badgeTextWarning :
+                    styles.badgeTextDanger
               ]}>
                 {insights.status === 'good' ? 'ON TRACK' :
-                 insights.status === 'warning' ? 'WARNING' : 'CRITICAL'}
+                  insights.status === 'warning' ? 'WARNING' : 'CRITICAL'}
               </Text>
             </View>
           </View>
           <Text style={styles.insightsHeadline}>{insights.headline}</Text>
           <Text style={styles.insightsMessage}>{insights.message}</Text>
-          
+
           {budgetLimit > 0 && insights.dailyBurnRate > 0 && (
             <View style={styles.insightsStats}>
               <View style={styles.insightsStatItem}>

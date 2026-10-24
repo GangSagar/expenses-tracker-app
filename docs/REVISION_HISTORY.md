@@ -19,7 +19,8 @@ This document provides a comprehensive, chronological audit of the SpendWise rep
 | **v1.3.x (PR #8)** | 2026-05-18 | #8 | Cross-bank UPI reference deduplication, dynamic Bayes category auto-training. |
 | **v1.4.0** | 2026-05-18 | #9 | Mathematical font Unicode normalization, settings danger zone full data wipe. |
 | **v1.5.0** | 2026-05-20 | #10 | Income & cash multi-type transaction support, transaction orchestrator, retry queue. |
-| **Current / Unreleased** | 2026-10-18 | — | OpenTelemetry distributed tracing with Jaeger, headless CLI runner, ADB hardware test harness. |
+| **v1.6.0** | 2026-10-24 | — | Generic, extensible, learning-based parsing engine: 10-stage pipeline, data-driven JSON rules, lexical tokenizer, confidence engine, on-device SQLite learning, and AI fallback interface. |
+| **Current / Unreleased** | 2026-10-24 | — | OpenTelemetry distributed tracing with Jaeger, headless CLI runner, ADB hardware test harness, and complete 599-test verification suite. |
 
 ---
 
@@ -82,7 +83,14 @@ This document provides a comprehensive, chronological audit of the SpendWise rep
 | `f90c831` | HRN Harshit | 2026-05-20 | #10 | UI | **feat(ui): add transaction type selector to EditTransactionModal**: Added visual segmented control allowing user to toggle between Debit, Credit, and Cash expense types. |
 | `093a9bf` | HRN Harshit | 2026-05-20 | #10 | Core Engine | **feat(core): implement transaction orchestrator, spam filtering, and retry queue**: Integrated unified transaction orchestrator, resilient retry queue, and spam filtering pipeline. |
 | `05555e4` | GangSagar | 2026-05-20 | #10 | Release Merge | **Merge pull request #10 from GangSagar/feature/v1.5.0-cash-income-support**: Promoted to main; tagged `v1.5.0`. |
-| *Working Tree* | Pair Programming | 2026-10-18 | — | Observability & QA | **OpenTelemetry, Jaeger, Hardware Collection & Comprehensive Docs**: Added `telemetryService.ts` for distributed tracing, standalone Jaeger setup, `scripts/collect-testcases.py` ADB harvester, `scripts/parse-sms.sh` CLI diagnostic runner, and complete `docs/` technical documentation suite. |
+| `a49bf10` | HRN Harshit | 2026-10-18 | — | Observability & QA | **feat(telemetry): add OpenTelemetry, Jaeger, Hardware Collection & Comprehensive Docs**: Added `telemetryService.ts` for distributed tracing, standalone Jaeger setup, `scripts/collect-testcases.py` ADB harvester, `scripts/parse-sms.sh` CLI diagnostic runner, and complete `docs/` technical documentation suite. |
+| `27d85c1` | HRN Harshit | 2026-10-24 | — | Parsing Engine | **feat(parser): implement extensible learning-based financial SMS parsing engine**: Replaced monolithic regex with 10-stage decoupled Clean Architecture pipeline, data-driven declarative JSON rules (`bankRules.json`, `merchantAliases.json`, `categoryRules.json`), lexical tokenizer, targeted extractors, weighted confidence engine, on-device SQLite learning engine, and AI fallback resolver. Expanded test coverage to 599 tests across 22 suites with 0 regressions. Tagged `v1.6.0`. |
+| `044a9e3` | HRN Harshit | 2026-10-24 | — | Documentation | **docs: update architectural specifications, PRD, TRD, and roadmap**: Documented extensible parsing engine architecture, data flows, and test strategies. |
+| `acf455f` | HRN Harshit | 2026-10-24 | — | Performance | **perf(benchmarking): add high-speed parser CLI, in-memory dedup cache, and throughput test suite**: Created standalone native Node CLI benchmark harness (`scripts/parse-cli.js`) proving 3,600+ msg/sec throughput; added in-memory deduplication cache. |
+| `9f94c11` | HRN Harshit | 2026-10-24 | — | Assets / UI | **feat(assets): update app icon with glossy green wallet and full-bleed Android adaptive icon**: Generated modern Android 8+ Adaptive Icon with custom background gradient and eliminated white circle backplate. |
+| `7df9c02` | HRN Harshit | 2026-10-24 | — | Governance | **chore(agents): add workspace rules for pre-implementation review, SOLID, graphify, and testing**: Established `.agents/` workspace rules governing coding agent workflows. |
+| `bfd6c10` | HRN Harshit | 2026-10-25 | — | Refactoring | **refactor(src): remove dead code and deduplicate shared logic across modules**: Removed 4 dead files, consolidated split settlement logic, extracted `accountHelpers.ts`, and cut code duplication by 50%. |
+| *Working Tree* | HRN Harshit | 2026-10-25 | — | Governance | **chore(agents): add Rule 5 (Developer-Controlled Commits) and Rule 6 (Continuous Documentation & Graphify Synchronization)**: Enforced strict commit delegation and mandatory doc/graph synchronization. |
 
 ---
 
@@ -112,10 +120,29 @@ This document provides a comprehensive, chronological audit of the SpendWise rep
   - Encapsulated the entire parsing, filtering, deduplication, and persistence lifecycle into a single unified `TransactionOrchestrator` supported by an exponential backoff `RetryQueue`.
 * **Impact**: 100% regex match fidelity on branded promotional Unicode messages; robust fault recovery.
 
-### Transition 5: Enterprise Observability & Hardware-in-the-Loop QA (Current)
+### Transition 5: Enterprise Observability & Hardware-in-the-Loop QA
 * **Problem**: Developers lacked real-time visibility into pipeline latency on physical devices and had no automated mechanism to test real SMS without building full APKs.
 * **Architectural Change**:
   - Integrated OpenTelemetry distributed tracing transmitting OTLP spans to a local standalone Jaeger collector.
   - Built Python ADB test harvester (`collect-testcases.py`) that extracts real SMS from attached handsets, scrubs PII, and automatically outputs executable Jest suites.
   - Implemented headless CLI runner (`parse-sms.sh`) for sub-second parser testing in the terminal.
 * **Impact**: Instant visibility into pipeline performance and continuous benchmarking against 432 real bank transactions.
+
+### Transition 6: From Hardcoded Monolithic Regex to Extensible Learning-Based Engine (v1.5.0 $\to$ v1.6.0)
+* **Problem**: A monolithic regex parsing function was brittle, unmaintainable across 15+ Indian banks and fintech apps, prone to catastrophic backtracking or cross-pattern interference, and incapable of learning from user corrections. Adding new banks or merchants required risky code edits.
+* **Architectural Change**:
+  - Re-architected parsing into Clean Architecture under `src/core/parser/` across 10 specialized stages: Pre-Filter, Composable Normalizers, Lexical Tokenizer, Targeted Extractors, Declarative Bank Rules, Contextual Resolvers, Weighted Confidence Scoring, On-Device SQLite Learning, and Local AI Fallback.
+  - Moved all bank schemas, merchant alias normalizations, categories, and keywords to declarative JSON configuration (`bankRules.json`, `merchantAliases.json`, `categoryRules.json`, `tokenDictionary.json`).
+  - Added an adaptive `LearningEngine` that learns merchant and category corrections from user interactions directly inside SQLite.
+  - Preserved 100% backward compatibility via `parseMessage()` adapter while exposing `parseStructured()` returning typed `StructuredExpense`.
+* **Impact**: 599/599 tests passing across 22 test suites with 0 regressions, sub-2ms parse latency, and zero-code extensibility for future banks and payment providers.
+
+### Transition 7: High-Throughput Benchmarking, Modern Branding, & Deduplication Refactoring (v1.6.0 $\to$ v1.6.1)
+* **Problem**: Perceived latency during bulk parsing due to test harness startup; white circular background plate on Android 8+ OEM launchers; code duplication across screens and dead database wrappers.
+* **Architectural Change**:
+  - Engineered standalone native CLI parser (`scripts/parse-cli.js`) delivering >3,600 messages/sec throughput (~0.2ms per message) with in-memory deduplication caching.
+  - Implemented full-bleed Android Adaptive Icons with gradient background XML and tightly cropped high-resolution foreground assets.
+  - Removed 4 obsolete database re-export wrappers and extracted shared balance calculations into `src/utils/accountHelpers.ts`, cutting jscpd duplication by 50%.
+  - Formalized agent pair-programming governance in `.agents/` across 6 core rules (pre-implementation plan review, SOLID, graphify, test verification, developer-controlled commits, continuous doc/graph sync).
+* **Impact**: 601 tests passing, streamlined codebase, professional icon presentation on physical devices, and rigorous development governance.
+

@@ -1,0 +1,146 @@
+[
+  {
+    "id": "sbi",
+    "name": "SBI",
+    "senderKeywords": ["SBI", "SBIIN", "SBIPSG", "SBICRD", "SBISMS"],
+    "bodyKeywords": ["STATE BANK OF INDIA", "SBI UPI", "SBI CARD", "SBI"],
+    "accountPrefixes": ["A/C", "ACCT", "ACCOUNT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE", "BAL"]
+  },
+  {
+    "id": "hdfc",
+    "name": "HDFC",
+    "senderKeywords": ["HDFC", "HDFCBK", "HDFCCC", "HDFCAL"],
+    "bodyKeywords": ["HDFC BANK", "HDFC BANK CARD", "HDFC", "HDFCBK"],
+    "accountPrefixes": ["A/C", "ACCT", "CARD XX", "CARD"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE", "LIMIT"]
+  },
+  {
+    "id": "icici",
+    "name": "ICICI",
+    "senderKeywords": ["ICICI", "ICICIB", "ICICIC", "ICICIS"],
+    "bodyKeywords": ["ICICI BANK", "ICICI BANK CARD", "ICICI CARD", "ICICI"],
+    "accountPrefixes": ["ACC", "ACCT", "CARD XX", "ACCOUNT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE", "AVL LIMIT"]
+  },
+  {
+    "id": "axis",
+    "name": "Axis",
+    "senderKeywords": ["AXIS", "AXISBK", "AXISBN", "AXISCD"],
+    "bodyKeywords": ["AXIS BANK", "AXIS BANK CARD", "AXIS"],
+    "accountPrefixes": ["A/C", "ACCT", "CARD"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE", "BAL"]
+  },
+  {
+    "id": "kotak",
+    "name": "Kotak",
+    "senderKeywords": ["KOTAK", "KOTAKB", "KMBL"],
+    "bodyKeywords": ["KOTAK MAHINDRA BANK", "KOTAK BANK", "KOTAK"],
+    "accountPrefixes": ["A/C", "ACCT", "CRD"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BAL", "BAL"]
+  },
+  {
+    "id": "yes",
+    "name": "Yes Bank",
+    "senderKeywords": ["YES", "YESBNK", "YESB"],
+    "bodyKeywords": ["YES BANK", "YES BANK CARD", "YES SEC"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "indusind",
+    "name": "IndusInd",
+    "senderKeywords": ["INDUS", "INDUSB", "INDB"],
+    "bodyKeywords": ["INDUSIND BANK", "INDUSIND"],
+    "accountPrefixes": ["A/C", "ACCT", "CARD"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "idfc",
+    "name": "IDFC",
+    "senderKeywords": ["IDFC", "IDFCFB", "IDFCBK"],
+    "bodyKeywords": ["IDFC FIRST BANK", "IDFC FIRST", "IDFC BANK", "IDFC"],
+    "accountPrefixes": ["A/C", "ACCT", "CARD"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE", "LIMIT"]
+  },
+  {
+    "id": "aubank",
+    "name": "AU Bank",
+    "senderKeywords": ["AUBANK", "AUFIN", "AUSFB"],
+    "bodyKeywords": ["AU SMALL FINANCE BANK", "AU BANK"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "canara",
+    "name": "Canara",
+    "senderKeywords": ["CANARA", "CANBNK", "CNRB"],
+    "bodyKeywords": ["CANARA BANK", "CANARA"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "bob",
+    "name": "Bank of Baroda",
+    "senderKeywords": ["BOB", "BOBSMS", "BOBTXN", "BARB"],
+    "bodyKeywords": ["BANK OF BARODA", "BOB UPI", "- BOB", "-BOB", "BARB0"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVLBAL", "AVL BAL", "AVAILABLE BAL"]
+  },
+  {
+    "id": "pnb",
+    "name": "PNB",
+    "senderKeywords": ["PNB", "PNBSMS", "PUNBNK"],
+    "bodyKeywords": ["PUNJAB NATIONAL BANK", "PNB"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "union",
+    "name": "Union Bank",
+    "senderKeywords": ["UNION", "UNIONB", "UBISMS", "UBIN"],
+    "bodyKeywords": ["UNION BANK OF INDIA", "UNION BANK", "UBI"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "psb",
+    "name": "Punjab and Sind Bank",
+    "senderKeywords": ["PSB", "PSBANK", "PUNSIND"],
+    "bodyKeywords": ["PUNJAB AND SIND BANK", "PUNJAB & SIND BANK", "P&S BANK", "P&S", "PSB UPI", "-P&SB", "-PUNJAB&SIND BANK"],
+    "accountPrefixes": ["A/C NO.", "A/C NO", "A/C", "ACCT"],
+    "balanceKeywords": ["CLR BAL", "AVL BAL", "BAL"]
+  },
+  {
+    "id": "boi",
+    "name": "Bank of India",
+    "senderKeywords": ["BOI", "BOIIND", "BOITXN", "BKID"],
+    "bodyKeywords": ["BANK OF INDIA", "-BOI", "- BOI", "BOI -", "BOI"],
+    "accountPrefixes": ["A/C", "AC", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "paytm",
+    "name": "Paytm Payments Bank",
+    "senderKeywords": ["PAYTM", "PYTM"],
+    "bodyKeywords": ["PAYTM PAYMENTS BANK", "PAYTM WALLET", "PAYTM BANK"],
+    "accountPrefixes": ["WALLET", "A/C"],
+    "balanceKeywords": ["PAYTM WALLET BAL", "WALLET BAL"]
+  },
+  {
+    "id": "federal",
+    "name": "Federal Bank",
+    "senderKeywords": ["FEDBNK", "FEDBANK", "FEDERAL"],
+    "bodyKeywords": ["FEDERAL BANK"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "rbl",
+    "name": "RBL Bank",
+    "senderKeywords": ["RBLBNK", "RBLCRD", "RATNAKAR"],
+    "bodyKeywords": ["RBL BANK"],
+    "accountPrefixes": ["A/C", "ACCT", "CARD"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE LIMIT"]
+  }
+]

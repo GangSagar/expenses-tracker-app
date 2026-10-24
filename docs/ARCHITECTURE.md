@@ -4,7 +4,7 @@
 
 | Metadata | Details |
 | :--- | :--- |
-| **Document Version** | 1.5.0 |
+| **Document Version** | 1.6.0 |
 | **Diagram File** | [`docs/architecture.drawio`](file:///home/hrnharshit/Desktop/Projects/expense-tracker/docs/architecture.drawio) (Contains Sheet 1: HLD, Sheet 2: LLD) |
 | **System Classification** | Offline-First Event-Driven Mobile Architecture |
 | **Last Updated** | October 2026 |
@@ -33,6 +33,15 @@ graph TB
         end
 
         subgraph CoreEngine["React Native / Hermes JS Engine"]
+            subgraph ParsingEngine["Modular Parsing Engine (src/core/parser/)"]
+                Orchestrator["ParserOrchestrator\n(10-Stage Pipeline)"]
+                Norm["Normalizers\n(Unicode, Currency, Keyword)"]
+                Token["Lexical Tokenizer\n(Token Stream)"]
+                Extract["Targeted Extractors\n(Amount, Account, Bank, VPA, Ref)"]
+                Resolve["Resolvers & Rules\n(Merchant, Direction, Category)"]
+                Conf["Confidence Engine\n(Quality Scoring)"]
+                Learn["Learning Engine\n(Pattern Feedback & Cache)"]
+            end
             Pipeline["Message Processing Pipeline\n(Filter ➔ Parse ➔ Dedup)"]
             Store["Zustand State Store\n(useExpenses)"]
             UI["UI Layer (React Navigation 7)\n(Home, History, Accounts, Splits)"]
@@ -60,6 +69,15 @@ graph TB
     NotifListener -->|Direct JSI Call| MessageBridge
     MessageBridge -->|JS Event| Pipeline
 
+    Pipeline --> Orchestrator
+    Orchestrator --> Norm
+    Norm --> Token
+    Token --> Extract
+    Extract --> Resolve
+    Resolve --> Conf
+    Conf --> Learn
+    Learn --> Pipeline
+
     Pipeline --> Store
     Store <-->|Synchronous SQL| QuickSQLite
     QuickSQLite <--> DB
@@ -75,13 +93,15 @@ graph TB
 ### 1.2 Core Architectural Principles
 
 1. **Synchronous Data Access (JSI over Async Bridge)**:
-   By using `react-native-quick-sqlite`, SQLite queries execute synchronously directly through the C++ JavaScript Interface (JSI). This prevents the UI frame drops and micro-stutters typical of asynchronous JSON bridge serialization.
+   By using `react-native-quick-sqlite`, SQLite queries execute synchronously directly through the C++ JavaScript Interface (JSI). This prevents UI frame drops and micro-stutters typical of asynchronous JSON bridge serialization.
 2. **Event-Driven Native Waking**:
-   The native receivers (`SmsReceiver` and `NotificationListenerService`) are stateless. They intercept raw OS intents, apply structural allowlist checks, wake the application context, hand off the message payload, and release OS wake locks immediately.
-3. **Local Bayesian Intelligence**:
-   Spam classification runs locally using tokenized frequency probabilities stored in SQLite, adapting to user trashing behavior without external inference APIs.
-4. **Zero-Trust Network Isolation**:
-   No network libraries (e.g., Axios) are installed. Network capabilities are restricted to developer localhost OTLP telemetry (`127.0.0.1:4318`) active solely in `__DEV__` mode.
+   The native receivers (`SmsReceiver` and `NotificationListenerService`) are stateless. They intercept raw OS intents, apply structural allowlist checks, wake the application context, hand off the message payload, and release OS wake locks immediately (<1% battery consumption).
+3. **Data-Driven Modular Parsing (SOLID & Clean Architecture)**:
+   Replaces monolithic regex functions with a 10-stage decoupled pipeline. Bank patterns, merchant aliases, token dictionaries, and category rules are managed via declarative JSON schemas (`bankRules.json`, `merchantAliases.json`, `categoryRules.json`), enabling instant onboarding of new financial institutions and UPI apps without source code modifications.
+4. **On-Device Continuous Learning**:
+   The `LearningEngine` captures user corrections (merchant renames, category adjustments) and caches contextual token patterns directly into SQLite. Confidence decay algorithms ensure stale heuristics naturally expire while high-frequency corrections take precedence.
+5. **Zero-Trust Network Isolation**:
+   No external network libraries or remote analytics SDKs exist. All extraction, spam classification, and AI fallback resolution run strictly on-device. Network capabilities are restricted to developer localhost OTLP telemetry (`127.0.0.1:4318`) active solely in `__DEV__` mode.
 
 ---
 
@@ -91,32 +111,76 @@ graph TB
 
 ```mermaid
 classDiagram
-    class SmsReceiver {
-        +onReceive(context, intent): void
-        -isTransactional(sender): boolean
-    }
-
-    class NotificationListener {
-        +onNotificationPosted(sbn): void
-        -isApprovedPackage(pkg): boolean
-    }
-
-    class MessageModule {
-        +fetchPastMessages(start, promise): void
-        +fetchPastMessagesSince(start, pageSize, after, promise): void
-    }
-
     class MessageService {
         +processIncomingMessage(msg: IncomingMessage): ParsedTransaction
     }
 
-    class MessageParser {
-        +parseMessage(body, sender, source): ParsedTransaction
-        +detectBank(sender, body): string
-        +extractAmount(body): number
-        +extractAccount(body): string
-        +extractMerchant(body): string
-        +extractBalance(body): number
+    class ParserOrchestrator {
+        -normalizer: Normalizer
+        -tokenizer: Tokenizer
+        -extractor: EntityExtractor
+        -merchantResolver: MerchantResolver
+        -transactionResolver: TransactionResolver
+        -categoryResolver: CategoryResolver
+        -confidenceEngine: ConfidenceEngine
+        -learningEngine: LearningEngine
+        -aiResolver: AIResolver
+        +parse(message: string, sender?: string, source?: string): StructuredExpense
+        +learnFromCorrection(rawMessage: string, correctedMerchant: string, correctedCategory: string): Promise~void~
+    }
+
+    class Normalizer {
+        +normalize(rawText: string): NormalizedMessage
+    }
+
+    class Tokenizer {
+        +tokenize(normalized: NormalizedMessage): TokenStream
+    }
+
+    class EntityExtractor {
+        +extractAll(stream: TokenStream, normalized: NormalizedMessage, sender?: string): ExtractedEntities
+    }
+
+    class MerchantResolver {
+        +resolve(rawMerchant: string, vpa?: string, bank?: string): ResolvedMerchant
+    }
+
+    class TransactionResolver {
+        +resolve(tokens: Token[], extractedEntities: ExtractedEntities): TransactionTypeResult
+    }
+
+    class CategoryResolver {
+        +resolve(merchant: string, rawText: string, customCategory?: string): CategoryResult
+    }
+
+    class ConfidenceEngine {
+        +calculate(entities: ExtractedEntities, resolved: ResolvedData): ConfidenceResult
+    }
+
+    class LearningEngine {
+        -repository: ILearningRepository
+        +lookup(tokenPattern: string): LearnedCorrection?
+        +recordCorrection(pattern: string, merchant: string, category: string): Promise~void~
+    }
+
+    class AIResolver {
+        -cache: AICache
+        +resolve(message: string, partial: Partial~StructuredExpense~): Promise~StructuredExpense~
+    }
+
+    class StructuredExpense {
+        +amount: number
+        +transactionType: 'debit' | 'credit'
+        +paymentMode: PaymentMode
+        +merchant: string
+        +category: string
+        +bank: string?
+        +account: string?
+        +availableBalance: number?
+        +referenceId: string?
+        +confidence: ConfidenceResult
+        +source: 'sms' | 'notification' | 'manual'
+        +rawMessage: string
     }
 
     class DedupService {
@@ -140,10 +204,17 @@ classDiagram
         +matchAutoRepayments(creditTx): void
     }
 
-    SmsReceiver --> MessageModule : Emits Event
-    NotificationListener --> MessageModule : Emits Event
-    MessageModule --> MessageService : JavaScript Event
-    MessageService --> MessageParser : Invokes
+    MessageService --> ParserOrchestrator : Delegates Parsing
+    ParserOrchestrator --> Normalizer : Step 2
+    ParserOrchestrator --> Tokenizer : Step 3
+    ParserOrchestrator --> EntityExtractor : Step 4
+    ParserOrchestrator --> MerchantResolver : Step 5
+    ParserOrchestrator --> TransactionResolver : Step 5
+    ParserOrchestrator --> CategoryResolver : Step 5
+    ParserOrchestrator --> ConfidenceEngine : Step 6
+    ParserOrchestrator --> LearningEngine : Step 7
+    ParserOrchestrator --> AIResolver : Fallback
+    ParserOrchestrator --> StructuredExpense : Produces
     MessageService --> DedupService : Scans
     MessageService --> ExpenseRepository : Saves
     ExpenseRepository --> ZustandExpenseStore : Rehydrates
@@ -151,27 +222,30 @@ classDiagram
 
 ---
 
-### 2.2 Processing Pipeline State Machine
+### 2.2 Processing Pipeline State Machine (10-Stage Pipeline)
 
 When a message arrives from either `SmsReceiver` or `NotificationListener`, it passes through a deterministic finite state pipeline:
 
 ```mermaid
 stateDiagram-v2
     [*] --> Ingested: Raw Message & Sender
-    Ingested --> UnicodeNormalization: Normalize Fonts
-    UnicodeNormalization --> SenderValidation: ASCII Alphanumeric
+    Ingested --> PreFilter: Stage 1 - Structural Check
+    PreFilter --> Discarded: Non-Transactional Sender / OTP / Promo / Telecom
     
-    SenderValidation --> Discarded: Non-Transactional Sender (10-digit mobile)
-    SenderValidation --> ContentFilter: Valid Bank Sender Code
+    PreFilter --> Normalization: Stage 2 - Text Normalization
+    Normalization --> Tokenization: Stage 3 - Lexical Tokenizer
+    Tokenization --> EntityExtraction: Stage 4 - Targeted Extractors
     
-    ContentFilter --> Discarded: Matches OTP, Promo, or Balance Enquiry regex
-    ContentFilter --> SpamCheck: Clean Financial Content
+    EntityExtraction --> Resolvers: Stage 5 - Contextual Resolvers
+    Resolvers --> RuleEngine: Stage 6 - Bank & Provider Rules
+    RuleEngine --> ConfidenceScoring: Stage 7 - Weighted Confidence Engine
     
-    SpamCheck --> Discarded: Bayes Spam Score > 0.85
-    SpamCheck --> EntityParsing: Valid Non-Spam
+    ConfidenceScoring --> LearningFeedback: Stage 8 - Pattern Lookup
+    LearningFeedback --> CheckConfidence: Confidence >= 0.65?
     
-    EntityParsing --> Discarded: Amount === null
-    EntityParsing --> Deduplication: Amount Extracted
+    CheckConfidence --> Deduplication: Yes (High Confidence)
+    CheckConfidence --> AIFallback: No (Ambiguous / Unknown Format)
+    AIFallback --> Deduplication: Resolved & Cached Locally
     
     Deduplication --> FlagDuplicate: Match found in 15-min window
     Deduplication --> Classification: Unique Transaction
@@ -202,19 +276,31 @@ stateDiagram-v2
   ```
 * **Execution Contract**:
   - Rejects any message where `isTransactionalSender(sender)` is false.
-  - Rejects any message where `isTransactionMessage(body)` matches an exclusionary filter (e.g. OTP patterns: `/(?:OTP|verification code|one time password)\b/i`).
-  - Runs `parseMessage(cleanBody, cleanSender, source)` returning typed `ParsedTransaction`.
+  - Rejects any message where `isTransactionMessage(body)` matches an exclusionary filter (OTP, telecom alerts).
+  - Delegates parsing to `parseMessage(cleanBody, cleanSender, source)` which internally invokes `ParserOrchestrator.parse()`.
 
-#### 2. Parsing Engine (`src/core/parser/parseMessage.ts`)
-* Extracts structured fields using prioritized regular expressions:
-  1. **Bank Detection**: Matches sender prefix against `KNOWN_BANKS` table (`AD-ICICIB` ➔ `ICICI`, `VK-SBIIND` ➔ `SBI`, `JX-BOBSMS` ➔ `Bank of Baroda`).
-  2. **Amount Normalization**: Strips comma grouping (`1,250.50` ➔ `1250.50`) and validates positive decimal numbers.
-  3. **Merchant Resolution**: Identifies payee substrings following markers (`at`, `to`, `transfer to`, `spent on`, `VPA`).
-  4. **Reference ID Extraction**: Isolates 12-digit UPI RRN / bank reference numbers for deduplication.
+#### 2. Modular Parsing Engine (`src/core/parser/`)
+The parser follows Clean Architecture principles with complete separation of concerns:
+
+| Submodule | Location | Architectural Responsibility |
+| :--- | :--- | :--- |
+| **Config Tier** | `src/core/parser/config/` | JSON declarations for 15+ banks (`bankRules.json`), 60+ merchant mappings (`merchantAliases.json`), 8 spending categories (`categoryRules.json`), and lexical keywords (`tokenDictionary.json`). |
+| **Models Tier** | `src/core/parser/models/` | Strictly typed `StructuredExpense` entity, `Token` stream definitions, and `ConfidenceResult` contracts. |
+| **Normalizer Tier** | `src/core/parser/normalizer/` | Composable pipeline executing Unicode math font conversion (`0x1D400`–`0x1D7FF`), currency token unification (`INR`, `Rs.`, `₹` ➔ `INR`), keyword normalization, and whitespace cleanup. |
+| **Tokenizer Tier** | `src/core/parser/tokenizer/` | Lexical analyzer classifying character sequences into typed tokens (`AMOUNT`, `ACCOUNT`, `VPA`, `KEYWORD`, `DATE`, `REF_NUMBER`, `MERCHANT_HINT`, `WORD`, `SEPARATOR`). |
+| **Extractor Tier** | `src/core/parser/extractor/` | Targeted extraction units: `AmountExtractor`, `AccountExtractor`, `VpaExtractor`, `ReferenceExtractor`, `BalanceExtractor`, `BankExtractor`, `PaymentModeExtractor`, `RawMerchantExtractor`, unified by `EntityExtractor`. |
+| **Resolver Tier** | `src/core/parser/resolver/` | Business heuristics: `MerchantResolver` (cleans UPI garbage, strips bank headers, matches alias registry), `TransactionResolver` (debit vs credit directionality priorities), and `CategoryResolver` (rule-based and learned category assignment). |
+| **Confidence Tier** | `src/core/parser/confidence/` | Multi-factor weighted scoring engine evaluating signal certainty (amount: 0.35, merchant: 0.20, type: 0.20, account: 0.15, bank: 0.05, reference: 0.05) with penalties for ambiguous tokens. |
+| **Learning Tier** | `src/core/parser/learning/` | On-device adaptive learning system (`LearningEngine`) with repository abstraction (`ILearningRepository`, `SQLiteLearningRepository`). Learns user corrections and adjusts category/merchant mappings over time. |
+| **AI Tier** | `src/core/parser/ai/` | Fallback interface (`AIResolver`) with offline caching (`AICache`) for low-confidence or unmapped provider templates. |
+| **Filter Tier** | `src/core/parser/filter/` | Pre-parsing heuristic message filter (`MessageFilter`) rejecting non-financial alerts. |
+| **Orchestrator** | `src/core/parser/orchestrator/` | Coordinates the 10-stage execution pipeline, assembling extracted and resolved entities into `StructuredExpense`. |
+| **Legacy Adapter** | `src/core/parser/parseMessage.ts` | Maintains 100% backward compatibility for legacy `parseMessage()` consumers while exposing modern `parseStructured()`. |
 
 #### 3. Database Layer (`src/database/expenseRepo.ts`)
 * Uses pre-compiled SQL string constants to eliminate SQL injection vulnerabilities.
 * Wraps all multiline batch queries in explicit SQLite `BEGIN TRANSACTION` / `COMMIT` blocks for atomic consistency.
+* Houses learning repository tables for on-device merchant mapping and category frequency tracking.
 
 #### 4. Observability Service (`src/services/telemetryService.ts`)
 * Manages an in-memory queue of `RawSpan` records.
