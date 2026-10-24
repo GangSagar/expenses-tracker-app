@@ -27,3 +27,13 @@ These rules apply to all AI coding agents working in this repository:
   npm test
   ```
 - All tests must pass with zero errors. Never commit or push failing code.
+
+## 5. Never Commit by Yourself (Developer-Controlled Commits)
+- Never run `git commit` or `git push` autonomously.
+- Changes must remain in the working directory for developer inspection.
+- Only commit when the developer explicitly issues a direct commit command.
+
+## 6. Continuous Documentation & Graphify Synchronization
+- After every change (feature, refactor, bugfix, or architectural update):
+  - **Update Documentation**: Immediately review and update all relevant documentation in `docs/` (e.g., architecture, design specs, workflow notes) and `README.md`. Documentation must always remain synchronized with the current codebase.
+  - **Update Graphify Knowledge Graph**: Run `graphify update .` to keep the AST knowledge graph (`graphify-out/`) current and accurate.

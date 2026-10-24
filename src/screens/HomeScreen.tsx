@@ -134,7 +134,7 @@ export default function HomeScreen() {
   return (
     <View style={commonStyles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a73e8" />
-      
+
       {/* Fixed Header Section at the Top */}
       <View style={commonStyles.header}>
         <Text style={commonStyles.headerTitle}>Dashboard</Text>
@@ -187,23 +187,23 @@ export default function HomeScreen() {
             <View style={[
               styles.insightsBadge,
               insights.status === 'good' ? styles.insightsBadgeGood :
-              insights.status === 'warning' ? styles.insightsBadgeWarning :
-              styles.insightsBadgeDanger
+                insights.status === 'warning' ? styles.insightsBadgeWarning :
+                  styles.insightsBadgeDanger
             ]}>
               <Text style={[
                 styles.insightsBadgeText,
                 insights.status === 'good' ? styles.badgeTextGood :
-                insights.status === 'warning' ? styles.badgeTextWarning :
-                styles.badgeTextDanger
+                  insights.status === 'warning' ? styles.badgeTextWarning :
+                    styles.badgeTextDanger
               ]}>
                 {insights.status === 'good' ? 'ON TRACK' :
-                 insights.status === 'warning' ? 'WARNING' : 'CRITICAL'}
+                  insights.status === 'warning' ? 'WARNING' : 'CRITICAL'}
               </Text>
             </View>
           </View>
           <Text style={styles.insightsHeadline}>{insights.headline}</Text>
           <Text style={styles.insightsMessage}>{insights.message}</Text>
-          
+
           {budgetLimit > 0 && insights.dailyBurnRate > 0 && (
             <View style={styles.insightsStats}>
               <View style={styles.insightsStatItem}>
