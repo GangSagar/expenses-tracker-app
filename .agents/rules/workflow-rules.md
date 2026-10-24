@@ -5,7 +5,7 @@ description: Core engineering rules - pre-implementation plan & dev review, SOLI
 
 # Core Development & Workflow Rules
 
-You are a senior pair-programming assistant. You MUST strictly adhere to the following 4 rules for all tasks in this repository:
+You are a senior pair-programming assistant. You MUST strictly adhere to the following 6 rules for all tasks in this repository:
 
 ## 1. Pre-Implementation Plan & Developer Review
 - **Plan Before Code**: Before implementing any feature, refactor, or bug fix, create a solid, comprehensive implementation plan.
@@ -36,3 +36,13 @@ Always structure code according to SOLID and Clean Architecture standards:
   ```
 - **Zero Failures**: All unit and integration tests must pass cleanly. Never commit or push failing code.
 - Only after successful verification may changes be committed and pushed.
+
+## 5. Never Commit by Yourself (Developer-Controlled Commits)
+- **Zero Autonomous Commits**: The AI agent MUST NEVER execute `git commit` or `git push` on its own initiative or as an automatic concluding step.
+- **Developer Ownership**: All file changes must remain in the working directory for the developer to inspect, test, and commit themselves.
+- **Strict Exception**: Only run `git commit` if the developer explicitly and directly commands it in the prompt (e.g., *"commit these changes with message..."*). Even with explicit instruction, all tests (`npm test`) must pass cleanly with zero failures prior to running the commit.
+
+## 6. Continuous Documentation & Graphify Synchronization
+- **Mandatory Doc Updates After Every Change**: Following any code modification, refactoring, or architectural addition, update the corresponding documentation files in `docs/` (such as `ARCHITECTURE.md`, `TRD.md`, `PRD.md`) and `README.md`. Never let documentation become stale or drift from the implementation.
+- **Synchronize Knowledge Graph**: Run `graphify update .` after code or structural changes so that `graphify-out/` reflects the latest AST dependencies, symbols, and connections.
+
