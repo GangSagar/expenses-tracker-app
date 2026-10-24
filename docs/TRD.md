@@ -5,7 +5,7 @@
 | Metadata                      | Details                                                            |
 | :---------------------------- | :----------------------------------------------------------------- |
 | **System Name**         | Smart Expense Tracker Technical Architecture                       |
-| **Document Version**    | 1.5.0                                                              |
+| **Document Version**    | 1.6.0                                                              |
 | **Language & Runtimes** | TypeScript 5.8, Kotlin, C++20, Node.js 22+                         |
 | **Frameworks**          | React Native 0.85.3 (New Architecture / Bridgeless), Hermes Engine |
 | **Database**            | Embedded SQLite 3 via `react-native-quick-sqlite` (JSI bindings) |
@@ -19,7 +19,7 @@
 The system operates across three tightly integrated tiers:
 
 1. **Native Android Subsystem (Kotlin)**: Intercepts low-level OS broadcasts (`SMS_RECEIVED` and `StatusBarNotification`), enforces early structural filtering, and transmits raw event payloads directly to JavaScript via JSI / TurboModules.
-2. **React Native Processing Core (TypeScript / Hermes)**: Implements Unicode normalization, sender whitelisting, keyword blocklists, Bayesian spam classification, regex pattern matching, entity extraction, deduplication, and confidence scoring.
+2. **React Native Processing Core (TypeScript / Hermes)**: Implements Unicode normalization, sender allowlists, Bayesian spam classification, and a 10-stage modular parsing pipeline (lexical tokenization, targeted extraction, contextual resolvers, dynamic bank rules, weighted confidence scoring, adaptive learning, and local AI fallback).
 3. **Local Persistence & State Layer (C++ / SQLite / Zustand)**: High-speed synchronous SQLite persistence using `react-native-quick-sqlite` C++ bindings, paired with reactive, memoized Zustand client stores.
 
 ```
@@ -47,9 +47,10 @@ The system operates across three tightly integrated tiers:
 │   2. Sender Validation (Filter personal 10-digit mobile numbers)       │
 │   3. Content Blocklist (Filter OTPs, Promo, Telecom balance alerts)    │
 │   4. Naive Bayes Spam Classifier (Local probability threshold)         │
-│   5. Regex Entity Parser (Amounts, Types, Modes, Merchants, Accounts)  │
-│   6. Multi-Source Deduplication (15-min window, Ref ID & Token scan)   │
-│   7. Smart Split Auto-Repayment (Match incoming credit to split debts) │
+│   5. Modular Parsing Engine (Tokenizer, Extractors, Resolvers, Rules)  │
+│   6. Weighted Confidence Scoring & On-Device Learning Feedback         │
+│   7. Multi-Source Deduplication (15-min window, Ref ID & Token scan)   │
+│   8. Smart Split Auto-Repayment (Match incoming credit to split debts) │
 └──────────────────────────────────┬─────────────────────────────────────┘
                                    │ Synchronous C++ JSI
 ┌──────────────────────────────────▼─────────────────────────────────────┐
@@ -127,51 +128,182 @@ Exposes paged querying against `content://sms/inbox`:
 
 ---
 
-## 4. Processing & Parsing Engine Specifications
+## 4. Modular Parsing Engine Specifications (`src/core/parser/`)
 
-### 4.1 Unicode Normalization (`normalizeUnicodeText.ts`)
-
-Bank alerts (particularly Bank of Baroda UPI alerts) often arrive with stylized Mathematical Sans-Serif or bold Unicode glyphs (e.g., `𝖡𝖮𝖡`, `𝐔𝐏𝐈`).
-
-* Maps stylized mathematical alphanumerics (`0x1D400`–`0x1D7FF`) back to standard ASCII characters (`A-Z`, `a-z`, `0-9`).
-* Strips zero-width joiners, directional marks, and extraneous formatting whitespace.
-
-### 4.2 Multi-Stage Message Pipeline (`messageService.ts`)
+The parsing engine replaces brittle regex monoliths with a decoupled, clean-architecture 10-stage pipeline:
 
 ```
-Input Message (cleanSender, cleanBody)
-  │
-  ├──► [Stage 1: Sender Filter]
-  │       Regex: /^[A-Z0-9]{2,3}-[A-Z0-9]{5,9}$/i or shortcodes (3-9 digits)
-  │       If false ──► DROP ("non_transactional_sender")
-  │
-  ├──► [Stage 2: Content Blocklist]
-  │       Regex: OTP, verification codes, login alerts, balance enquiry promos
-  │       If matches ──► DROP ("blocked_body_filter")
-  │
-  ├──► [Stage 3: Bayesian Spam Classifier]
-  │       Local word frequency probability check
-  │       If spamScore > 0.85 ──► DROP ("spam_classifier")
-  │
-  ├──► [Stage 4: Entity Parser]
-  │       Amount, Mode, Type, Bank, Merchant, Account, Balance
-  │       If amount === null ──► DROP ("missing_amount")
-  │
-  └──► [Stage 5: Multi-Source Deduplication]
-          Cross-source scan (15-min window, Ref ID, token match)
-          If duplicate ──► Flag is_duplicate = 1
+Raw Message & Sender
+       │
+       ▼
+[1. Message Filter] ────────► Drop OTP / Telecom / Non-Financial Promos
+       │
+       ▼
+[2. Composable Normalizers] ─► Unicode ➔ Currency ➔ Keyword ➔ Whitespace
+       │
+       ▼
+[3. Lexical Tokenizer] ─────► Classifies Token Stream with Span Offsets
+       │
+       ▼
+[4. Targeted Extractors] ───► Amount, Account, Bank, VPA, Ref, Balance, Mode
+       │
+       ▼
+[5. Dynamic Bank Rules] ────► Declarative rules from bankRules.json
+       │
+       ▼
+[6. Contextual Resolvers] ──► Merchant Aliases, Transaction Direction, Category
+       │
+       ▼
+[7. Confidence Engine] ─────► Mathematical Multi-Factor Quality Score
+       │
+       ▼
+[8. Learning Engine] ───────► On-Device SQLite Feedback & Pattern Cache
+       │
+       ▼
+[9. AI Fallback Resolver] ──► Cached Local Fallback (if Confidence < 0.65)
+       │
+       ▼
+[10. StructuredExpense] ────► Strongly Typed Immutable Financial Record
 ```
 
-### 4.3 Regex Extraction Rules (`regexRules.ts`)
+### 4.1 Composable Normalization Pipeline (`src/core/parser/normalizer/`)
 
-* **Amount Regex**:
-  `/(?:Rs\.?|INR|₹)\s*(\d+(?:[,\d]*)?(?:\.\d{1,2})?)/i`
-* **Debit Keywords**:
-  `/\b(?:debited?|spent|paid|withdrawn|purchase|paying|sent|deducted|transferred?|trf|Dr\.?)\b/i`
-* **Credit Keywords**:
-  `/\b(?:credited?|received|refund|reversed|deposited|added|Cr\.?)\b/i`
-* **Account Mask Matching**:
-  `/(?:A\/c|Acct|Account|Card|ending in|A\/c no\.)\s*(?:[X*]*\s*)(\d{3,4})\b/i`
+The normalizer executes sequentially across four modular transformations:
+
+1. **`unicodeNormalizer`**:
+   - Maps mathematical bold, sans-serif, and styled glyphs (`0x1D400`–`0x1D7FF`) back to standard ASCII alphanumerics (`A-Z`, `a-z`, `0-9`).
+   - Strips zero-width joiners, soft hyphens, and directional formatting marks.
+2. **`currencyNormalizer`**:
+   - Standardizes disparate currency symbols (`Rs.`, `Rs`, `INR`, `INR.`, `₹`) to uniform `INR` tokens with clean word boundaries.
+3. **`keywordNormalizer`**:
+   - Standardizes common abbreviations across Indian banking SMS (`a/c` / `acct` ➔ `account`, `txn` ➔ `transaction`, `ref no` ➔ `reference`, `bal` / `avl bal` ➔ `balance`).
+4. **`whitespaceNormalizer`**:
+   - Collapses consecutive whitespace, tabs, and line-breaks into single standard ASCII spaces.
+
+### 4.2 Lexical Tokenizer (`src/core/parser/tokenizer/`)
+
+The tokenizer transforms normalized text into a stream of typed `Token` objects, preserving token value, position, and semantic classification:
+
+```typescript
+export interface Token {
+  type: TokenType;
+  value: string;
+  normalizedValue: string;
+  startIndex: number;
+  endIndex: number;
+}
+
+export type TokenType =
+  | 'AMOUNT'
+  | 'ACCOUNT'
+  | 'VPA'
+  | 'KEYWORD'
+  | 'DATE'
+  | 'REF_NUMBER'
+  | 'MERCHANT_HINT'
+  | 'WORD'
+  | 'SEPARATOR'
+  | 'UNKNOWN';
+```
+
+### 4.3 Data-Driven Declarative Rules (`src/core/parser/config/`)
+
+All bank templates, merchant cleaning patterns, and categories are decoupled into declarative JSON schemas:
+
+* **`bankRules.json`**:
+  Defines patterns, sender prefixes, and priority overrides for 15+ major Indian banks (SBI, HDFC, ICICI, Axis, Kotak, Bank of Baroda, PNB, Canara, IndusInd, IDFC FIRST, Yes Bank, AU Small Finance Bank, Union Bank, Bank of India, Punjab & Sind Bank, Federal Bank, Standard Chartered, HSBC, RBL) and digital UPI platforms (Google Pay, PhonePe, Paytm, BHIM, Cred, Amazon Pay).
+* **`merchantAliases.json`**:
+  Maintains canonical brand maps and noise-stripping rules:
+  - Noise prefixes stripped: `VPA`, `UPI/`, `PAYTM*`, `BILLDESK/`, `POS/`, `NEFT-`, `IMPS-`.
+  - Canonical aliases: `ZOMATO LTD` ➔ `Zomato`, `SWIGGY_BLR` ➔ `Swiggy`, `AMZN-MKTPLACE` ➔ `Amazon`, `UBER INDIA` ➔ `Uber`, `FLIPKART-PAY` ➔ `Flipkart`.
+* **`categoryRules.json`**:
+  Maps canonical merchants and keywords to 8 primary spending buckets: `Food & Dining`, `Groceries`, `Shopping`, `Travel`, `Utilities`, `Health`, `Entertainment`, `Financial Services`.
+* **`tokenDictionary.json`**:
+  Lexical dictionary of debit triggers (`debited`, `spent`, `withdrawn`, `paid`), credit triggers (`credited`, `received`, `refund`, `deposited`), account prefixes, and reference labels.
+
+### 4.4 Targeted Entity Extractors (`src/core/parser/extractor/`)
+
+Specialized extractors operate on the token stream and normalized text independently:
+
+| Extractor                          | Primary Responsibility                                                                                                         |
+| :--------------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
+| **`AmountExtractor`**      | Extracts financial figures; enforces positive values; validates against date/account collisions; checks post-currency markers. |
+| **`AccountExtractor`**     | Identifies masked accounts (`XX1234`, `*5678`, `ending with 9012`, `Card 3456`).                                       |
+| **`BankExtractor`**        | Correlates DLT sender headers (`VM-HDFCBK` ➔ `HDFC`) and body mentions against `bankRules.json`.                        |
+| **`VpaExtractor`**         | Validates UPI VPA format (`user@bank`), isolating recipient identifiers while stripping trailing bank suffixes.              |
+| **`ReferenceExtractor`**   | Extracts 12-digit UPI RRN, UTR, or bank reference numbers for multi-source deduplication.                                      |
+| **`BalanceExtractor`**     | Isolates available/running account balance reported after transaction completion.                                              |
+| **`PaymentModeExtractor`** | Disambiguates `upi`, `cc` (credit card), `dc` (debit card), `netbanking`, `atm`, `cash`.                           |
+| **`RawMerchantExtractor`** | Extracts candidate merchant strings following positional markers (`at`, `to`, `spent on`, `VPA`).                      |
+
+### 4.5 Contextual Business Resolvers (`src/core/parser/resolver/`)
+
+* **`MerchantResolver`**:
+  Cleans noisy SMS merchant tokens, removes trailing city tags, handles UPI handle sanitization, matches canonical aliases in `merchantAliases.json`, and verifies against known bank entities.
+* **`TransactionResolver`**:
+  Determines transaction directionality (`debit` vs `credit`). Resolves dual-action alerts (e.g., *"debited Rs 1.00 and credited to payee@upi"*) by prioritizing the user's debited account.
+* **`CategoryResolver`**:
+  Combines rule-based category matching, token keywords, and user corrections from `LearningEngine` to assign accurate spending categories.
+
+### 4.6 Multi-Factor Confidence Scoring (`src/core/parser/confidence/`)
+
+Calculates a normalized quality score between `0.0` and `1.0` representing extraction certainty:
+
+$$
+\text{Confidence} = \sum_{i} (w_i \times s_i) - \text{Penalties}
+$$
+
+| Extracted Field            | Weight ($w_i$) | Validation Criteria ($s_i = 1.0$)                             |
+| :------------------------- | :--------------: | :-------------------------------------------------------------- |
+| **Amount**           |     `0.35`     | Valid positive decimal extracted adjacent to currency marker.   |
+| **Transaction Type** |     `0.20`     | Explicit debit/credit keyword detected without ambiguity.       |
+| **Merchant**         |     `0.20`     | Payee entity identified and resolved via alias registry or VPA. |
+| **Account**          |     `0.15`     | Masked account/card pattern identified.                         |
+| **Bank**             |     `0.05`     | Bank identified via sender prefix or message body.              |
+| **Reference ID**     |     `0.05`     | 12-digit UTR / RRN captured.                                    |
+
+* **Penalties**: Subtracted for conflicting directionality (-0.15), low-signal generic merchant strings (-0.10), or unverified account masks (-0.05).
+* **Thresholds**: Messages scoring $\ge 0.65$ commit automatically; messages $< 0.65$ trigger the AI fallback or alert the user.
+
+### 4.7 Adaptive On-Device Learning Engine (`src/core/parser/learning/`)
+
+Implements continuous self-learning directly within local SQLite:
+
+```typescript
+export interface ILearningRepository {
+  getMerchantMapping(rawPattern: string): Promise<LearnedMerchant | null>;
+  saveMerchantMapping(mapping: LearnedMerchant): Promise<void>;
+  getCategoryMapping(merchant: string): Promise<LearnedCategory | null>;
+  saveCategoryMapping(mapping: LearnedCategory): Promise<void>;
+  incrementFrequency(rawPattern: string): Promise<void>;
+}
+```
+
+* When a user edits a merchant or updates an expense category, `LearningEngine` stores the association.
+* Subsequent occurrences of the same token pattern bypass default heuristics, honoring user intent with confidence reinforcement.
+
+### 4.8 Offline AI Fallback Resolver (`src/core/parser/ai/`)
+
+* Provides an interface for local on-device LLM or complex NLP inference for edge-case messages where confidence is below `0.65`.
+* Backed by `AICache` storing `SHA256(rawMessage) ➔ StructuredExpense` to guarantee zero redundant inferences and strict offline isolation.
+
+### 4.9 Backward Compatibility Adapter (`src/core/parser/parseMessage.ts`)
+
+To ensure zero regressions across legacy modules, `parseMessage()` wraps `ParserOrchestrator.parse()` and maps `StructuredExpense` to the legacy `ParsedTransaction` contract:
+
+```typescript
+export function parseMessage(
+  message: string,
+  sender = '',
+  source: 'sms' | 'notification' | 'manual' = 'sms'
+): ParsedTransaction | null;
+
+export function parseStructured(
+  message: string,
+  sender = '',
+  source: 'sms' | 'notification' | 'manual' = 'sms'
+): StructuredExpense | null;
+```
 
 ---
 

@@ -5,7 +5,7 @@
 | Metadata | Details |
 | :--- | :--- |
 | **Product Name** | Smart Expense Tracker (SpendWise) |
-| **Document Version** | 1.5.0 |
+| **Document Version** | 1.6.0 |
 | **Status** | Approved / In Active Production |
 | **Target Platform** | Android 8.0+ (API Level 26+) |
 | **Document Owner** | Engineering & Product Architecture Team |
@@ -55,7 +55,7 @@ Smart Expense Tracker delivers:
 ## 4. Product Principles & Non-Negotiables
 
 1. **Local-First & Zero-Cloud**: No server infrastructure, no user authentication required, no telemetry sent to commercial backends.
-2. **Deterministic & Explainable**: Parsing decisions are grounded in transparent, maintainable regex rules and local heuristics.
+2. **Deterministic & Explainable**: Parsing decisions are grounded in transparent, maintainable rules and local heuristics.
 3. **Battery-Conservative**: Native listeners wake up only when a financial broadcast is received and shut down immediately (<1% daily battery impact).
 4. **Data Portability**: Users can export full JSON backups or restore existing historical records with a single tap.
 
@@ -69,7 +69,7 @@ Smart Expense Tracker delivers:
 * **FR-1.3**: The system shall apply an instant sender allowlist/blocklist filter to discard personal messages, spam, OTPs, balance inquiries, and cellular operator ads before heavy processing.
 
 ### FR-2: Entity Extraction & Message Parsing
-* **FR-2.1**: The parser shall extract:
+* **FR-2.1 (Targeted Entity Extraction)**: The parser shall extract:
   * **Amount**: Handles currencies (`₹`, `Rs.`, `INR`), decimal precision, and comma separators.
   * **Transaction Type**: Categorizes as `debit` (spent, withdrawn, paid) or `credit` (received, refunded, deposited, cash income).
   * **Payment Mode**: Detects `upi`, `cc` (credit card), `dc` (debit card), `netbanking`, `atm`, or `cash`.
@@ -78,6 +78,9 @@ Smart Expense Tracker delivers:
   * **Merchant / Payee Name**: Cleans and extracts display merchant or payee entity.
   * **Available Balance**: Extracts reported post-transaction account balance for live reconciliation.
   * **Reference ID / UTR**: Extracts bank transaction reference or UPI UTR number for deduplication.
+* **FR-2.2 (Data-Driven Zero-Code Rules)**: The parser shall decouple provider rules into declarative JSON configuration (`bankRules.json`, `merchantAliases.json`, `categoryRules.json`), supporting new banks and fintech providers without modifying application code.
+* **FR-2.3 (Multi-Factor Quality Scoring)**: The engine shall assign a normalized confidence score (0.0 to 1.0) evaluating signal certainty across amount, transaction type, merchant, account, bank, and reference. Transactions below confidence 0.65 shall trigger offline AI fallback or user validation.
+* **FR-2.4 (Adaptive On-Device Learning)**: When a user corrects a merchant name or updates a category, the system shall record this association in local SQLite to automatically apply user corrections to future transactions without remote server involvement.
 
 ### FR-3: Multi-Source Deduplication
 * **FR-3.1**: When a transaction triggers both an app push notification and a bank SMS alert, the system shall match transactions within a 15-minute sliding window based on identical reference ID, amount, or account number.
@@ -113,7 +116,7 @@ Smart Expense Tracker delivers:
 | **NFR-1** | **Privacy** | Zero outbound network calls containing financial data. Database stored encrypted in app internal storage. | 0 bytes leaked to internet |
 | **NFR-2** | **Performance** | Time taken from SMS arrival to database storage. | < 150 ms |
 | **NFR-3** | **Battery** | Daily battery consumption of native receivers and background listeners. | < 1.0% per 24 hours |
-| **NFR-4** | **Reliability** | Parsing accuracy on standard Indian banking transactional templates. | > 98% precision |
+| **NFR-4** | **Reliability** | Parsing accuracy on standard Indian banking transactional templates. | > 99% precision (599 verified tests) |
 | **NFR-5** | **Storage** | SQLite query execution times for aggregation and list paging (up to 50,000 transactions). | < 25 ms per query |
 | **NFR-6** | **Compatibility** | Support for modern Android releases and CPU architectures. | Android 8.0 - 16 (`arm64-v8a`, `x86_64`) |
 

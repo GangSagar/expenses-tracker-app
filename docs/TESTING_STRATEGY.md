@@ -37,50 +37,86 @@ SpendWise operates under strict on-device constraints where financial inaccuraci
 
 ## 3. Core Test Suites Inventory
 
-SpendWise features 12 specialized test suites comprising 103+ unit and integration tests:
+SpendWise features 22 specialized test suites comprising 599 unit, integration, and hardware verification tests:
 
-### 3.1. Parsing & Normalization Suites
+### 3.1. Modular Parsing Engine Suites (`src/__tests__/parser/`)
+* **`src/__tests__/parser/normalizer.test.ts`**:
+  - Tests Unicode mathematical sans-serif/bold glyph conversion (`𝖡𝖮𝖡` ➔ `BOB`, `₹ 𝟓𝟒𝟗` ➔ `₹ 549`).
+  - Tests currency standardizer converting `Rs.`, `₹`, `INR`, `INR.` to uniform `INR` with boundary markers.
+  - Tests keyword normalizer (`a/c` ➔ `account`, `txn` ➔ `transaction`, `ref no` ➔ `reference`, `bal` ➔ `balance`).
+  - Tests whitespace normalizer collapsing multi-space, tab, and newline irregularities.
+
+* **`src/__tests__/parser/tokenizer.test.ts`**:
+  - Validates lexical token categorization: `AMOUNT`, `ACCOUNT`, `VPA`, `KEYWORD`, `DATE`, `REF_NUMBER`, `MERCHANT_HINT`, `WORD`, `SEPARATOR`, `UNKNOWN`.
+  - Verifies exact start and end offset index preservation across the token stream.
+
+* **`src/__tests__/parser/extractor.test.ts`**:
+  - Tests targeted `AmountExtractor` against decimal figures, comma separation, and balance collision prevention.
+  - Tests `AccountExtractor` against masked accounts: `XX1234`, `*5678`, `Card ending in 9012`.
+  - Tests `BankExtractor` identifying 15+ Indian banks from DLT headers and body mentions.
+  - Tests `VpaExtractor` validating UPI handles (`name@bank`) and stripping bank extensions.
+  - Tests `ReferenceExtractor` capturing 12-digit UPI RRN / bank reference numbers.
+  - Tests `BalanceExtractor` extracting post-transaction account running balances.
+  - Tests `PaymentModeExtractor` classifying `upi`, `cc`, `dc`, `netbanking`, `atm`, `cash`.
+  - Tests `RawMerchantExtractor` capturing payee strings after `at`, `to`, `spent on`.
+
+* **`src/__tests__/parser/resolvers.test.ts`**:
+  - Tests `MerchantResolver`: noise removal, UPI VPA extraction, canonical alias matching (`ZOMATO LTD` ➔ `Zomato`), bank header cleaning.
+  - Tests `TransactionResolver`: directionality resolution; prioritizes user debited account in dual debit/credit SMS alerts.
+  - Tests `CategoryResolver`: keyword-to-category mapping across 8 core expense categories.
+
+* **`src/__tests__/parser/confidence.test.ts`**:
+  - Evaluates weighted scoring matrix (amount 0.35, merchant 0.20, type 0.20, account 0.15, bank 0.05, ref 0.05).
+  - Verifies ambiguity penalties and confidence threshold gating ($\ge 0.65$ automatic approval).
+
+* **`src/__tests__/parser/learning.test.ts`**:
+  - Tests `LearningEngine` with `InMemoryLearningRepository`.
+  - Validates recording of user corrections, merchant-to-category associations, frequency increments, and pattern recalls.
+
+* **`src/__tests__/parser/ai.test.ts`**:
+  - Tests `AIResolver` fallback mechanism for ambiguous low-confidence messages.
+  - Validates persistent `AICache` storing input hash $\to$ resolved entity mapping to ensure 0 redundant inferences.
+
+* **`src/__tests__/parser/filter.test.ts`**:
+  - Verifies rejection of non-financial SMS, OTP verification alerts, cellular recharge alerts, and personal messages.
+
+* **`src/__tests__/parser/orchestrator.test.ts`**:
+  - Verifies complete 10-stage execution pipeline producing strongly typed `StructuredExpense` instances.
+
+### 3.2. Legacy Backward Compatibility & Golden Regression Suites
 * **`src/__tests__/parser.test.ts`**:
-  - Tests amount extraction across formats: `Rs. 450.00`, `INR 1,250.50`, `₹549`, `Rs 12500`.
-  - Tests transaction type disambiguation: `debited`, `spent`, `withdrawn`, `purchase`, `paid` vs `credited`, `deposited`, `received`, `refund`, `reversed`.
-  - Tests bank entity resolution across 15+ major Indian financial institutions.
-  - Tests account masking patterns: `A/C XX1234`, `A/c *5678`, `Card ending 9012`, `Acct ...3456`.
-  - Tests available balance extraction from post-transaction summaries.
-  - Tests UPI reference ID parsing (`Ref No: 650422642065`, `UPI-Ref: 841377052636`).
+  - 48 comprehensive tests ensuring that legacy `parseMessage(message, sender, source)` maintains 100% contract fidelity with existing components.
+  - Tests complex bank formats across SBI, HDFC, ICICI, Axis, Kotak, BOB, PNB, and UPI apps.
 
-* **`src/__tests__/filter.test.ts`**:
-  - Evaluates TRAI DLT alphanumeric sender validation (e.g., `VM-HDFCBK`, `AD-SBIINB`, `BP-KOTAKB`, `JX-BOBSMS`).
-  - Verifies rejection of personal 10-digit mobile phone senders (`+919876543210`).
-  - Validates rejection of OTP verification messages (`Your OTP is 492018 for transaction...`).
-  - Validates rejection of promotional spam lacking transactional triggers.
+* **`src/__tests__/collected-real.test.ts`**:
+  - 432 real-world physical device transaction test cases harvested from real handsets.
+  - Guarantees zero regression on actual SMS formats used by Indian banking institutions.
 
-* **`src/__tests__/classifier.test.ts` & `bayesClassifier.test.ts`**:
-  - Verifies keyword-to-category mapping for Groceries, Food & Dining, Shopping, Travel, Utilities, Health, and Entertainment.
-  - Tests on-device Bayesian spam probability scoring against edge-case marketing messages that mention currency figures (e.g., "Pre-approved loan of Rs. 5,00,000 available").
-  - Verifies confidence threshold scoring (`confidence.test.ts`) preventing low-certainty categorizations from corrupting user budgets.
-
-### 3.2. Deduplication & State Integrity Suites
+### 3.3. Deduplication, Repository & State Integrity Suites
 * **`src/__tests__/dedup.test.ts`**:
   - Validates exact hash deduplication: `hash(bank + account + amount + timestamp)`.
   - Validates UPI Reference ID deduplication: preventing duplicate records when both bank SMS and merchant SMS are received for the same payment.
   - Tests sliding-window temporal fuzzy matching: flagging duplicate messages received within 180 seconds with matching amounts and merchant tokens.
   - Tests split auto-repayment reconciliation: recognizing when a friend repays an outstanding split debt via UPI.
 
+* **`src/__tests__/filter.test.ts`**:
+  - Evaluates TRAI DLT alphanumeric sender validation (e.g., `VM-HDFCBK`, `AD-SBIINB`, `BP-KOTAKB`, `JX-BOBSMS`).
+  - Verifies rejection of personal 10-digit mobile phone senders (`+919876543210`).
+
+* **`src/__tests__/classifier.test.ts` & `bayesClassifier.test.ts`**:
+  - Tests on-device Bayesian spam probability scoring against edge-case marketing messages that mention currency figures.
+
 * **`src/__tests__/expenseRepo.test.ts`**:
-  - Tests SQLite database migrations (v1 through v4).
-  - Tests soft-delete trashing lifecycle: ensuring trashed transactions are excluded from dashboard balances but preserved in database for potential restoration.
-  - Validates atomic multi-row updates and rollback safety on malformed payloads.
+  - Tests SQLite database migrations (v1 through v4), soft-delete trashing, and atomic multi-row updates.
 
 * **`src/__tests__/advisorService.test.ts`**:
-  - Validates monthly burn-rate calculations:
-    $$\text{Daily Burn} = \frac{\text{Spent to Date}}{\text{Day of Month}}$$
-  - Tests budget alert triggers when spending exceeds 80%, 90%, and 100% of defined monthly limits.
+  - Validates monthly burn-rate calculations and predictive budget exhaustion warnings.
 
 * **`src/__tests__/retryQueue.test.ts`**:
-  - Validates transient failure handling: tests exponential backoff retry mechanisms during database locks or rapid concurrent message arrival.
+  - Validates transient failure handling with exponential backoff retry mechanisms.
 
 * **`src/__tests__/transactionOrchestrator.test.ts`**:
-  - Verifies end-to-end execution flow: Raw SMS $\to$ Alphanumeric Filter $\to$ Unicode Normalizer $\to$ Regex Parser $\to$ Spam Scorer $\to$ Deduplicator $\to$ SQLite Insertion.
+  - Verifies end-to-end execution flow: Raw SMS $\to$ Alphanumeric Filter $\to$ Unicode Normalizer $\to$ Modular Parser $\to$ Spam Scorer $\to$ Deduplicator $\to$ SQLite Insertion.
 
 ---
 
@@ -198,7 +234,7 @@ SpendWise integrates OpenTelemetry distributed tracing to monitor pipeline bottl
 Prior to tagging any production release (`git tag vX.Y.Z`), the following verification criteria must be met:
 
 - [ ] **TypeScript Check**: `npx tsc --noEmit` completes with 0 errors.
-- [ ] **Core Unit Tests**: `npm test -- --testPathIgnorePatterns="collected-real"` passes with 100% success rate (103/103 tests passing).
+- [ ] **Core Unit Tests**: `npm test -- --testPathIgnorePatterns="collected-real"` passes with 100% success rate (167/167 unit tests passing; 599/599 tests passing across full repository).
 - [ ] **Lint Cleanliness**: `npm run lint` passes with 0 fatal errors.
 - [ ] **Hardware Sanity**: `npm run test:collect` run against physical hardware to catch any unhandled carrier formatting changes.
 - [ ] **Database Migration Integrity**: Tested upgrade path from v1.0.0 database file through latest schema migration without data loss.
