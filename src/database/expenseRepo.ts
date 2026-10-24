@@ -227,6 +227,79 @@ export function isDuplicateTransaction(
   return !!(result.rows && result.rows.length > 0);
 }
 
+export interface DedupCache {
+  refIds: Set<string>;
+  rawMessages: Set<string>;
+  temporalIndex: Array<{ amount: number; timestamp: number }>;
+}
+
+/**
+ * Creates an in-memory deduplication index from the local SQLite database.
+ * Allows checking thousands of messages in memory in microseconds rather than
+ * issuing 3 synchronous SQLite queries per message over disk.
+ */
+export function createDedupCache(): DedupCache {
+  const db = getDatabase();
+  const all = db.execute(
+    'SELECT amount, timestamp, reference_id, raw_message FROM expenses WHERE is_invalid = 0',
+  );
+  const rows = all.rows?._array || [];
+  const refIds = new Set<string>();
+  const rawMessages = new Set<string>();
+  const temporalIndex: Array<{ amount: number; timestamp: number }> = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (r.reference_id) refIds.add(String(r.reference_id).trim());
+    if (r.raw_message) rawMessages.add(String(r.raw_message).trim());
+    if (typeof r.amount === 'number' && typeof r.timestamp === 'number') {
+      temporalIndex.push({ amount: r.amount, timestamp: r.timestamp });
+    }
+  }
+
+  return { refIds, rawMessages, temporalIndex };
+}
+
+export function isDuplicateWithCache(
+  cache: DedupCache,
+  amount: number,
+  timestamp: number,
+  referenceId?: string,
+  rawMessage?: string,
+): boolean {
+  if (referenceId && cache.refIds.has(String(referenceId).trim())) {
+    return true;
+  }
+  if (rawMessage && cache.rawMessages.has(String(rawMessage).trim())) {
+    return true;
+  }
+
+  const DEDUP_WINDOW_MS = 15 * 60 * 1000;
+  const minTs = timestamp - DEDUP_WINDOW_MS;
+  const maxTs = timestamp + DEDUP_WINDOW_MS;
+
+  for (let i = 0; i < cache.temporalIndex.length; i++) {
+    const item = cache.temporalIndex[i];
+    if (item.amount === amount && item.timestamp >= minTs && item.timestamp <= maxTs) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export function addToDedupCache(
+  cache: DedupCache,
+  amount: number,
+  timestamp: number,
+  referenceId?: string,
+  rawMessage?: string,
+): void {
+  if (referenceId) cache.refIds.add(String(referenceId).trim());
+  if (rawMessage) cache.rawMessages.add(String(rawMessage).trim());
+  cache.temporalIndex.push({ amount, timestamp });
+}
+
 export function getAllExpenses(
   limit: number = 50,
   offset: number = 0,
