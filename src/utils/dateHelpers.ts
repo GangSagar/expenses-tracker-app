@@ -66,6 +66,16 @@ export function generateDaysInMonth(date: Date) {
 }
 
 /**
+ * Calculates net balance delta for a list of expenses (credits positive, debits negative).
+ */
+export function calculateNetExpenseTotal(expenses: Expense[]): number {
+  return expenses.reduce((sum, e) => {
+    const amt = Number(e.amount) || 0;
+    return e.transactionType === 'credit' ? sum + amt : sum - amt;
+  }, 0);
+}
+
+/**
  * Groups and sections transaction lists chronologically (Today, Last 30 Days, Current Year, Older).
  */
 export function getGroupedSections(expenses: Expense[]): GroupedSection[] {
@@ -91,10 +101,7 @@ export function getGroupedSections(expenses: Expense[]): GroupedSection[] {
     const sortedExpenses = [...val.expenses].sort((a, b) => b.timestamp - a.timestamp);
 
     // Calculate month total
-    const monthTotal = sortedExpenses.reduce((sum, e) => {
-      const amt = Number(e.amount) || 0;
-      return e.transactionType === 'credit' ? sum + amt : sum - amt;
-    }, 0);
+    const monthTotal = calculateNetExpenseTotal(sortedExpenses);
 
     // Group expenses by specific Day to insert Date Dividers with day-level totals
     const dayGroups: Record<string, { title: string; timestamp: number; isToday: boolean; expenses: Expense[] }> = {};
@@ -130,10 +137,7 @@ export function getGroupedSections(expenses: Expense[]): GroupedSection[] {
     // Flatten day groups into a single list of items containing dividers and expenses
     const flattenedItems: any[] = [];
     for (const [dayKey, dayVal] of sortedDays) {
-      const dayTotal = dayVal.expenses.reduce((sum, e) => {
-        const amt = Number(e.amount) || 0;
-        return e.transactionType === 'credit' ? sum + amt : sum - amt;
-      }, 0);
+      const dayTotal = calculateNetExpenseTotal(dayVal.expenses);
 
       // Push the Date Divider with dateKey and isToday properties
       flattenedItems.push({

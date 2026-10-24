@@ -322,36 +322,16 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   settleContactSplits: contactName => {
     try {
       const expenses = get().expenses;
-
-      // Find all expenses that have a split with this contact name
       const affected = expenses.filter(
-        e =>
-          e.splits &&
-          e.splits.some(s => s.contactName === contactName && !s.isPaid),
+        e => e.splits && e.splits.some(s => s.contactName === contactName && !s.isPaid),
       );
-
       for (const e of affected) {
         if (!e.id) continue;
         const updatedSplits =
-          e.splits?.map(s =>
-            s.contactName === contactName ? { ...s, isPaid: true } : s,
-          ) || [];
-
-        // Save to DB
-        updateExpenseDb(
-          e.id,
-          e.merchant,
-          e.category,
-          e.bank,
-          e.paymentMode,
-          e.amount,
-          updatedSplits,
-        );
+          e.splits?.map(s => (s.contactName === contactName ? { ...s, isPaid: true } : s)) || [];
+        updateExpenseDb(e.id, e.merchant, e.category, e.bank, e.paymentMode, e.amount, updatedSplits);
       }
-
-      // Reload expenses from DB to ensure state consistency
-      const reloaded = getAllExpenses(2000);
-      set({ expenses: reloaded });
+      set({ expenses: getAllExpenses(2000) });
     } catch (e) {
       console.error('Failed to settle contact splits', e);
     }
@@ -360,36 +340,16 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   unsettleContactSplits: contactName => {
     try {
       const expenses = get().expenses;
-
-      // Find all expenses that have a settled split with this contact name
       const affected = expenses.filter(
-        e =>
-          e.splits &&
-          e.splits.some(s => s.contactName === contactName && s.isPaid),
+        e => e.splits && e.splits.some(s => s.contactName === contactName && s.isPaid),
       );
-
       for (const e of affected) {
         if (!e.id) continue;
         const updatedSplits =
-          e.splits?.map(s =>
-            s.contactName === contactName ? { ...s, isPaid: false } : s,
-          ) || [];
-
-        // Save to DB
-        updateExpenseDb(
-          e.id,
-          e.merchant,
-          e.category,
-          e.bank,
-          e.paymentMode,
-          e.amount,
-          updatedSplits,
-        );
+          e.splits?.map(s => (s.contactName === contactName ? { ...s, isPaid: false } : s)) || [];
+        updateExpenseDb(e.id, e.merchant, e.category, e.bank, e.paymentMode, e.amount, updatedSplits);
       }
-
-      // Reload expenses from DB
-      const reloaded = getAllExpenses(2000);
-      set({ expenses: reloaded });
+      set({ expenses: getAllExpenses(2000) });
     } catch (e) {
       console.error('Failed to unsettle contact splits', e);
     }
