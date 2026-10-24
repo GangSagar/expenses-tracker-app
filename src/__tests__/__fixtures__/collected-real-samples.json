@@ -1,0 +1,4934 @@
+[
+  {
+    "message": "Rs.1.00 Dr. from A/C XXXXXX9132 and Cr. to 8543851508@ybl. Ref:619719384932. AvlBal:Rs2947.56(2026:07:16 09:01:01). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 1.0,
+      "merchant": "8543851508@ybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 2947.56
+    }
+  },
+  {
+    "message": "Rs.1000.00 Dr. from A/C XXXXXX9132 and Cr. to vidyasagar0205@okaxis. Ref:656367211330. AvlBal:Rs1947.56(2026:07:16 09:09:48). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 1000.0,
+      "merchant": "vidyasagar0205@okaxis",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 1947.56
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 2.00 on 16-Jul-26 from GOOGLE INDIA DI. UPI:403230391976-ICICI Bank.",
+    "expected": {
+      "amount": 2.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Rs.1000.00 Dr. from A/C XXXXXX9132 and Cr. to 8543851508@ybl. Ref:656404123579. AvlBal:Rs947.56(2026:07:17 09:30:16). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 1000.0,
+      "merchant": "8543851508@ybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 947.56
+    }
+  },
+  {
+    "message": "INR 55.00 spent using ICICI Bank Card XX4000 on 17-Jul-26 on PAY*Tobox Ventu. Avl Limit: INR 20,990.88. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 55.0,
+      "merchant": "Unknown",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 20990.88
+    }
+  },
+  {
+    "message": "INR 362.00 spent using ICICI Bank Card XX4000 on 17-Jul-26 on CALIFORNIA BURR. Avl Limit: INR 20,526.88. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 362.0,
+      "merchant": "CALIFORNIA BURR",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 20526.88
+    }
+  },
+  {
+    "message": "Rs.20.00 Dr. from A/C XXXXXX9132 and Cr. to 9620845591-2@axl. Ref:619848606545. AvlBal:Rs927.56(2026:07:17 11:43:37). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 20.0,
+      "merchant": "9620845591-2@axl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 927.56
+    }
+  },
+  {
+    "message": "INR 612.00 spent using ICICI Bank Card XX4000 on 18-Jul-26 on SWIGGY PVT LTD . Avl Limit: INR 19,914.88. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 612.0,
+      "merchant": "SWIGGY PVT LTD",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 19914.88
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 411.00 on 2026-07-20 08:50:03 AM by UPI Ref No 373123947349; AvlBal: Rs1219.56 - BOB",
+    "expected": {
+      "amount": 411.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 1219.56
+    }
+  },
+  {
+    "message": "INR 80.00 spent using ICICI Bank Card XX4000 on 20-Jul-26 on PAY*Tobox Ventu. Avl Limit: INR 19,465.65. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 80.0,
+      "merchant": "Unknown",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 19465.65
+    }
+  },
+  {
+    "message": "INR 102.00 spent using ICICI Bank Card XX4000 on 20-Jul-26 on PAY*Tobox Ventu. Avl Limit: INR 19,363.65. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 102.0,
+      "merchant": "Unknown",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 19363.65
+    }
+  },
+  {
+    "message": "Rs.105.00 Dr. from A/C XXXXXX9132 and Cr. to 8756669695@ibl. Ref:620131169922. AvlBal:Rs1054.56(2026:07:20 04:24:26). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 105.0,
+      "merchant": "8756669695@ibl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 1054.56
+    }
+  },
+  {
+    "message": "Rs.149.00 Dr. from A/C XXXXXX9132 and Cr. to playstore@axisbank. Ref:327137972016. AvlBal:Rs905.56(2026:07:20 05:12:23). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 149.0,
+      "merchant": "playstore@axisbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 905.56
+    }
+  },
+  {
+    "message": "Rs.50.00 Dr. from A/C XXXXXX9132 and Cr. to q622413827@ybl. Ref:656812742921. AvlBal:Rs855.56(2026:07:21 11:13:57). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "q622413827@ybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 855.56
+    }
+  },
+  {
+    "message": "INR 40.00 spent using ICICI Bank Card XX4000 on 21-Jul-26 on PAY*Tobox Ventu. Avl Limit: INR 19,323.65. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Unknown",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 19323.65
+    }
+  },
+  {
+    "message": "INR 102.00 spent using ICICI Bank Card XX4000 on 22-Jul-26 on PAY*Tobox Ventu. Avl Limit: INR 18,525.65. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 102.0,
+      "merchant": "Unknown",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 18525.65
+    }
+  },
+  {
+    "message": "INR 55.00 spent using ICICI Bank Card XX4000 on 22-Jul-26 on PAY*Tobox Ventu. Avl Limit: INR 18,470.65. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 55.0,
+      "merchant": "Unknown",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 18470.65
+    }
+  },
+  {
+    "message": "Rs.500.00 Dr. from A/C XXXXXX9132 and Cr. to vidyasagar0205@okaxis. Ref:620302166138. AvlBal:Rs355.56(2026:07:22 07:05:04). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 500.0,
+      "merchant": "vidyasagar0205@okaxis",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 355.56
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 500.00 on 22-Jul-26 from Vidya Sagar. UPI:620398668495-ICICI Bank.",
+    "expected": {
+      "amount": 500.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "INR 549.00 spent using ICICI Bank Card XX4000 on 22-Jul-26 on ASSPL. Avl Limit: INR 17,921.65. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 549.0,
+      "merchant": "ASSPL",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 17921.65
+    }
+  },
+  {
+    "message": "INR 281.00 spent using ICICI Bank Card XX4000 on 23-Jul-26 on SWIGGY PVT LTD . Avl Limit: INR 17,607.52. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 281.0,
+      "merchant": "SWIGGY PVT LTD",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 17607.52
+    }
+  },
+  {
+    "message": "INR 40.00 spent using ICICI Bank Card XX4000 on 23-Jul-26 on PAY*Tobox Ventu. Avl Limit: INR 17,442.52. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Unknown",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 17442.52
+    }
+  },
+  {
+    "message": "HSBC: You've added HSBC Bank Credit Card no 356108XXXXXXXX85 for UPI. Transaction limit is upto Rs.5000 within 24hrs from 1st transaction. Not you? Kindly report on 18002673456.",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "UPI",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 362.0 spent on your HSBC Credit Card ending 7285 at CALIFORNIA BURRITO on 23 Jul 2026 through UPI: 657005566082. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 362.0,
+      "merchant": "CALIFORNIA BURRITO through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 181.00 on 23-Jul-26 from ANMOL SHARMA. UPI:657072138758-ICICI Bank.",
+    "expected": {
+      "amount": 181.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 137.00 on 23-Jul-26 from ANMOL SHARMA. UPI:657031157098-ICICI Bank.",
+    "expected": {
+      "amount": 137.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Rs.80.00 Dr. from A/C XXXXXX9132 and Cr. to 8660906364@okbizaxis. Ref:657073847317. AvlBal:Rs275.56(2026:07:23 08:20:59). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 80.0,
+      "merchant": "8660906364@okbizaxis",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 275.56
+    }
+  },
+  {
+    "message": "HSBC: Rs 120.0 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 24 Jul 2026 through UPI: 620541121051. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 120.0,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 123.00 on 24-Jul-26 from DIBYAJIVAN DAS. UPI:620544747682-ICICI Bank.",
+    "expected": {
+      "amount": 123.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 122.72 on 24-Jul-26 from PURVIKA PRASAD . UPI:620547756315-ICICI Bank.",
+    "expected": {
+      "amount": 122.72,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 122.72 on 24-Jul-26 from ARYA ARORA DASH. UPI:620533275222-ICICI Bank.",
+    "expected": {
+      "amount": 122.72,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 123.00 on 2026-07-24 09:55:17 PM by UPI Ref No 215516332797; AvlBal: Rs521.56 - BOB",
+    "expected": {
+      "amount": 123.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 521.56
+    }
+  },
+  {
+    "message": "HSBC: Rs 47.0 spent on your HSBC Credit Card ending 7285 at Ratnadeep Supermarket  Bangalore on 24 Jul 2026 through UPI: 620514657847. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 47.0,
+      "merchant": "Ratnadeep Supermarket Bangalore through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 224.95 spent on your HSBC Credit Card ending 7285 at ZEPTO on 25 Jul 2026 through UPI: 620657854566. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 224.95,
+      "merchant": "ZEPTO through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 60.00 on 25-Jul-26; KUNDAN JAIRU credited. UPI:620648494811. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 60.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 120.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 25 Jul 2026 through UPI: 657241228601. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 120.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 152.00 spent using ICICI Bank Card XX4000 on 26-Jul-26 on Flipkart. Avl Limit: INR 17,290.52. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 152.0,
+      "merchant": "Flipkart",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 17290.52
+    }
+  },
+  {
+    "message": "HSBC: Rs 1200.0 spent on your HSBC Credit Card ending 7285 at Ratnadeep Supermarket  Bangalore on 26 Jul 2026 through UPI: 657326983092. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 1200.0,
+      "merchant": "Ratnadeep Supermarket Bangalore through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 83.0 spent on your HSBC Credit Card ending 7285 at ROHIT KUMAR on 26 Jul 2026 through UPI: 620706293181. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 83.0,
+      "merchant": "ROHIT KUMAR through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 240.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 27 Jul 2026 through UPI: 620845060408. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 240.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 100.0 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 28 Jul 2026 through UPI: 620923774135. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 100.0,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 122.72 on 28-Jul-26 from PRATEEP MUKHERJ. UPI:620919521725-ICICI Bank.",
+    "expected": {
+      "amount": 122.72,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 28 Jul 2026 through UPI: 620994565764. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 125.00 on 28-Jul-26 from SEJAL MITTAL. UPI:620915379164-ICICI Bank.",
+    "expected": {
+      "amount": 125.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 125.00 on 2026-07-28 04:22:53 PM by UPI Ref No 620901423144; AvlBal: Rs447.56 - BOB",
+    "expected": {
+      "amount": 125.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 447.56
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 123.00 on 28-Jul-26 from TARUNA CHAUDHAR. UPI:126990609513-ICICI Bank.",
+    "expected": {
+      "amount": 123.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 29 Jul 2026 through UPI: 657632954046. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 80.0 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 29 Jul 2026 through UPI: 657632970371. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 80.0,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 29 Jul 2026 through UPI: 657605278556. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 1570.00 on 29-Jul-26 from SARIN S B. UPI:657658678326-ICICI Bank.",
+    "expected": {
+      "amount": 1570.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 72.0 spent on your HSBC Credit Card ending 7285 at CALIFORNIA BURRITO on 29 Jul 2026 through UPI: 621037606770. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 72.0,
+      "merchant": "CALIFORNIA BURRITO through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 120.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 29 Jul 2026 through UPI: 621037402381. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 120.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 999.00 spent using ICICI Bank Card XX4000 on 29-Jul-26 on DISTRICT DINING. Avl Limit: INR 15,921.52. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 999.0,
+      "merchant": "DISTRICT DINING",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 15921.52
+    }
+  },
+  {
+    "message": "INR 629.24 spent using ICICI Bank Card XX4000 on 29-Jul-26 on ETERNAL LIMITED. Avl Limit: INR 15,292.28. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 629.24,
+      "merchant": "ETERNAL LIMITED",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 15292.28
+    }
+  },
+  {
+    "message": "INR 1,188.86 spent using ICICI Bank Card XX4000 on 29-Jul-26 on ORBGEN TECHNOLO. Avl Limit: INR 14,103.42. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 1188.86,
+      "merchant": "ORBGEN TECHNOLO",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 14103.42
+    }
+  },
+  {
+    "message": "ICICI Bank Account XX575 credited:Rs. 31,096.66 on 30-Jul-26. Info NEFT-BOFAH26211003443-SAGAR . Available Balance is Rs. 34,451.81.",
+    "expected": {
+      "amount": 31096.66,
+      "merchant": "SAGAR",
+      "transactionType": "credit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 34451.81
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 30867.03 on 30-Jul-26; Google India Di credited. UPI:621128211720. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 30867.03,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Payment of Rs 30,867.03 has been received on your ICICI Bank Credit Card XX4000 through Bharat Bill Payment System on 30-JUL-26.",
+    "expected": {
+      "amount": 30867.03,
+      "merchant": "Bill Payment System",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 30 Jul 2026 through UPI: 621151917312. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 30 Jul 2026 through UPI: 621156042721. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 562.00 on 30-Jul-26; SHIVAM RAJENDRA credited. UPI:621152049869. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 562.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "INR 2,959.11 spent using ICICI Bank Card XX4000 on 30-Jul-26 on CENTRO. Avl Limit: INR 23,011.34. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 2959.11,
+      "merchant": "CENTRO",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 23011.34
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 2959.00 on 2026-07-30 07:35:24 PM by UPI Ref No 621176648154; AvlBal: Rs3531.56 - BOB",
+    "expected": {
+      "amount": 2959.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 3531.56
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 5.00 on 2026-07-31 06:56:56 AM by UPI Ref No 973234982126; AvlBal: Rs3536.56 - BOB",
+    "expected": {
+      "amount": 5.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 3536.56
+    }
+  },
+  {
+    "message": "ICICI Bank Account XX575 credited:Rs. 68,669.00 on 31-Jul-26. Info ACH*SAL-HPPPSINDOPEPVTLT*SAL. Available Balance is Rs. 71,691.78.",
+    "expected": {
+      "amount": 68669.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 71691.78
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 9500.00 on 31-Jul-26; Vidya Sagar credited. UPI:621208096623. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 9500.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 15000.00 on 31-Jul-26; MAHESH PRASAD K credited. UPI:621230592215. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 15000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 5000.00 on 31-Jul-26; CHANDRAKALA credited. UPI:621201280560. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 900.00 on 31-Jul-26; ADITYA KUMAR DW credited. UPI:621278095892. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 900.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 3000.00 on 31-Jul-26; Nishant Verma credited. UPI:621282693216. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 3000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 7500.00 on 31-Jul-26; rahulsingh84300 credited. UPI:657859803763. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 7500.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acc XX575 debited Rs. 3,000.00 on 31-Jul-26 InfoBIL*INFT*FGZ9.Avl Bal Rs. 27,791.78.To dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+    "expected": {
+      "amount": 3000.0,
+      "merchant": "dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 27791.78
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 31 Jul 2026 through UPI: 621263989485. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear Customer, Payment of INR 3,000.00 has been received on your ICICI Bank Credit Card Account 4xxx4000 on 31-JUL-26.Thank you.",
+    "expected": {
+      "amount": 3000.0,
+      "merchant": "your ICICI Bank Credit Card 4xxx4000 .Thank you",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 31 Jul 2026 through UPI: 657834118199. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 1000.00 on 31-Jul-26; CHANDRAKALA credited. UPI:657848550040. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 1000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 1998.1 spent on your HSBC Credit Card ending 7285 at Amazon India on 31 Jul 2026 through UPI: 657834369382. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 1998.1,
+      "merchant": "Amazon India through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 404.0 spent on your HSBC Credit Card ending 7285 at Amazon India on 31 Jul 2026 through UPI: 657839876474. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 404.0,
+      "merchant": "Amazon India through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 315.0 spent on your HSBC Credit Card ending 7285 at Zepto Marketplace Private Limi on 01 Aug 2026 through UPI: 657912265276. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 315.0,
+      "merchant": "Zepto Marketplace Private Limi through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 0.01 on 2026-08-01 09:33:56 AM by UPI Ref No 103754338496; AvlBal: Rs4536.57 - BOB",
+    "expected": {
+      "amount": 0.01,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 4536.57
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 5000.00 on 01-Aug-26; PRABIR BISWAS credited. UPI:621325337555. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 500.0 spent on your HSBC Credit Card ending 7285 at DREAM COLLECTIONS on 01 Aug 2026 through UPI: 621339937512. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 500.0,
+      "merchant": "DREAM COLLECTIONS through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 250.00 on 02-Aug-26; ABUL HUSSAIN credited. UPI:621487843125. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 250.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 1126.0 spent on your HSBC Credit Card ending 7285 at WAH PARANTHA on 02 Aug 2026 through UPI: 658084514548. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 1126.0,
+      "merchant": "WAH PARANTHA through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.375.00 Dr. from A/C XXXXXX9132 and Cr. to akankshakumari030403@oksbi. Ref:621578500893. AvlBal:Rs4161.57(2026:08:03 12:46:23). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 375.0,
+      "merchant": "akankshakumari030403@oksbi",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 4161.57
+    }
+  },
+  {
+    "message": "Rs.250.00 Dr. from A/C XXXXXX9132 and Cr. to anirudhjay2105@okicici. Ref:621544710184. AvlBal:Rs3911.57(2026:08:03 12:46:39). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 250.0,
+      "merchant": "anirudhjay2105@okicici",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 3911.57
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 656.00 on 2026-08-03 01:14:13 AM by UPI Ref No 658161821853; AvlBal: Rs3911.57 - BOB",
+    "expected": {
+      "amount": 656.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 3911.57
+    }
+  },
+  {
+    "message": "Rs.253.00 Dr. from A/C XXXXXX9132 and Cr. to nishantverma1.knp2019@okhdfcbank. Ref:621535610206. AvlBal:Rs3911.57(2026:08:03 01:17:25). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 253.0,
+      "merchant": "nishantverma1.knp2019@okhdfcbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 3911.57
+    }
+  },
+  {
+    "message": "Rs.112.25 Dr. from A/C XXXXXX9132 and Cr. to nishantverma1.knp2019@okhdfcbank. Ref:621536807896. AvlBal:Rs3911.57(2026:08:03 01:17:44). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 112.25,
+      "merchant": "nishantverma1.knp2019@okhdfcbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 3911.57
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 900.00 on 2026-08-03 03:31:22 AM by UPI Ref No 658106121293; AvlBal: Rs3911.57 - BOB",
+    "expected": {
+      "amount": 900.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 3911.57
+    }
+  },
+  {
+    "message": "Rs.734.50 Dr. from A/C XXXXXX9132 and Cr. to adityakumardwivedi69@okicici. Ref:621545320063. AvlBal:Rs4367.82(2026:08:03 09:30:51). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 734.5,
+      "merchant": "adityakumardwivedi69@okicici",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 4367.82
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 03 Aug 2026 through UPI: 658181638011. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 03 Aug 2026 through UPI: 658179145834. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 491.00 on 2026-08-03 02:06:53 PM by UPI Ref No 742256975131; AvlBal: Rs4858.82 - BOB",
+    "expected": {
+      "amount": 491.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 4858.82
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 03 Aug 2026 through UPI: 658128679023. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 03 Aug 2026 through UPI: 658148678366. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 04 Aug 2026 through UPI: 621683119881. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 04 Aug 2026 through UPI: 621623460599. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Credit Card XX4000 Statement is sent to hr******it@gmail.com. Total of Rs 30,867.03 or minimum of Rs 20,150.00 is due by 15-AUG-26.",
+    "expected": {
+      "amount": 30867.03,
+      "merchant": "Unknown",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 650.0 spent on your HSBC Credit Card ending 7285 at DREAM COLLECTIONS on 04 Aug 2026 through UPI: 621617280347. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 650.0,
+      "merchant": "DREAM COLLECTIONS through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.288.45 Dr. from A/C XXXXXX9132 and Cr. to zepto.payu@hdfcbank. Ref:621706415619. AvlBal:Rs4872.82(2026:08:05 01:30:48). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 288.45,
+      "merchant": "zepto.payu@hdfcbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 4872.82
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 5000.00 on 05-Aug-26; MAHESH PRASAD K credited. UPI:621726397872. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Rs.2000.00 Dr. from A/C XXXXXX9132 and Cr. to vidyasagar0205@okaxis. Ref:621782330347. AvlBal:Rs2584.37(2026:08:05 09:52:41). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 2000.0,
+      "merchant": "vidyasagar0205@okaxis",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 2584.37
+    }
+  },
+  {
+    "message": "HSBC: Rs 38.0 spent on your HSBC Credit Card ending 7285 at TOBOX VENTURES PRIVATE LIMITED on 05 Aug 2026 through UPI: 621700785870. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 38.0,
+      "merchant": "TOBOX VENTURES PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 175.00 spent using ICICI Bank Card XX4000 on 05-Aug-26 on DISTRICT DINING. Avl Limit: INR 25,836.34. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 175.0,
+      "merchant": "DISTRICT DINING",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 25836.34
+    }
+  },
+  {
+    "message": "HSBC: Rs 120.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 05 Aug 2026 through UPI: 658351959685. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 120.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 1348.00 on 06-Aug-26; REDTAPE LIMITED credited. UPI:621887236666. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 1348.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "INR 860.00 spent using ICICI Bank Card XX4000 on 06-Aug-26 on Myntra Designs . Avl Limit: INR 24,976.34. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 860.0,
+      "merchant": "Myntra Designs",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 24976.34
+    }
+  },
+  {
+    "message": "INR 383.00 spent using ICICI Bank Card XX4000 on 06-Aug-26 on SWIGGY FOOD. Avl Limit: INR 24,593.34. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 383.0,
+      "merchant": "SWIGGY FOOD",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 24593.34
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 70.00 on 2026-08-07 06:13:32 PM by UPI Ref No 658559901059; AvlBal: Rs1285.99 - BOB",
+    "expected": {
+      "amount": 70.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 1285.99
+    }
+  },
+  {
+    "message": "HSBC: Rs 220.0 spent on your HSBC Credit Card ending 7285 at Shubh sweets savouri on 07 Aug 2026 through UPI: 658590211428. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 220.0,
+      "merchant": "Shubh sweets savouri through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 173.00 on 2026-08-07 09:23:39 PM by UPI Ref No 658570413266; AvlBal: Rs1458.99 - BOB",
+    "expected": {
+      "amount": 173.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 1458.99
+    }
+  },
+  {
+    "message": "DISTRICT DINING CYBS refund of Rs 175.00 credited to ICICI Bank Credit Card XX4000 on 07-AUG-26. Revised total due Rs 0, minimum due Rs .00",
+    "expected": {
+      "amount": 175.0,
+      "merchant": "ICICI Bank Credit Card XX4000",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Rs 13,087.00 spent on ICICI Bank Card XX4000 on 08-Aug-26 at MAKEMYTRIP INDI. Avl Lmt: Rs 11,508.53. To dispute, call 18002662/SMS BLOCK 4000 to 9215676766. To convert this txn to EMI give a missed call on 9924667667. Know more about EMI conversion at https://icici.co/ICICIT/ar/14AjxoC",
+    "expected": {
+      "amount": 13087.0,
+      "merchant": "MAKEMYTRIP INDI",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 13087.00 on 2026-08-08 05:30:54 PM by UPI Ref No 622052864374; AvlBal: Rs14545.99 - BOB",
+    "expected": {
+      "amount": 13087.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 14545.99
+    }
+  },
+  {
+    "message": "HSBC: Rs 20.0 spent on your HSBC Credit Card ending 7285 at V Y Tea stall on 08 Aug 2026 through UPI: 658657877514. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 20.0,
+      "merchant": "V Y Tea stall through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 25.0 spent on your HSBC Credit Card ending 7285 at Bavaji N on 08 Aug 2026 through UPI: 658642481018. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 25.0,
+      "merchant": "Bavaji N through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Acc XX575 debited Rs. 12,000.00 on 08-Aug-26 InfoBIL*INFT*FHC4.Avl Bal Rs. 3,193.78.To dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+    "expected": {
+      "amount": 12000.0,
+      "merchant": "dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 3193.78
+    }
+  },
+  {
+    "message": "Dear Customer, Payment of INR 12,000.00 has been received on your ICICI Bank Credit Card Account 4xxx4000 on 08-AUG-26.Thank you.",
+    "expected": {
+      "amount": 12000.0,
+      "merchant": "your ICICI Bank Credit Card 4xxx4000 .Thank you",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 400.0 spent on your HSBC Credit Card ending 7285 at TECHTRONIX on 08 Aug 2026 through UPI: 622038201606. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 400.0,
+      "merchant": "TECHTRONIX through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.20.00 Dr. from A/C XXXXXX9132 and Cr. to mybmtcdqr@ybl. Ref:622075307103. AvlBal:Rs14527.99(2026:08:08 07:04:51). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 20.0,
+      "merchant": "mybmtcdqr@ybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 14527.99
+    }
+  },
+  {
+    "message": "Rs.255.00 Dr. from A/C XXXXXX9132 and Cr. to rahulsingh843000-1@okicici. Ref:622035928838. AvlBal:Rs14272.99(2026:08:08 11:14:31). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 255.0,
+      "merchant": "rahulsingh843000-1@okicici",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 14272.99
+    }
+  },
+  {
+    "message": "HSBC: Rs 70.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 09 Aug 2026 through UPI: 622172279736. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 70.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 180.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 09 Aug 2026 through UPI: 622133874722. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 180.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at AATITHYA CATERING on 09 Aug 2026 through UPI: 622100186095. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "AATITHYA CATERING through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 10 Aug 2026 through UPI: 658872717279. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 10 Aug 2026 through UPI: 658802942394. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs 7,707.00 spent on ICICI Bank Card XX4000 on 10-Aug-26 at RAZ*SWIGGY. Avl Lmt: Rs 14,351.30. To dispute, call 18002662/SMS BLOCK 4000 to 9215676766. To convert this txn to EMI give a missed call on 9924667667. Know more about EMI conversion at https://icici.co/ICICIT/ar/14AjxoC",
+    "expected": {
+      "amount": 7707.0,
+      "merchant": "Unknown",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 11 Aug 2026 through UPI: 658901096792. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 12 Aug 2026 through UPI: 622445596398. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 64.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 12 Aug 2026 through UPI: 659033707174. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 64.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 30.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 12 Aug 2026 through UPI: 622462395088. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 30.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "BOI -  Rs.2000.00 Credited to your Ac XX0604 on 12-08-26 by UPI ref No.622441316366.Avl Bal 2031.10",
+    "expected": {
+      "amount": 2000.0,
+      "merchant": "your",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "0604",
+      "bank": "Bank of India",
+      "availableBalance": 2031.1
+    }
+  },
+  {
+    "message": "Rs.2000.00 Dr. from A/C XXXXXX9132 and Cr. to hrnharshit-1@okicici. Ref:622441316366. AvlBal:Rs12972.99(2026:08:12 06:04:45). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 2000.0,
+      "merchant": "hrnharshit-1@okicici",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 12972.99
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 40.00 on 2026-08-12 06:14:01 PM by UPI Ref No 622418411011; AvlBal: Rs13012.99 - BOB",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 13012.99
+    }
+  },
+  {
+    "message": "HSBC: Rs 10000.0 spent on your HSBC Credit Card ending 7285 at ICONIC FITNESS INTERNATIONAL PRIVATE LIMITED on 12 Aug 2026 through UPI: 659023233831. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 10000.0,
+      "merchant": "ICONIC FITNESS INTERNATIONAL PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.500.00 Dr. from A/C XXXXXX9132 and Cr. to 9758906727@ybl. Ref:622426160501. AvlBal:Rs12512.99(2026:08:12 08:58:30). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 500.0,
+      "merchant": "9758906727@ybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 12512.99
+    }
+  },
+  {
+    "message": "Rs.5000.00 Dr. from A/C XXXXXX9132 and Cr. to hrnharshit-1@okhdfcbank. Ref:622495446117. AvlBal:Rs7512.99(2026:08:12 09:00:02). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "hrnharshit-1@okhdfcbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 7512.99
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 5000.00 on 12-Aug-26 from GANGA SAGAR. UPI:622495446117-ICICI Bank.",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acc XX575 debited Rs. 6,000.00 on 12-Aug-26 InfoBIL*INFT*FHG6.Avl Bal Rs. 2,193.78.To dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+    "expected": {
+      "amount": 6000.0,
+      "merchant": "dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 2193.78
+    }
+  },
+  {
+    "message": "Rs.57.14 Dr. from A/C XXXXXX9132 and Cr. to vanshisrivastava1601-1@okhdfcbank. Ref:622477662920. AvlBal:Rs7455.85(2026:08:12 09:02:36). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 57.14,
+      "merchant": "vanshisrivastava1601-1@okhdfcbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 7455.85
+    }
+  },
+  {
+    "message": "Rs.247.20 Dr. from A/C XXXXXX9132 and Cr. to solankisaujanya@oksbi. Ref:622469148639. AvlBal:Rs7208.65(2026:08:12 10:11:07). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 247.2,
+      "merchant": "solankisaujanya@oksbi",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 7208.65
+    }
+  },
+  {
+    "message": "Rs.459.00 Dr. from A/C XXXXXX9132 and Cr. to ankitksingh676869@okhdfcbank. Ref:622465051025. AvlBal:Rs6749.65(2026:08:12 10:11:42). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 459.0,
+      "merchant": "ankitksingh676869@okhdfcbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 6749.65
+    }
+  },
+  {
+    "message": "Rs.200.00 Dr. from A/C XXXXXX9132 and Cr. to 7408621067@ptaxis. Ref:622445157604. AvlBal:Rs6549.65(2026:08:12 11:07:19). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 200.0,
+      "merchant": "7408621067@ptaxis",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 6549.65
+    }
+  },
+  {
+    "message": "Rs.316.00 debited A/cXX0604 and credited to ZEPTO MARKETPLACE PRIVATE LIMI via UPI Ref No 659187931626 on 13Aug26. Call 18001031906, if not done by you. -BOI",
+    "expected": {
+      "amount": 316.0,
+      "merchant": "ZEPTO MARKETPLACE PRIVATE LIMI",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "0604",
+      "bank": "Bank of India"
+    }
+  },
+  {
+    "message": "Dear Customer, Payment of INR 6,000.00 has been received on your ICICI Bank Credit Card Account 4xxx4000 on 12-AUG-26.Thank you.",
+    "expected": {
+      "amount": 6000.0,
+      "merchant": "your ICICI Bank Credit Card 4xxx4000 .Thank you",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "UPI-VPA hrnharshit-1@okaxis linked to Punjab and Sind Bank a/c no. XX2540 is debited Rs.221.10 and credited to dominospizza27664XXXX@rxairtel (Ref no 622556794794)-P&SB",
+    "expected": {
+      "amount": 221.1,
+      "merchant": "dominospizza27664XXXX@rxairtel",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "2540",
+      "bank": "Punjab and Sind Bank"
+    }
+  },
+  {
+    "message": "HSBC: Rs 20.0 spent on your HSBC Credit Card ending 7285 at ABDUL HAMEED on 13 Aug 2026 through UPI: 659165151310. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 20.0,
+      "merchant": "ABDUL HAMEED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.621.00 debited A/cXX0604 and credited to Smart Bazaar  Bengaluru FR42 via UPI Ref No 622557516650 on 13Aug26. Call 18001031906, if not done by you. -BOI",
+    "expected": {
+      "amount": 621.0,
+      "merchant": "Smart Bazaar Bengaluru FR42",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "0604",
+      "bank": "Bank of India"
+    }
+  },
+  {
+    "message": "Rs.63.75 debited A/cXX0604 and credited to Tobox Ventures Private Limited via UPI Ref No 622615765272 on 14Aug26. Call 18001031906, if not done by you. -BOI",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "0604",
+      "bank": "Bank of India"
+    }
+  },
+  {
+    "message": "INR 79.00 spent using ICICI Bank Card XX4000 on 14-Aug-26 on AMAZON INDIA CY. Avl Limit: INR 20,272.30. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 79.0,
+      "merchant": "AMAZON INDIA CY",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 20272.3
+    }
+  },
+  {
+    "message": "INR 1,043.00 spent using ICICI Bank Card XX4000 on 15-Aug-26 on MANMATTERS COM. Avl Limit: INR 19,229.30. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 1043.0,
+      "merchant": "MANMATTERS COM",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 19229.3
+    }
+  },
+  {
+    "message": "Rs.15.00 debited A/cXX0604 and credited to MANYAM VISWANADA REDDY via UPI Ref No 659391296190 on 15Aug26. Call 18001031906, if not done by you. -BOI",
+    "expected": {
+      "amount": 15.0,
+      "merchant": "MANYAM VISWANADA REDDY",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "0604",
+      "bank": "Bank of India"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 1500.00 on 16-Aug-26; Vidya Sagar credited. UPI:622876608762. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 1500.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 1000.00 on 2026-08-16 02:44:21 PM by UPI Ref No 622854742790; AvlBal: Rs8049.65 - BOB",
+    "expected": {
+      "amount": 1000.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 8049.65
+    }
+  },
+  {
+    "message": "Dear SBI User, your A/c X9132-credited by Rs.761 on 16Aug26 transfer from ISHIKA SINGH Ref No 622872141916 -SBI",
+    "expected": {
+      "amount": 761.0,
+      "merchant": "transfer from ISHIKA SINGH",
+      "transactionType": "credit",
+      "paymentMode": "unknown",
+      "account": "9132",
+      "bank": "SBI"
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 761.00 on 2026-08-16 04:29:37 PM by UPI Ref No 622872141916; AvlBal: Rs8810.65 - BOB",
+    "expected": {
+      "amount": 761.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 8810.65
+    }
+  },
+  {
+    "message": "INR 578.24 spent using ICICI Bank Card XX4000 on 16-Aug-26 on ORBGEN TECHNOLO. Avl Limit: INR 18,651.06. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 578.24,
+      "merchant": "ORBGEN TECHNOLO",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 18651.06
+    }
+  },
+  {
+    "message": "HSBC: Rs 130.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 16 Aug 2026 through UPI: 622899570383. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 130.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 17 Aug 2026 through UPI: 659558105768. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 88.00 on 2026-08-17 07:22:05 PM by UPI Ref No 659589232424; AvlBal: Rs8986.65 - BOB",
+    "expected": {
+      "amount": 88.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 8986.65
+    }
+  },
+  {
+    "message": "Rs.50.00 Dr. from A/C XXXXXX9132 and Cr. to gokhana.payu@indus. Ref:623092620409. AvlBal:Rs8936.65(2026:08:18 10:35:04). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "gokhana.payu@indus",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 8936.65
+    }
+  },
+  {
+    "message": "Rs.63.75 Dr. from A/C XXXXXX9132 and Cr. to gokhana.payu@indus. Ref:623059416701. AvlBal:Rs8872.90(2026:08:18 12:28:20). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "gokhana.payu@indus",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 8872.9
+    }
+  },
+  {
+    "message": "HSBC: Rs 100.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 18 Aug 2026 through UPI: 659675095493. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 100.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 298.00 spent using ICICI Bank Card XX4000 on 18-Aug-26 on SWIGGY PVT LTD . Avl Limit: INR 17,465.06. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 298.0,
+      "merchant": "SWIGGY PVT LTD",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 17465.06
+    }
+  },
+  {
+    "message": "Rs.253.65 debited A/cXX0604 and credited to Dominos Pizza via UPI Ref No 623099607234 on 18Aug26. Call 18001031906, if not done by you. -BOI",
+    "expected": {
+      "amount": 253.65,
+      "merchant": "Dominos Pizza",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "0604",
+      "bank": "Bank of India"
+    }
+  },
+  {
+    "message": "Rs.63.75 debited A/cXX0604 and credited to Tobox Ventures Private Limited via UPI Ref No 623189044635 on 19Aug26. Call 18001031906, if not done by you. -BOI",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "0604",
+      "bank": "Bank of India"
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 44.00 on 2026-08-20 12:24:08 AM by UPI Ref No 623280464916; AvlBal: Rs8876.90 - BOB",
+    "expected": {
+      "amount": 44.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 8876.9
+    }
+  },
+  {
+    "message": "Rs.63.75 debited A/cXX0604 and credited to Tobox Ventures Private Limited via UPI Ref No 659869129286 on 20Aug26. Call 18001031906, if not done by you. -BOI",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "0604",
+      "bank": "Bank of India"
+    }
+  },
+  {
+    "message": "Rs.149.00 Dr. from A/C XXXXXX9132 and Cr. to playstore@axisbank. Ref:394650902326. AvlBal:Rs8727.90(2026:08:20 10:02:43). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 149.0,
+      "merchant": "playstore@axisbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 8727.9
+    }
+  },
+  {
+    "message": "Rs.256.00 debited A/cXX0604 and credited to Swiggy Limited via UPI Ref No 659990477986 on 21Aug26. Call 18001031906, if not done by you. -BOI",
+    "expected": {
+      "amount": 256.0,
+      "merchant": "Swiggy Limited",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "0604",
+      "bank": "Bank of India"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 100.00 on 22-Aug-26; Bundl technolog credited. UPI:660020609555. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 100.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 92.00 on 22-Aug-26; BMTC credited. UPI:660032925170. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 92.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "INR 3,865.00 spent using ICICI Bank Card XX4000 on 22-Aug-26 on CHULHA CHAUKI D. Avl Limit: INR 20,565.23. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 3865.0,
+      "merchant": "CHULHA CHAUKI D",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 20565.23
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 122.23 on 22-Aug-26; R S Balavashan credited. UPI:660070434646. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 122.23,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 178.00 on 22-Aug-26; HUSEN SAB credited. UPI:660036647093. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 178.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Rs.706.00 Dr. from A/C XXXXXX9132 and Cr. to swiggydinein@icici. Ref:623483493016. AvlBal:Rs8021.90(2026:08:22 11:50:35). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 706.0,
+      "merchant": "swiggydinein@icici",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 8021.9
+    }
+  },
+  {
+    "message": "Rs.202.00 Dr. from A/C XXXXXX9132 and Cr. to zepto.payu@mairtel. Ref:623573187500. AvlBal:Rs8021.90(2026:08:23 01:15:00). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 202.0,
+      "merchant": "zepto.payu@mairtel",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 8021.9
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 4000.00 on 23-Aug-26 from GANGA SAGAR. UPI:623517898482-ICICI Bank.",
+    "expected": {
+      "amount": 4000.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Rs.4000.00 Dr. from A/C XXXXXX9132 and Cr. to hrnharshit-1@okhdfcbank. Ref:623517898482. AvlBal:Rs3734.90(2026:08:23 04:04:01). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 4000.0,
+      "merchant": "hrnharshit-1@okhdfcbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 3734.9
+    }
+  },
+  {
+    "message": "ICICI Bank Acc XX575 debited Rs. 4,000.00 on 23-Aug-26 InfoBIL*INFT*FHR9.Avl Bal Rs. 201.55.To dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+    "expected": {
+      "amount": 4000.0,
+      "merchant": "dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 201.55
+    }
+  },
+  {
+    "message": "Dear Customer, Payment of INR 4,000.00 has been received on your ICICI Bank Credit Card Account 4xxx4000 on 23-AUG-26.Thank you.",
+    "expected": {
+      "amount": 4000.0,
+      "merchant": "your ICICI Bank Credit Card 4xxx4000 .Thank you",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Rs.103.96 Dr. from A/C XXXXXX9132 and Cr. to mcdonaldsinnoviti@ybl. Ref:660147290732. AvlBal:Rs3500.94(2026:08:23 08:46:54). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 103.96,
+      "merchant": "mcdonaldsinnoviti@ybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 3500.94
+    }
+  },
+  {
+    "message": "HSBC: Rs 72.44 spent on your HSBC Credit Card ending 7285 at McDonalds Hardcastle Restaurants on 23 Aug 2026 through UPI: 623539703363. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 72.44,
+      "merchant": "McDonalds Hardcastle Restaurants through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 352.08 on 2026-08-23 10:34:52 PM by UPI Ref No 660168693969; AvlBal: Rs3853.02 - BOB",
+    "expected": {
+      "amount": 352.08,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 3853.02
+    }
+  },
+  {
+    "message": "INR 361.00 spent using ICICI Bank Card XX4000 on 24-Aug-26 on SWIGGY FOOD. Avl Limit: INR 10,204.23. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 361.0,
+      "merchant": "SWIGGY FOOD",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 10204.23
+    }
+  },
+  {
+    "message": "Rs.110.00 Dr. from A/C XXXXXX9132 and Cr. to bharatpe.9v0w0e0k7j774991@unitype. Ref:623681987934. AvlBal:Rs4743.02(2026:08:24 10:46:12). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 110.0,
+      "merchant": "bharatpe.9v0w0e0k7j774991@unitype",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 4743.02
+    }
+  },
+  {
+    "message": "Rs.216.00 Dr. from A/C XXXXXX9132 and Cr. to 9449952782@ptaxis. Ref:623728796043. AvlBal:Rs4527.02(2026:08:25 04:13:29). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 216.0,
+      "merchant": "9449952782@ptaxis",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 4527.02
+    }
+  },
+  {
+    "message": "Rs.38.00 Dr. from A/C XXXXXX9132 and Cr. to gokhana.payu@indus. Ref:623745699555. AvlBal:Rs4489.02(2026:08:25 09:54:09). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 38.0,
+      "merchant": "gokhana.payu@indus",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 4489.02
+    }
+  },
+  {
+    "message": "Rs.38.00 Dr. from A/C XXXXXX9132 and Cr. to gokhana.payu@indus. Ref:623738899998. AvlBal:Rs4451.02(2026:08:25 10:25:13). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 38.0,
+      "merchant": "gokhana.payu@indus",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 4451.02
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 352.08 on 2026-08-25 03:41:05 PM by UPI Ref No 660374238673; AvlBal: Rs4803.10 - BOB",
+    "expected": {
+      "amount": 352.08,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 4803.1
+    }
+  },
+  {
+    "message": "Rs.1000.00 Dr. from A/C XXXXXX9132 and Cr. to 8543851508@axl. Ref:660435989293. AvlBal:Rs3302.10(2026:08:26 09:12:35). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 1000.0,
+      "merchant": "8543851508@axl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 3302.1
+    }
+  },
+  {
+    "message": "Rs.90.00 Dr. from A/C XXXXXX9132 and Cr. to gokhana.payu@indus. Ref:623849939631. AvlBal:Rs3109.10(2026:08:26 03:18:11). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 90.0,
+      "merchant": "gokhana.payu@indus",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 3109.1
+    }
+  },
+  {
+    "message": "Rs.40.00 Dr. from A/C XXXXXX9132 and Cr. to gokhana.payu@indus. Ref:623857130324. AvlBal:Rs3069.10(2026:08:26 03:19:23). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "gokhana.payu@indus",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 3069.1
+    }
+  },
+  {
+    "message": "Rs.369.00 Dr. from A/C XXXXXX9132 and Cr. to ixigo.train@icici. Ref:623858449621. AvlBal:Rs2700.10(2026:08:26 07:06:58). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 369.0,
+      "merchant": "ixigo.train@icici",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 2700.1
+    }
+  },
+  {
+    "message": "Rs.50.00 Dr. from A/C XXXXXX9132 and Cr. to gokhana.payu@indus. Ref:623922399496. AvlBal:Rs2530.10(2026:08:27 09:28:23). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "gokhana.payu@indus",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 2530.1
+    }
+  },
+  {
+    "message": "Rs.75.00 Dr. from A/C XXXXXX9132 and Cr. to gokhana.payu@indus. Ref:660590316861. AvlBal:Rs2455.10(2026:08:27 12:55:46). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "gokhana.payu@indus",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 2455.1
+    }
+  },
+  {
+    "message": "Rs.39.40 Dr. from A/C XXXXXX9132 and Cr. to 2521751122314-01@jiopay. Ref:660570364217. AvlBal:Rs2415.70(2026:08:27 09:47:46). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 39.4,
+      "merchant": "2521751122314-01@jiopay",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 2415.7
+    }
+  },
+  {
+    "message": "Rs.199.00 Dr. from A/C XXXXXX9132 and Cr. to netflixupi.payu@hdfcbank. Ref:103924114357. AvlBal:Rs2216.70(2026:08:28 01:20:03). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 199.0,
+      "merchant": "netflixupi.payu@hdfcbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 2216.7
+    }
+  },
+  {
+    "message": "INR 533.00 spent using ICICI Bank Card XX4000 on 28-Aug-26 on SWIGGY PVT LTD . Avl Limit: INR 9,671.23. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 533.0,
+      "merchant": "SWIGGY PVT LTD",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 9671.23
+    }
+  },
+  {
+    "message": "Rs.463.00 Dr. from A/C XXXXXX9132 and Cr. to aanshujaiswal135-2@okicici. Ref:624144090352. AvlBal:Rs1527.06(2026:08:29 12:59:52). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 463.0,
+      "merchant": "aanshujaiswal135-2@okicici",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 1527.06
+    }
+  },
+  {
+    "message": "Rs.300.00 Dr. from A/C XXXXXX9132 and Cr. to anmolpandeyvns02-1@okaxis. Ref:660791708655. AvlBal:Rs1227.06(2026:08:29 01:30:17). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 300.0,
+      "merchant": "anmolpandeyvns02-1@okaxis",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 1227.06
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 21000.00 on 2026-08-29 06:38:09 PM by UPI Ref No 624193394286; AvlBal: Rs22227.06 - BOB",
+    "expected": {
+      "amount": 21000.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 22227.06
+    }
+  },
+  {
+    "message": "Rs.20581.62 Dr. from A/C XXXXXX9132 and Cr. to gpay-creditcard@okpayaxis. Ref:660718650685. AvlBal:Rs1645.44(2026:08:29 06:38:51). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 20581.62,
+      "merchant": "gpay-creditcard@okpayaxis",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 1645.44
+    }
+  },
+  {
+    "message": "HSBC: Rs 559.64 spent on your HSBC Credit Card ending 7285 at McDonalds Hardcastle Restaurants on 29 Aug 2026 through UPI: 624129062841. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 559.64,
+      "merchant": "McDonalds Hardcastle Restaurants through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.72.44 Dr. from A/C XXXXXX9132 and Cr. to mcdonaldsinnoviti@axl. Ref:660724664047. AvlBal:Rs1573.00(2026:08:29 07:52:37). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 72.44,
+      "merchant": "mcdonaldsinnoviti@axl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 1573.0
+    }
+  },
+  {
+    "message": "Hi, recharge of Rs. 979 successfully credited to your Airtel number 8867743241, also the validity has been extended till 21-11-2026.",
+    "expected": {
+      "amount": 979.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "unknown",
+      "account": null,
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 979.00 spent using ICICI Bank Card XX4000 on 30-Aug-26 on AMAZON UTILITIE. Avl Limit: INR 8,692.23. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 979.0,
+      "merchant": "AMAZON UTILITIE",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 8692.23
+    }
+  },
+  {
+    "message": "INR 1.00 spent using ICICI Bank Card XX4000 on 30-Aug-26 on ZOMATO CYBS. Avl Limit: INR 8,691.23. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 1.0,
+      "merchant": "ZOMATO CYBS",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 8691.23
+    }
+  },
+  {
+    "message": "INR 511.36 spent using ICICI Bank Card XX4000 on 30-Aug-26 on ZOMATO LIMITED. Avl Limit: INR 8,179.87. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 511.36,
+      "merchant": "ZOMATO LIMITED",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 8179.87
+    }
+  },
+  {
+    "message": "ICICI Bank Account XX575 credited:Rs. 86,543.00 on 31-Aug-26. Info ACH*SAL-HPPPSINDOPEPVTLT*SAL. Available Balance is Rs. 86,744.55.",
+    "expected": {
+      "amount": 86543.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 86744.55
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 28353.02 on 31-Aug-26; Google India Di credited. UPI:660906978145. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 28353.02,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Payment of Rs 28,353.02 has been received on your ICICI Bank Credit Card XX4000 through Bharat Bill Payment System on 31-AUG-26.",
+    "expected": {
+      "amount": 28353.02,
+      "merchant": "Bill Payment System",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 15000.00 on 31-Aug-26; maheshprasad010 credited. UPI:660970575923. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 15000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 21000.00 on 31-Aug-26; hrnharshit 1 ok credited. UPI:660900867172. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 21000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 8000.00 on 31-Aug-26; GANGA SAGAR credited. UPI:660931968353. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 8000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "PSB000000000746098\nA/c No **2540 Credited with Rs 8000--UPI/CR/660931968353/GANGA SAGAR/ICIC/4486015045 (CLR BAL 8007.06CR)(31-08-2026 09:55:55)-Punjab&Sind Bank",
+    "expected": {
+      "amount": 8000.0,
+      "merchant": "GANGA SAGAR",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "2540",
+      "bank": "Punjab and Sind Bank",
+      "availableBalance": 8007.06
+    }
+  },
+  {
+    "message": "PSB UPI - Your a/c no. XX2540 is credited for Rs. 8000.00 on 31-Aug-26 from hrnharshit-2@okicici (UPI Ref no 660931968353)-Punjab&Sind Bank",
+    "expected": {
+      "amount": 8000.0,
+      "merchant": "hrnharshit-2",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "2540",
+      "bank": "Punjab and Sind Bank"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 5000.00 on 31-Aug-26; Vidya Sagar credited. UPI:660988089669. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 5000.00 on 31-Aug-26; CHANDRAKALA credited. UPI:660971879909. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 102.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 31 Aug 2026 through UPI: 660976478519. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 102.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 31 Aug 2026 through UPI: 624357116081. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.50.00 Dr. from A/C XXXXXX9132 and Cr. to paytm-14464838@ptybl. Ref:660905413632. AvlBal:Rs1393.00(2026:08:31 04:24:11). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "paytm-14464838@ptybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 1393.0
+    }
+  },
+  {
+    "message": "Dear Customer, we have received a payment of INR 20581.62 for credit card ending 7285 on 30-AUG-26. Thank you for using HSBC credit card.",
+    "expected": {
+      "amount": 20581.62,
+      "merchant": "credit card ending 7285",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.21,000.00 debited A/cXX0604 and credited to Nishant  Verma via UPI Ref No 624431321190 on 01Sep26. Call 18001031906, if not done by you. -BOI",
+    "expected": {
+      "amount": 21000.0,
+      "merchant": "Nishant Verma",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "0604",
+      "bank": "Bank of India"
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 01 Sep 2026 through UPI: 624402362390. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 01 Sep 2026 through UPI: 624480369797. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 01 Sep 2026 through UPI: 624412994599. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.684.58 Dr. from A/C XXXXXX9132 and Cr. to techmashsolutionspriva-150337.payu@indus. Ref:624454925226. AvlBal:Rs708.42(2026:09:01 05:10:26). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 684.58,
+      "merchant": "techmashsolutionspriva-150337.payu@indus",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 708.42
+    }
+  },
+  {
+    "message": "Rs.123.91 Dr. from A/C XXXXXX9132 and Cr. to rahulsingh843000-1@okicici. Ref:624513666289. AvlBal:Rs708.42(2026:09:02 01:27:57). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 123.91,
+      "merchant": "rahulsingh843000-1@okicici",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 708.42
+    }
+  },
+  {
+    "message": "HSBC: Rs 58.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 02 Sep 2026 through UPI: 661152345540. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 58.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 102.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 02 Sep 2026 through UPI: 661115948796. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 102.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.30.00 Dr. from A/C XXXXXX9132 and Cr. to mybmtcdqr@ybl. Ref:661195841836. AvlBal:Rs554.51(2026:09:02 06:43:20). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 30.0,
+      "merchant": "mybmtcdqr@ybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 554.51
+    }
+  },
+  {
+    "message": "Rs.70.00 Dr. from A/C XXXXXX9132 and Cr. to paytm-79223175@ptybl. Ref:214698482748. AvlBal:Rs484.51(2026:09:02 07:18:53). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 70.0,
+      "merchant": "paytm-79223175@ptybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 484.51
+    }
+  },
+  {
+    "message": "Rs.91.00 Dr. from A/C XXXXXX9132 and Cr. to 8088254204-2@axl. Ref:661192359108. AvlBal:Rs393.51(2026:09:02 08:28:56). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 91.0,
+      "merchant": "8088254204-2@axl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 393.51
+    }
+  },
+  {
+    "message": "Dear BOB UPI User, Your a/c no. XXXXXX9132 is credited with INR 91.00 on 2026-09-02 08:29:16 PM for reversal of transaction (UPI Ref no 661192359108) - BOB",
+    "expected": {
+      "amount": 91.0,
+      "merchant": "reversal of transaction",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda"
+    }
+  },
+  {
+    "message": "P&S Bank- A/c  **2540 Debited with Rs 91-UPI/DR/661113858636/S on 02-09-26.(CLR BAL 416.06CR).send SMS \"BLOCK <A/C>\" to 5616118 if txn not done.",
+    "expected": {
+      "amount": 91.0,
+      "merchant": "5616118 if txn not done",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "2540",
+      "bank": "Punjab and Sind Bank",
+      "availableBalance": 416.06
+    }
+  },
+  {
+    "message": "Rs.70.00 Dr. from A/C XXXXXX9132 and Cr. to paytm-79223175@ptybl. Ref:214718340048. AvlBal:Rs359.51(2026:09:02 10:45:13). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 70.0,
+      "merchant": "paytm-79223175@ptybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 359.51
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 03 Sep 2026 through UPI: 624677239709. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 03 Sep 2026 through UPI: 624665749015. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 690.00 spent using ICICI Bank Card XX4000 on 03-Sep-26 on SWIGGY FOOD. Avl Limit: INR 7,842.89. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 690.0,
+      "merchant": "SWIGGY FOOD",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 7842.89
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 77.78 on 2026-09-03 09:56:33 PM by UPI Ref No 624655004494; AvlBal: Rs425.07 - BOB",
+    "expected": {
+      "amount": 77.78,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 425.07
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 77.78 on 2026-09-03 09:57:31 PM by UPI Ref No 128988248288; AvlBal: Rs502.85 - BOB",
+    "expected": {
+      "amount": 77.78,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 502.85
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 77.78 on 2026-09-03 10:25:20 PM by UPI Ref No 624613775496; AvlBal: Rs580.63 - BOB",
+    "expected": {
+      "amount": 77.78,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 580.63
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 04 Sep 2026 through UPI: 661378105112. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Acc XX575 debited Rs. 700.00 on 04-Sep-26 InfoBIL*INFT*FI46.Avl Bal Rs. 3,691.53.To dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+    "expected": {
+      "amount": 700.0,
+      "merchant": "dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 3691.53
+    }
+  },
+  {
+    "message": "HSBC: Rs 68.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 04 Sep 2026 through UPI: 661335620891. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 68.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear Customer, Payment of INR 700.00 has been received on your ICICI Bank Credit Card Account 4xxx4000 on 04-SEP-26.Thank you.",
+    "expected": {
+      "amount": 700.0,
+      "merchant": "your ICICI Bank Credit Card 4xxx4000 .Thank you",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 04 Sep 2026 through UPI: 661320402875. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 55.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 04 Sep 2026 through UPI: 661370852639. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 55.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Credit Card XX4000 Statement is sent to hr******it@gmail.com. Total of Rs 28,353.02 or minimum of Rs 1,420.00 is due by 15-SEP-26.",
+    "expected": {
+      "amount": 28353.02,
+      "merchant": "Unknown",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 77.77 on 2026-09-04 04:47:41 PM by UPI Ref No 129022586244; AvlBal: Rs658.40 - BOB",
+    "expected": {
+      "amount": 77.77,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 658.4
+    }
+  },
+  {
+    "message": "HSBC: Rs 120.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 04 Sep 2026 through UPI: 661390566496. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 120.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 282.00 spent using ICICI Bank Card XX4000 on 05-Sep-26 on SWIGGY PVT LTD . Avl Limit: INR 8,260.89. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 282.0,
+      "merchant": "SWIGGY PVT LTD",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 8260.89
+    }
+  },
+  {
+    "message": "Rs.60.00 Dr. from A/C XXXXXX9132 and Cr. to q108539440@ybl. Ref:624904906027. AvlBal:Rs598.40(2026:09:06 10:18:55). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 60.0,
+      "merchant": "q108539440@ybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 598.4
+    }
+  },
+  {
+    "message": "Rs.350.00 Dr. from A/C XXXXXX9132 and Cr. to upiswiggy@icici. Ref:215041108559. AvlBal:Rs248.40(2026:09:06 10:24:12). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 350.0,
+      "merchant": "upiswiggy@icici",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 248.4
+    }
+  },
+  {
+    "message": "Rs.170.00 Dr. from A/C XXXXXX9132 and Cr. to gpay-12189392273@okbizaxis. Ref:624980300213. AvlBal:Rs78.40(2026:09:06 10:31:10). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 170.0,
+      "merchant": "gpay-12189392273@okbizaxis",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 78.4
+    }
+  },
+  {
+    "message": "INR 127.00 spent using ICICI Bank Card XX4000 on 06-Sep-26 on Flipkart. Avl Limit: INR 8,133.89. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 127.0,
+      "merchant": "Flipkart",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 8133.89
+    }
+  },
+  {
+    "message": "HSBC: Rs 120.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 07 Sep 2026 through UPI: 661601889250. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 120.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 130.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 08 Sep 2026 through UPI: 625156268421. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 130.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 675.00 on 09-Sep-26; ADITYA KUMAR DW credited. UPI:661806215389. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 675.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "INR 899.00 spent using ICICI Bank Card XX4000 on 09-Sep-26 on AMAZON UTILITIE. Avl Limit: INR 5,844.44. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 899.0,
+      "merchant": "AMAZON UTILITIE",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 5844.44
+    }
+  },
+  {
+    "message": "HSBC: Rs 102.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 09 Sep 2026 through UPI: 661899055525. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 102.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 25.0 spent on your HSBC Credit Card ending 7285 at AATITHYA CATERING on 09 Sep 2026 through UPI: 625298803156. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 25.0,
+      "merchant": "AATITHYA CATERING through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 10 Sep 2026 through UPI: 625324827639. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 380.00 on 10-Sep-26; BITTOO S credited. UPI:625373791365. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 380.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 11 Sep 2026 through UPI: 662098013194. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 102.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 11 Sep 2026 through UPI: 662069606336. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 102.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 361.0 spent on your HSBC Credit Card ending 7285 at SWIGGY on 12 Sep 2026 through UPI: 662196384079. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 361.0,
+      "merchant": "SWIGGY through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at POHA ON WHEELS BELLANDUR on 13 Sep 2026 through UPI: 662277102704. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "POHA",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 160.68 spent on your HSBC Credit Card ending 7285 at MC DONALDS on 13 Sep 2026 through UPI: 662233513764. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 160.68,
+      "merchant": "MC DONALDS through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 130.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 14 Sep 2026 through UPI: 625764807137. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 130.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 1000.00 on 14-Sep-26; Vidya Sagar credited. UPI:625799639350. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 1000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "INR 79.00 spent using ICICI Bank Card XX4000 on 14-Sep-26 on AMAZON INDIA CY. Avl Limit: INR 12,765.44. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 79.0,
+      "merchant": "AMAZON INDIA CY",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 12765.44
+    }
+  },
+  {
+    "message": "HSBC: Rs 265.0 spent on your HSBC Credit Card ending 7285 at PLAY ZONE on 15 Sep 2026 through UPI: 625879140739. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 265.0,
+      "merchant": "PLAY ZONE through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 15 Sep 2026 through UPI: 625865681582. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 690.0 spent on your HSBC Credit Card ending 7285 at SWIGGY on 15 Sep 2026 through UPI: 625832093807. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 690.0,
+      "merchant": "SWIGGY through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Refund of Rs 614.0 has been initiated for Swiggy order 248433383196571. Updated balance should reflect in 4-7 days. https://r.swiggy.com/refunds",
+    "expected": {
+      "amount": 614.0,
+      "merchant": "Swiggy order 248433383196571",
+      "transactionType": "credit",
+      "paymentMode": "unknown",
+      "account": null,
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear Swiggy customer, your refund reference number for Rs 614.0 is 272540003483-1-R1. https://r.swiggy.com/refunds",
+    "expected": {
+      "amount": 614.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "unknown",
+      "account": null,
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 15 Sep 2026 through UPI: 625841398457. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 38.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 16 Sep 2026 through UPI: 662596731093. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 38.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 16 Sep 2026 through UPI: 662535167208. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 2000.00 on 2026-09-16 09:20:48 PM by UPI Ref No 314856734491; AvlBal: Rs2155.11 - BOB",
+    "expected": {
+      "amount": 2000.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 2155.11
+    }
+  },
+  {
+    "message": "Rs.2000.00 Dr. from A/C XXXXXX9132 and Cr. to vidyasagar0205@okaxis. Ref:625956114856. AvlBal:Rs155.11(2026:09:16 09:21:14). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 2000.0,
+      "merchant": "vidyasagar0205@okaxis",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 155.11
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 350.00 on 16-Sep-26 from GANGA SAGAR. UPI:625946713078-ICICI Bank.",
+    "expected": {
+      "amount": 350.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 20.00 on 16-Sep-26 from GANGA SAGAR. UPI:625936235583-ICICI Bank.",
+    "expected": {
+      "amount": 20.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 2000.00 on 16-Sep-26; 7017039698 ptye credited. UPI:625921114849. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 2000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 53.00 on 2026-09-17 12:19:32 AM by UPI Ref No 626078317640; AvlBal: Rs241.11 - BOB",
+    "expected": {
+      "amount": 53.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 241.11
+    }
+  },
+  {
+    "message": "HSBC: Rs 90.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 17 Sep 2026 through UPI: 626033333084. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 90.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 17 Sep 2026 through UPI: 626008572534. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 17 Sep 2026 through UPI: 626056553814. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 17 Sep 2026 through UPI: 626007740675. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 18 Sep 2026 through UPI: 662756207407. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 18 Sep 2026 through UPI: 662716132765. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 5000.00 on 2026-09-18 08:14:49 PM by UPI Ref No 626132700566; AvlBal: Rs5241.11 - BOB",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 5241.11
+    }
+  },
+  {
+    "message": "Rs.2500.00 Dr. from A/C XXXXXX9132 and Cr. to vidyasagar0205@okaxis. Ref:626133923546. AvlBal:Rs2741.11(2026:09:18 08:15:49). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 2500.0,
+      "merchant": "vidyasagar0205@okaxis",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 2741.11
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 140.51 on 2026-09-18 09:56:18 PM by UPI Ref No 626188442638; AvlBal: Rs2881.62 - BOB",
+    "expected": {
+      "amount": 140.51,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 2881.62
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 62.73 on 2026-09-19 06:02:42 PM by UPI Ref No 626283592542; AvlBal: Rs3147.59 - BOB",
+    "expected": {
+      "amount": 62.73,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 3147.59
+    }
+  },
+  {
+    "message": "Rs.74.27 Dr. from A/C XXXXXX9132 and Cr. to aaronjohnson2066-2@okicici. Ref:662840217203. AvlBal:Rs3073.32(2026:09:19 06:26:42). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 74.27,
+      "merchant": "aaronjohnson2066-2@okicici",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 3073.32
+    }
+  },
+  {
+    "message": "HSBC: Rs 330.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 19 Sep 2026 through UPI: 626254920630. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 330.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.457.00 Dr. from A/C XXXXXX9132 and Cr. to 7996986048@ybl. Ref:662967048291. AvlBal:Rs2616.32(2026:09:20 12:33:59). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 457.0,
+      "merchant": "7996986048@ybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 2616.32
+    }
+  },
+  {
+    "message": "Rs.1500.00 Dr. from A/C XXXXXX9132 and Cr. to neelmani.patel92-1@okaxis. Ref:662993093740. AvlBal:Rs1116.32(2026:09:20 11:54:37). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 1500.0,
+      "merchant": "neelmani.patel92-1@okaxis",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 1116.32
+    }
+  },
+  {
+    "message": "INR 1,344.00 spent using ICICI Bank Card XX4000 on 20-Sep-26 on MANMATTERS COM. Avl Limit: INR 10,778.78. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 1344.0,
+      "merchant": "MANMATTERS COM",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 10778.78
+    }
+  },
+  {
+    "message": "Rs.30.00 Dr. from A/C XXXXXX9132 and Cr. to dominospizza.42754508@hdfcbank. Ref:626379617378. AvlBal:Rs1086.32(2026:09:20 07:19:22). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 30.0,
+      "merchant": "dominospizza.42754508@hdfcbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 1086.32
+    }
+  },
+  {
+    "message": "Rs.30.00 Dr. from A/C XXXXXX9132 and Cr. to vinoth.vijay1@ibl. Ref:626335927652. AvlBal:Rs963.32(2026:09:20 08:48:16). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 30.0,
+      "merchant": "vinoth.vijay1@ibl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 963.32
+    }
+  },
+  {
+    "message": "Rs.150.00 Dr. from A/C XXXXXX9132 and Cr. to q804444330@ybl. Ref:626331042257. AvlBal:Rs813.32(2026:09:20 08:50:14). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 150.0,
+      "merchant": "q804444330@ybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 813.32
+    }
+  },
+  {
+    "message": "Rs.149.00 Dr. from A/C XXXXXX9132 and Cr. to playstore@axisbank. Ref:841377052636. AvlBal:Rs664.32(2026:09:20 09:31:35). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 149.0,
+      "merchant": "playstore@axisbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 664.32
+    }
+  },
+  {
+    "message": "HSBC: Rs 215.98 spent on your HSBC Credit Card ending 7285 at Zomato Media Private Limited on 21 Sep 2026 through UPI: 626433789678. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 215.98,
+      "merchant": "Zomato Media Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 120.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 21 Sep 2026 through UPI: 663051619655. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 120.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.75.00 Dr. from A/C XXXXXX9132 and Cr. to 8861050673@axl. Ref:663032453803. AvlBal:Rs642.32(2026:09:21 08:51:32). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "8861050673@axl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 642.32
+    }
+  },
+  {
+    "message": "INR 1,449.00 spent using ICICI Bank Card XX4000 on 21-Sep-26 on Fashnear Techno. Avl Limit: INR 22,529.93. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 1449.0,
+      "merchant": "Fashnear Techno",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 22529.93
+    }
+  },
+  {
+    "message": "Refund for Spider, Graphi.. of Rs.300 is successfully processed to your Original Payment Source.\nMeesho",
+    "expected": {
+      "amount": 300.0,
+      "merchant": "your Original Payment Source",
+      "transactionType": "credit",
+      "paymentMode": "unknown",
+      "account": null,
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 90.0 spent on your HSBC Credit Card ending 7285 at POHA ON WHEELS BELLANDUR on 22 Sep 2026 through UPI: 663106473319. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 90.0,
+      "merchant": "POHA",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 22 Sep 2026 through UPI: 663112875154. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.50.00 Dr. from A/C XXXXXX9132 and Cr. to paytm.d19489578916@pty. Ref:626530344307. AvlBal:Rs557.32(2026:09:22 11:53:49). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "paytm.d19489578916@pty",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 557.32
+    }
+  },
+  {
+    "message": "HSBC: Rs 49.4 spent on your HSBC Credit Card ending 7285 at Euronet Services India Pvt Ltd on 23 Sep 2026 through UPI: 626693039746. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 49.4,
+      "merchant": "Euronet Services India Pvt Ltd through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 360.0 spent on your HSBC Credit Card ending 7285 at NALAPAKA EXPRESS on 23 Sep 2026 through UPI: 626681629233. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 360.0,
+      "merchant": "NALAPAKA EXPRESS through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 1,499.00 spent using ICICI Bank Card XX4000 on 23-Sep-26 on AMAZON INDIA CY. Avl Limit: INR 21,030.93. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 1499.0,
+      "merchant": "AMAZON INDIA CY",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 21030.93
+    }
+  },
+  {
+    "message": "INR 438.00 spent using ICICI Bank Card XX4000 on 23-Sep-26 on SWIGGY PVT LTD . Avl Limit: INR 20,892.93. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 438.0,
+      "merchant": "SWIGGY PVT LTD",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 20892.93
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 24 Sep 2026 through UPI: 663361314901. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 24 Sep 2026 through UPI: 663370220617. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 618.00 spent using ICICI Bank Card XX4000 on 24-Sep-26 on SWIGGY FOOD. Avl Limit: INR 20,274.93. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 618.0,
+      "merchant": "SWIGGY FOOD",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 20274.93
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 24 Sep 2026 through UPI: 663386641896. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 155.0 spent on your HSBC Credit Card ending 7285 at CITY MEDICALS  AND GENERAL STORES on 24 Sep 2026 through UPI: 663334668018. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 155.0,
+      "merchant": "CITY MEDICALS AND GENERAL STORES through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 10.0 spent on your HSBC Credit Card ending 7285 at MOHAMMED SAHEB on 24 Sep 2026 through UPI: 663371655062. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 10.0,
+      "merchant": "MOHAMMED SAHEB through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 429.00 spent using ICICI Bank Card XX4000 on 24-Sep-26 on FLIPKART INTERN. Avl Limit: INR 19,845.93. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 429.0,
+      "merchant": "FLIPKART INTERN",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 19845.93
+    }
+  },
+  {
+    "message": "Rs.130.00 Dr. from A/C XXXXXX9132 and Cr. to mmicchu25@okhdfcbank. Ref:626864673752. AvlBal:Rs427.32(2026:09:25 04:51:17). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 130.0,
+      "merchant": "mmicchu25@okhdfcbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 427.32
+    }
+  },
+  {
+    "message": "INR 250.00 spent using ICICI Bank Card XX4000 on 25-Sep-26 on PABBAS IDEAL CA. Avl Limit: INR 19,595.93. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 250.0,
+      "merchant": "PABBAS IDEAL CA",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 19595.93
+    }
+  },
+  {
+    "message": "Rs.125.00 Dr. from A/C XXXXXX9132 and Cr. to 9008706444@okbizaxis. Ref:663433603869. AvlBal:Rs302.32(2026:09:25 07:19:42). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 125.0,
+      "merchant": "9008706444@okbizaxis",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 302.32
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at Mangala Fuels N Service on 26 Sep 2026 through UPI: 663577705281. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "Mangala Fuels N Service through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 20.0 spent on your HSBC Credit Card ending 7285 at Nandagokula on 27 Sep 2026 through UPI: 663663439163. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 20.0,
+      "merchant": "Nandagokula through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 20.0 spent on your HSBC Credit Card ending 7285 at AMBIKA on 27 Sep 2026 through UPI: 663644792695. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 20.0,
+      "merchant": "AMBIKA through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 4,157.00 spent using ICICI Bank Card XX4000 on 27-Sep-26 on SRIVARI HOTELS . Avl Limit: INR 15,438.93. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 4157.0,
+      "merchant": "SRIVARI HOTELS",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 15438.93
+    }
+  },
+  {
+    "message": "Rs.199.00 Dr. from A/C XXXXXX9132 and Cr. to netflixupi.payu@hdfcbank. Ref:104116619819. AvlBal:Rs103.32(2026:09:27 11:28:43). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 199.0,
+      "merchant": "netflixupi.payu@hdfcbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 103.32
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 2.00 on 2026-09-28 11:11:13 AM by UPI Ref No 748423242716; AvlBal: Rs105.32 - BOB",
+    "expected": {
+      "amount": 2.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 105.32
+    }
+  },
+  {
+    "message": "INR 2,084.50 spent using ICICI Bank Card XX4000 on 28-Sep-26 on ETERNAL LIMITED. Avl Limit: INR 13,354.43. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 2084.5,
+      "merchant": "ETERNAL LIMITED",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 13354.43
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 29 Sep 2026 through UPI: 627247081632. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 29 Sep 2026 through UPI: 627211999686. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 25.0 spent on your HSBC Credit Card ending 7285 at INSTANT RETAIL INDIA LIMITED on 29 Sep 2026 through UPI: 663842600301. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 25.0,
+      "merchant": "INSTANT RETAIL INDIA LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 72.0 spent on your HSBC Credit Card ending 7285 at CALIFORNIA BURRITO on 29 Sep 2026 through UPI: 663813139678. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 72.0,
+      "merchant": "CALIFORNIA BURRITO through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Account XX575 credited:Rs. 67,631.00 on 30-Sep-26. Info ACH*SAL-HPPPSINDOPEPVTLT*SAL. Available Balance is Rs. 67,655.53.",
+    "expected": {
+      "amount": 67631.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 67655.53
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 2765.26 on 30-Sep-26; Google India Di credited. UPI:663912459132. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 2765.26,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 10000.00 on 30-Sep-26; Vidya Sagar credited. UPI:663905355466. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 10000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 15000.00 on 30-Sep-26; maheshprasad010 credited. UPI:663917882638. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 15000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 6000.00 on 30-Sep-26; rahulsingh84300 credited. UPI:663970165231. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 6000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 30 Sep 2026 through UPI: 663967768021. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 470.82 spent using ICICI Bank Card XX4000 on 30-Sep-26 on RELIANCE RETAIL. Avl Limit: INR 12,529.77. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 470.82,
+      "merchant": "RELIANCE RETAIL",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 12529.77
+    }
+  },
+  {
+    "message": "INR 2,824.92 spent using ICICI Bank Card XX4000 on 30-Sep-26 on RELIANCE RETAIL. Avl Limit: INR 9,704.85. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 2824.92,
+      "merchant": "RELIANCE RETAIL",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 9704.85
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 30 Sep 2026 through UPI: 663926991531. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Acc XX575 debited Rs. 16,190.00 on 30-Sep-26 InfoBIL*INFT*FIY5.Avl Bal Rs. 17,700.27.To dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+    "expected": {
+      "amount": 16190.0,
+      "merchant": "dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 17700.27
+    }
+  },
+  {
+    "message": "Dear Customer, Payment of INR 16,190.00 has been received on your ICICI Bank Credit Card Account 4xxx4000 on 30-SEP-26.Thank you.",
+    "expected": {
+      "amount": 16190.0,
+      "merchant": "your ICICI Bank Credit Card 4xxx4000 .Thank you",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Refund for Prime Choice of Rs.239 is successfully processed to your Original Payment Source.\nMeesho",
+    "expected": {
+      "amount": 239.0,
+      "merchant": "Prime Choice of Rs.239 is successfully processed to your Original Payment Source",
+      "transactionType": "credit",
+      "paymentMode": "unknown",
+      "account": null,
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at INSTANT RETAIL INDIA LIMITED on 30 Sep 2026 through UPI: 627328819423. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "INSTANT RETAIL INDIA LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 120.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 30 Sep 2026 through UPI: 627399225524. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 120.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 261.0 spent on your HSBC Credit Card ending 7285 at SWIGGY INSTAMART on 30 Sep 2026 through UPI: 627349439191. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 261.0,
+      "merchant": "SWIGGY INSTAMART through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 15000.00 on 30-Sep-26 from RAHUL SINGH. UPI:615087413971-ICICI Bank.",
+    "expected": {
+      "amount": 15000.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 186.49 on 30-Sep-26; SHIVAM RAJENDRA credited. UPI:627317740577. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 186.49,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 420.28 on 30-Sep-26; solankisaujanya credited. UPI:627306632408. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 420.28,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "INR 150.00 spent using ICICI Bank Card XX4000 on 30-Sep-26 on ETERNAL LIMITED. Avl Limit: INR 25,744.85. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 150.0,
+      "merchant": "ETERNAL LIMITED",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 25744.85
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 01 Oct 2026 through UPI: 627408355706. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 01 Oct 2026 through UPI: 627415682267. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 15000.00 on 01-Oct-26; VENKATA RAMANA  credited. UPI:664046429494. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 15000.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acct XX575 debited for Rs 289.00 on 01-Oct-26; ixigo credited. UPI:664016733821. Call 18002662 for dispute. SMS BLOCK 575 to 9215676766.",
+    "expected": {
+      "amount": 289.0,
+      "merchant": "dispute",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 306.95 spent on your HSBC Credit Card ending 7285 at ZEPTO MARKETPLACE PRIVATE LIMITED on 02 Oct 2026 through UPI: 664162533563. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 306.95,
+      "merchant": "ZEPTO MARKETPLACE PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 648.00 spent using ICICI Bank Card XX4000 on 02-Oct-26 on Septathlon Serv. Avl Limit: INR 25,072.85. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 648.0,
+      "merchant": "Septathlon Serv",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 25072.85
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at POHA ON WHEELS BELLANDUR on 02 Oct 2026 through UPI: 664112261767. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "POHA",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 120.0 spent on your HSBC Credit Card ending 7285 at JUST FRESH POINT on 02 Oct 2026 through UPI: 664182769816. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 120.0,
+      "merchant": "JUST FRESH POINT through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 125.00 spent using ICICI Bank Card XX4000 on 02-Oct-26 on DISTRICT DINING. Avl Limit: INR 24,947.85. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 125.0,
+      "merchant": "DISTRICT DINING",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 24947.85
+    }
+  },
+  {
+    "message": "INR 282.00 spent using ICICI Bank Card XX4000 on 03-Oct-26 on SWIGGY PVT LTD . Avl Limit: INR 24,665.85. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 282.0,
+      "merchant": "SWIGGY PVT LTD",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 24665.85
+    }
+  },
+  {
+    "message": "HSBC: Rs 192.47 spent on your HSBC Credit Card ending 7285 at Smart Bazaar  Bengaluru FR42 on 03 Oct 2026 through UPI: 627676778125. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 192.47,
+      "merchant": "Smart Bazaar Bengaluru FR42 through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs 6,042.30 spent on ICICI Bank Card XX4000 on 03-Oct-26 at DISTRICT DINING. Avl Lmt: Rs 18,773.55. To dispute, call 18002662/SMS BLOCK 4000 to 9215676766. To convert this txn to EMI give a missed call on 9924667667. Know more about EMI conversion at https://icici.co/ICICIT/j/6e90ca46",
+    "expected": {
+      "amount": 6042.3,
+      "merchant": "DISTRICT DINING",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 6163.00 on 2026-10-03 10:39:18 PM by UPI Ref No 627646211483; AvlBal: Rs6268.32 - BOB",
+    "expected": {
+      "amount": 6163.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 6268.32
+    }
+  },
+  {
+    "message": "Rs 9,961.00 spent on ICICI Bank Card XX4000 on 03-Oct-26 at FLIPKART. Avl Lmt: Rs 8,812.55. To dispute, call 18002662/SMS BLOCK 4000 to 9215676766. To convert this txn to EMI give a missed call on 9924667667. Know more about EMI conversion at https://icici.co/ICICIT/j/08b4d040",
+    "expected": {
+      "amount": 9961.0,
+      "merchant": "FLIPKART",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acc XX575 debited Rs. 6,100.00 on 03-Oct-26 InfoBIL*INFT*FJ38.Avl Bal Rs. 10,704.50.To dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+    "expected": {
+      "amount": 6100.0,
+      "merchant": "dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 10704.5
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 5000.00 on 03-Oct-26 from GANGA SAGAR. UPI:664294828631-ICICI Bank.",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Rs.5000.00 Dr. from A/C XXXXXX9132 and Cr. to hrnharshit-1@okhdfcbank. Ref:664294828631. AvlBal:Rs1268.32(2026:10:03 11:19:22). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "hrnharshit-1@okhdfcbank",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 1268.32
+    }
+  },
+  {
+    "message": "ICICI Bank Acc XX575 debited Rs. 11,690.11 on 03-Oct-26 InfoBIL*INFT*FJ38.Avl Bal Rs. 4,014.39.To dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+    "expected": {
+      "amount": 11690.11,
+      "merchant": "dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 4014.39
+    }
+  },
+  {
+    "message": "Dear Customer, Payment of INR 11,690.11 has been received on your ICICI Bank Credit Card Account 4xxx4000 on 03-OCT-26.Thank you.",
+    "expected": {
+      "amount": 11690.11,
+      "merchant": "your ICICI Bank Credit Card 4xxx4000 .Thank you",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear Customer, Payment of INR 6,100.00 has been received on your ICICI Bank Credit Card Account 4xxx4000 on 03-OCT-26.Thank you.",
+    "expected": {
+      "amount": 6100.0,
+      "merchant": "your ICICI Bank Credit Card 4xxx4000 .Thank you",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 10.0 spent on your HSBC Credit Card ending 7285 at MATAJI§GENERAL§STORES on 04 Oct 2026 through UPI: 664305263100. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 10.0,
+      "merchant": "Unknown",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 45.0 spent on your HSBC Credit Card ending 7285 at RAMESH M P on 04 Oct 2026 through UPI: 664373692681. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 45.0,
+      "merchant": "RAMESH M P through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 05 Oct 2026 through UPI: 627889234922. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ASHNEPLNEAR4383 refund of Rs 239.00 credited to ICICI Bank Credit Card XX4000 on 01-OCT-26. Revised total due Rs 0, minimum due Rs .00",
+    "expected": {
+      "amount": 239.0,
+      "merchant": "ICICI Bank Credit Card XX4000",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Rs 9,116.00 spent on ICICI Bank Card XX4000 on 05-Oct-26 at MAKEMYTRIP INDI. Avl Lmt: Rs 17,486.66. To dispute, call 18002662/SMS BLOCK 4000 to 9215676766. To convert this txn to EMI give a missed call on 9924667667. Know more about EMI conversion at https://icici.co/ICICIT/j/274fb42e",
+    "expected": {
+      "amount": 9116.0,
+      "merchant": "MAKEMYTRIP INDI",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 8100.00 on 2026-10-05 04:13:11 PM by UPI Ref No 627864683995; AvlBal: Rs9368.32 - BOB",
+    "expected": {
+      "amount": 8100.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 9368.32
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 05 Oct 2026 through UPI: 627898454293. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "ICICI Bank Credit Card XX4000 Statement is sent to hr******it@gmail.com. Total of Rs 34,369.11 or minimum of Rs 16,190.00 is due by 16-OCT-26.",
+    "expected": {
+      "amount": 34369.11,
+      "merchant": "Unknown",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acc XX575 debited Rs. 4,000.00 on 05-Oct-26 InfoBIL*INFT*FJ52.Avl Bal Rs. 14.39.To dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+    "expected": {
+      "amount": 4000.0,
+      "merchant": "dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 14.39
+    }
+  },
+  {
+    "message": "HSBC: Rs 50.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 05 Oct 2026 through UPI: 627848742814. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 50.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear Customer, Payment of INR 4,000.00 has been received on your ICICI Bank Credit Card Account 4xxx4000 on 05-OCT-26.Thank you.",
+    "expected": {
+      "amount": 4000.0,
+      "merchant": "your ICICI Bank Credit Card 4xxx4000 .Thank you",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Dear Customer, we have received a payment of INR 2765.26 for credit card ending 7285 on 01-OCT-26. Thank you for using HSBC credit card.",
+    "expected": {
+      "amount": 2765.26,
+      "merchant": "credit card ending 7285",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 438.00 spent using ICICI Bank Card XX4000 on 06-Oct-26 on SWIGGY PVT LTD . Avl Limit: INR 21,048.66. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 438.0,
+      "merchant": "SWIGGY PVT LTD",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 21048.66
+    }
+  },
+  {
+    "message": "HSBC: Rs 38.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 06 Oct 2026 through UPI: 664530506868. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 38.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 35.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 06 Oct 2026 through UPI: 627995299212. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 35.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 06 Oct 2026 through UPI: 664594222028. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear user, Refund of Rs 306.95 has been processed for your Zepto order SKPRRBARU99669. Refund Ref. num. 664162533563. You can check details on Refunds page in the app.",
+    "expected": {
+      "amount": 306.95,
+      "merchant": "your Zepto order SKPRRBARU99669",
+      "transactionType": "credit",
+      "paymentMode": "unknown",
+      "account": null,
+      "bank": null
+    }
+  },
+  {
+    "message": "DISTRICT DINING refund of Rs 150.00 credited to ICICI Bank Credit Card XX4000 on 03-OCT-26. Revised total due Rs 0, minimum due Rs .00",
+    "expected": {
+      "amount": 150.0,
+      "merchant": "ICICI Bank Credit Card XX4000",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Rs.289.00 Dr. from A/C XXXXXX9132 and Cr. to ixigo.train@icici. Ref:664545679916. AvlBal:Rs9079.32(2026:10:06 03:44:47). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 289.0,
+      "merchant": "ixigo.train@icici",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 9079.32
+    }
+  },
+  {
+    "message": "HSBC: Rs 72.0 spent on your HSBC Credit Card ending 7285 at CALIFORNIA BURRITO on 06 Oct 2026 through UPI: 664535851619. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 72.0,
+      "merchant": "CALIFORNIA BURRITO through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.93.34 Dr. from A/C XXXXXX9132 and Cr. to akankshakumari030403@okicici. Ref:664585897349. AvlBal:Rs8985.98(2026:10:06 06:23:03). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 93.34,
+      "merchant": "akankshakumari030403@okicici",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 8985.98
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 07 Oct 2026 through UPI: 628034613038. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.200.75 Dr. from A/C XXXXXX9132 and Cr. to solankisaujanya@okicici. Ref:664649901703. AvlBal:Rs8787.23(2026:10:07 04:57:11). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 200.75,
+      "merchant": "solankisaujanya@okicici",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 8787.23
+    }
+  },
+  {
+    "message": "Dear Customer, Acct XX575 is credited with Rs 5000.00 on 08-Oct-26 from GANGA SAGAR. UPI:664743651039-ICICI Bank.",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": "575",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "ICICI Bank Acc XX575 debited Rs. 5,000.00 on 08-Oct-26 InfoBIL*INFT*FJC3.Avl Bal Rs. 14.39.To dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "dispute call 18002662 or SMS BLOCK 575 to 9215676766",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "575",
+      "bank": "ICICI",
+      "availableBalance": 14.39
+    }
+  },
+  {
+    "message": "Dear Customer, Payment of INR 5,000.00 has been received on your ICICI Bank Credit Card Account 4xxx4000 on 08-OCT-26.Thank you.",
+    "expected": {
+      "amount": 5000.0,
+      "merchant": "your ICICI Bank Credit Card 4xxx4000 .Thank you",
+      "transactionType": "credit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 08 Oct 2026 through UPI: 628185270689. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 08 Oct 2026 through UPI: 628113393860. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 65.0 spent on your HSBC Credit Card ending 7285 at POHA ON WHEELS BELLANDUR on 08 Oct 2026 through UPI: 664786428097. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 65.0,
+      "merchant": "POHA",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 4,511.00 spent using ICICI Bank Card XX4000 on 08-Oct-26 on DISTRICT DINING. Avl Limit: INR 20,382.94. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 4511.0,
+      "merchant": "DISTRICT DINING",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 20382.94
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 09 Oct 2026 through UPI: 664821373843. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 35.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 09 Oct 2026 through UPI: 664828683560. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 35.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 09 Oct 2026 through UPI: 628203317653. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs 14,166.00 spent on ICICI Bank Card XX4000 on 11-Oct-26 at FLIPKART INTERN. Avl Lmt: Rs 6,216.94. To dispute, call 18002662/SMS BLOCK 4000 to 9215676766. To convert this txn to EMI give a missed call on 9924667667. Know more about EMI conversion at https://icici.co/ICICIT/j/bf6f8251",
+    "expected": {
+      "amount": 14166.0,
+      "merchant": "FLIPKART INTERN",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "Rs 14,166.00 spent on ICICI Bank Card XX4000 on 11-Oct-26 at FLIPKART INTERN. Avl Lmt: Rs 9,550.94. To dispute, call 18002662/SMS BLOCK 4000 to 9215676766. To convert this txn to EMI give a missed call on 9924667667. Know more about EMI conversion at https://icici.co/ICICIT/3pDhuH",
+    "expected": {
+      "amount": 14166.0,
+      "merchant": "FLIPKART INTERN",
+      "transactionType": "debit",
+      "paymentMode": "unknown",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "INR 227.00 spent using ICICI Bank Card XX4000 on 11-Oct-26 on SWIGGY PVT LTD . Avl Limit: INR 9,323.94. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 227.0,
+      "merchant": "SWIGGY PVT LTD",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 9323.94
+    }
+  },
+  {
+    "message": "HSBC: Rs 100.0 spent on your HSBC Credit Card ending 7285 at POHA ON WHEELS BELLANDUR on 11 Oct 2026 through UPI: 665036659273. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 100.0,
+      "merchant": "POHA",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Dear BOB UPI User: Your account is credited with INR 1480.72 on 2026-10-11 01:10:57 PM by UPI Ref No 665096976599; AvlBal: Rs4227.12 - BOB",
+    "expected": {
+      "amount": 1480.72,
+      "merchant": "Unknown",
+      "transactionType": "credit",
+      "paymentMode": "upi",
+      "account": null,
+      "bank": "Bank of Baroda",
+      "availableBalance": 4227.12
+    }
+  },
+  {
+    "message": "Payment of INR 79.00 towards Merchant Amazon to be debited from ICICI Bank Credit Card 4000, as per Standing Instruction XzJH7xh2b5, is due by 14/10/2026. To cancel this debit or your Standing Instructions, visit www.icici.bank.in - Personal - Cards - Manage Standing Instructions. Call 1800 1080 for queries.",
+    "expected": {
+      "amount": 79.0,
+      "merchant": "queries",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI"
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 12 Oct 2026 through UPI: 628537434959. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 12 Oct 2026 through UPI: 628560258352. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "Rs.70.00 Dr. from A/C XXXXXX9132 and Cr. to q682976455@ybl. Ref:628597769620. AvlBal:Rs4039.12(2026:10:12 08:08:42). Not you? Call 18005700/5000-BOB",
+    "expected": {
+      "amount": 70.0,
+      "merchant": "q682976455@ybl",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "9132",
+      "bank": "Bank of Baroda",
+      "availableBalance": 4039.12
+    }
+  },
+  {
+    "message": "HSBC: Rs 292.0 spent on your HSBC Credit Card ending 7285 at WAH PARANTHA on 12 Oct 2026 through UPI: 131188131825. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 292.0,
+      "merchant": "WAH PARANTHA through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 38.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 13 Oct 2026 through UPI: 665240015076. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 38.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 80.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 13 Oct 2026 through UPI: 665298254601. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 80.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 322.0 spent on your HSBC Credit Card ending 7285 at ZEPTO MARKETPLACE PRIVATE LIMITED on 14 Oct 2026 through UPI: 628726211277. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 322.0,
+      "merchant": "ZEPTO MARKETPLACE PRIVATE LIMITED through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 75.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 14 Oct 2026 through UPI: 628716324243. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 75.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "INR 79.00 spent using ICICI Bank Card XX4000 on 14-Oct-26 on AMAZON INDIA CY. Avl Limit: INR 22,835.38. If not you, call 1800 2662/SMS BLOCK 4000 to 9215676766.",
+    "expected": {
+      "amount": 79.0,
+      "merchant": "AMAZON INDIA CY",
+      "transactionType": "debit",
+      "paymentMode": "cc",
+      "account": "4000",
+      "bank": "ICICI",
+      "availableBalance": 22835.38
+    }
+  },
+  {
+    "message": "HSBC: Rs 40.0 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 15 Oct 2026 through UPI: 628855592223. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 40.0,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 63.75 spent on your HSBC Credit Card ending 7285 at Tobox Ventures Private Limited on 15 Oct 2026 through UPI: 665496214578. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 63.75,
+      "merchant": "Tobox Ventures Private Limited through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 258.3 spent on your HSBC Credit Card ending 7285 at MC DONALDS on 15 Oct 2026 through UPI: 665475219490. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 258.3,
+      "merchant": "MC DONALDS through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 234.19 spent on your HSBC Credit Card ending 7285 at MC DONALDS on 15 Oct 2026 through UPI: 665423658614. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 234.19,
+      "merchant": "MC DONALDS through",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  },
+  {
+    "message": "HSBC: Rs 90.0 spent on your HSBC Credit Card ending 7285 at POHA ON WHEELS BELLANDUR on 16 Oct 2026 through UPI: 665520489343. Trxn. not done by you? Call 18002673456.",
+    "expected": {
+      "amount": 90.0,
+      "merchant": "POHA",
+      "transactionType": "debit",
+      "paymentMode": "upi",
+      "account": "7285",
+      "bank": null
+    }
+  }
+]
