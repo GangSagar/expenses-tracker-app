@@ -261,6 +261,9 @@ CREATE INDEX idx_expenses_merchant ON expenses(merchant);
 
 ## 1. Message Parser
 
+> [!NOTE]
+> **Architecture Update (v1.6.0)**: The parser has transitioned from an initial regex proof-of-concept into a generic, extensible, learning-based 10-stage Clean Architecture engine under `src/core/parser/`. It features declarative JSON rules (`bankRules.json`, `merchantAliases.json`), a lexical tokenizer, targeted extractors, multi-factor confidence scoring, on-device SQLite learning, and local AI fallback resolution. Full backward compatibility is maintained via `parseMessage()`.
+
 Responsibilities:
 
 - Extract amount

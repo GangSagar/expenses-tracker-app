@@ -41,6 +41,11 @@ gantt
     OpenTelemetry & Jaeger Tracing         :done, p5_1, 2026-05-20, 2026-10-18
     Headless CLI Diagnostics (`npm run parse`) :done, p5_2, 2026-10-18, 2026-10-18
     Device SMS Collection Harness          :done, p5_3, 2026-10-18, 2026-10-19
+    section Phase 6: Learning-Based Engine
+    Data-Driven Bank & Merchant Rules      :done, p6_1, 2026-10-20, 2026-10-22
+    Lexical Tokenizer & Extractors         :done, p6_2, 2026-10-22, 2026-10-23
+    Confidence Engine & SQLite Learning    :done, p6_3, 2026-10-23, 2026-10-24
+    10-Stage Orchestrator & Backward Adapt :done, p6_4, 2026-10-24, 2026-10-24
 ```
 
 ---
@@ -128,15 +133,37 @@ gantt
 
 ---
 
+### Phase 6: Generic & Learning-Based Parsing Engine (v1.6.0)
+
+* **Goal**: Modernize parsing from brittle monolithic regexes to a Clean Architecture 10-stage pipeline that is data-driven, modular, self-learning, and zero-code extensible for 15+ banks, UPI apps, wallets, and future institutions.
+* **Key Deliverables**:
+  - `src/core/parser/config/`: Declarative JSON schemas (`bankRules.json`, `merchantAliases.json`, `categoryRules.json`, `tokenDictionary.json`).
+  - `src/core/parser/normalizer/`: Composable normalization pipeline (`unicodeNormalizer`, `currencyNormalizer`, `keywordNormalizer`, `whitespaceNormalizer`).
+  - `src/core/parser/tokenizer/`: Lexical token classifier preserving token streams and character offsets.
+  - `src/core/parser/extractor/`: Targeted extractors (`AmountExtractor`, `AccountExtractor`, `BankExtractor`, `VpaExtractor`, `ReferenceExtractor`, `BalanceExtractor`, `PaymentModeExtractor`, `RawMerchantExtractor`) coordinated via `EntityExtractor`.
+  - `src/core/parser/resolver/`: Contextual business resolvers (`MerchantResolver`, `TransactionResolver`, `CategoryResolver`).
+  - `src/core/parser/confidence/`: Weighted multi-factor confidence scoring engine.
+  - `src/core/parser/learning/`: Adaptive on-device learning engine (`LearningEngine`) with repository abstraction (`ILearningRepository`, `InMemoryLearningRepository`, `SQLiteLearningRepository`).
+  - `src/core/parser/ai/`: Offline AI fallback interface (`AIResolver`) with persistent local caching (`AICache`).
+  - `src/core/parser/orchestrator/`: 10-stage pipeline coordinator (`ParserOrchestrator`).
+  - `src/core/parser/parseMessage.ts`: Backward compatibility adapter returning typed `ParsedTransaction`.
+* **Verification Criteria**:
+  - 100% test pass rate across 599 tests across 22 test suites with 0 regressions.
+  - 64 unit tests covering every parser stage in `src/__tests__/parser/`.
+  - Seamless support for 15+ Indian financial institutions (SBI, HDFC, ICICI, Axis, Kotak, BOB, PNB, Canara, etc.).
+
+---
+
 ## 4. Work Breakdown Structure (WBS) & Responsibility Matrix
 
 | Module                          | Core Files                                                       | Responsibility                                                   | Dependencies                  |
 | :------------------------------ | :--------------------------------------------------------------- | :--------------------------------------------------------------- | :---------------------------- |
 | **Android Native Bridge** | `android/.../MessageModule.kt`, `MessagePackage.kt`          | Cursor pagination, contact lookup, SMS listener                  | Android SDK 34, Kotlin        |
-| **Parsing Engine**        | `src/services/sms/parser.ts`, `unicode.ts`, `filter.ts`    | Alphanumeric DLT filtering, regex parsing, unicode normalization | Pure TypeScript               |
+| **Modular Parsing Engine**| `src/core/parser/*` (`config`, `normalizer`, `tokenizer`, etc.) | 10-stage pipeline, tokenization, entity extraction, resolvers    | Pure TypeScript               |
+| **Confidence & Learning** | `src/core/parser/confidence/`, `learning/`, `ai/`                | Multi-factor scoring, on-device SQLite learning, AI fallback    | `react-native-quick-sqlite`   |
 | **AI Classifier**         | `src/services/ai/spamClassifier.ts`                            | On-device Naive Bayes spam scoring                               | Pure TypeScript               |
 | **Budget Advisor**        | `src/services/ai/budgetAdvisor.ts`                             | Predictive burn rate calculation                                 | Pure TypeScript               |
-| **Persistence Engine**    | `src/services/db/db.ts`, `expenseRepo.ts`, `splitsRepo.ts` | ACID relational storage, migrations, aggregation queries         | `react-native-quick-sqlite` |
+| **Persistence Engine**    | `src/services/db/db.ts`, `expenseRepo.ts`, `splitsRepo.ts` | ACID relational storage, migrations, aggregation queries         | `react-native-quick-sqlite`   |
 | **State Layer**           | `src/store/useExpenseStore.ts`, `useSettingsStore.ts`        | In-memory reactive state, cache hydration                        | Zustand                       |
 | **UI Components**         | `src/screens/*.tsx`, `src/components/*.tsx`                  | Glassmorphic dark dashboard, charts, modals                      | React Native Core, SVG        |
 | **Telemetry & QA**        | `telemetryService.ts`, `collect-testcases.py`                | Distributed tracing, device message extraction                   | OpenTelemetry, ADB, Python    |
