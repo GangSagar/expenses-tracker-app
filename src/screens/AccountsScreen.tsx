@@ -17,6 +17,7 @@ import { Modal as RNModal } from 'react-native';
 import BankCard from '../components/BankCard';
 import commonStyles from '../styles/commonStyles';
 import styles from '../styles/AccountsScreenStyles';
+import { computeAccountSummaries } from '../utils/accountHelpers';
 
 
 interface AccountSummary {
@@ -82,65 +83,20 @@ export default function AccountsScreen() {
     }, [loadExpenses])
   );
 
-  const activeExpenses = expenses.filter(e => !e.isInvalid);
-
-  // Group by unique bank + account pairs
-  const accountGroups: Record<string, Expense[]> = {};
-  for (const e of activeExpenses) {
-    if (!e.bank || !e.account) continue;
-    const key = `${e.bank}::${e.account}`;
-    if (hiddenAccounts.includes(key)) continue; // Completely skip hidden accounts
-    if (!accountGroups[key]) accountGroups[key] = [];
-    accountGroups[key].push(e);
-  }
-
-  // Calculate summaries & anomalies
+  // Calculate summaries & anomalies using shared helper
+  const summaries = computeAccountSummaries(expenses, hiddenAccounts);
   const accounts: AccountSummary[] = [];
   const anomalies: MissingAnomaly[] = [];
 
-  for (const [key, list] of Object.entries(accountGroups)) {
-    const [bank, account] = key.split('::');
-    // Sort transactions chronological (oldest to newest)
-    const sorted = [...list].sort((a, b) => a.timestamp - b.timestamp);
-
-    // Latest Available Balance checkpoint
-    const latestWithBal = [...sorted]
-      .reverse()
-      .find(e => e.availableBalance !== undefined && e.availableBalance !== null);
-
-    let latestBalance = 0;
-    const lastUpdated = sorted[sorted.length - 1].timestamp;
-
-    if (latestWithBal && latestWithBal.availableBalance !== undefined) {
-      latestBalance = latestWithBal.availableBalance;
-      const latestIdx = sorted.indexOf(latestWithBal);
-      
-      // Apply subsequent transaction deltas to compute true current balance
-      for (let idx = latestIdx + 1; idx < sorted.length; idx++) {
-        const subsequent = sorted[idx];
-        if (subsequent.transactionType === 'debit') {
-          latestBalance -= subsequent.amount;
-        } else {
-          latestBalance += subsequent.amount;
-        }
-      }
-    } else {
-      // Fallback: No balance checkpoint found. Accumulate transaction deltas to get dynamic balance flow.
-      for (const item of sorted) {
-        if (item.transactionType === 'debit') {
-          latestBalance -= item.amount;
-        } else {
-          latestBalance += item.amount;
-        }
-      }
-    }
-
+  for (const s of summaries) {
     accounts.push({
-      bank,
-      account,
-      latestBalance,
-      lastUpdated,
+      bank: s.bank,
+      account: s.account,
+      latestBalance: s.latestBalance,
+      lastUpdated: s.lastUpdated,
     });
+
+    const sorted = s.transactions;
 
     // Run reconciliation checks to identify missing transactions
     let lastCheckpointBal: number | null = null;
@@ -177,8 +133,8 @@ export default function AccountsScreen() {
           // Discrepancy > 0.05
           if (Math.abs(diff) > 0.05) {
             anomalies.push({
-              bank,
-              account,
+              bank: s.bank,
+              account: s.account,
               expectedBalance,
               actualBalance,
               missingAmount: Math.abs(diff),
@@ -194,31 +150,23 @@ export default function AccountsScreen() {
     }
   }
 
-  // Handle toggling CC vs Debit
-  const toggleAccountType = (bank: string, account: string) => {
-    const key = `account_type::${bank}::${account}`;
-    const saved = getSetting(key);
-    
-    // Auto-detect default if no override exists
-    const list = accountGroups[`${bank}::${account}`] || [];
-    const hasCCMode = list.some(e => e.paymentMode === 'cc' || /credit\s*card|cc\b/i.test(e.rawMessage));
-    const defaultType = hasCCMode ? 'cc' : 'debit';
-    
-    const currentType = accountTypesOverride[key] || saved || defaultType;
-    const nextType = currentType === 'cc' ? 'debit' : 'cc';
-    
-    setSetting(key, nextType);
-    setAccountTypesOverride(prev => ({ ...prev, [key]: nextType }));
-  };
-
   // Helper to retrieve live card type
   const getLiveCardType = (bank: string, account: string) => {
     const key = `account_type::${bank}::${account}`;
     const saved = getSetting(key);
-    const list = accountGroups[`${bank}::${account}`] || [];
-    const hasCCMode = list.some(e => e.paymentMode === 'cc' || /credit\s*card|cc\b/i.test(e.rawMessage));
-    const defaultType = hasCCMode ? 'cc' : 'debit';
-    return accountTypesOverride[key] || saved || defaultType;
+    const summary = summaries.find(s => s.bank === bank && s.account === account);
+    const defaultType = summary?.cardType || 'debit';
+    return (accountTypesOverride[key] || saved || defaultType) as 'cc' | 'debit';
+  };
+
+  // Handle toggling CC vs Debit
+  const toggleAccountType = (bank: string, account: string) => {
+    const key = `account_type::${bank}::${account}`;
+    const currentType = getLiveCardType(bank, account);
+    const nextType = currentType === 'cc' ? 'debit' : 'cc';
+    
+    setSetting(key, nextType);
+    setAccountTypesOverride(prev => ({ ...prev, [key]: nextType }));
   };
 
   const openCardOptions = (bank: string, account: string) => {

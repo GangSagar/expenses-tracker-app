@@ -1,0 +1,87 @@
+{
+  "debitKeywords": [
+    "DEBITED",
+    "DEBIT",
+    "SPENT",
+    "PAID",
+    "PURCHASE",
+    "DEDUCTED",
+    "TRANSFERRED",
+    "TRANSFER",
+    "SENT",
+    "WITHDRAWN",
+    "PAYING",
+    "TRF",
+    "DR",
+    "DR."
+  ],
+  "creditKeywords": [
+    "CREDITED",
+    "CREDIT",
+    "RECEIVED",
+    "DEPOSITED",
+    "ADDED",
+    "CR",
+    "CR."
+  ],
+  "refundKeywords": [
+    "REFUND",
+    "REFUNDED",
+    "CASHBACK"
+  ],
+  "reversalKeywords": [
+    "REVERSED",
+    "REVERSAL",
+    "BOUNCED",
+    "RETURNED"
+  ],
+  "failedKeywords": [
+    "FAILED",
+    "DECLINED",
+    "UNSUCCESSFUL",
+    "REJECTED"
+  ],
+  "pendingKeywords": [
+    "PENDING",
+    "PROCESSING",
+    "IN PROCESS",
+    "AUTHORIZED",
+    "HOLD"
+  ],
+  "chargebackKeywords": [
+    "CHARGEBACK",
+    "DISPUTED"
+  ],
+  "currencies": {
+    "RS.": "₹",
+    "RS": "₹",
+    "INR": "₹",
+    "₹": "₹",
+    "USD": "$",
+    "$": "$"
+  },
+  "accountLabels": [
+    "A/C",
+    "A/C NO",
+    "A/C NO.",
+    "AC",
+    "ACCT",
+    "ACCOUNT",
+    "CARD",
+    "CRD",
+    "WALLET"
+  ],
+  "noiseWords": [
+    "DEAR",
+    "CUSTOMER",
+    "ALERT",
+    "NOTIFY",
+    "CALL",
+    "PLEASE",
+    "KINDLY",
+    "THANK",
+    "REGARDS",
+    "SMS",
+    "INFO"
+  ]
+}

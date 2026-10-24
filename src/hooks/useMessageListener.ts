@@ -30,21 +30,17 @@ export function useMessageListener() {
         `Message from ${message.sender} parsed! Decision: ${decision}`,
       );
 
+      const displayMerchant =
+        expense.merchant && expense.merchant !== 'Unknown' ? expense.merchant : 'Unknown';
+      const notifyBackground = (title: string, body: string) => {
+        if (AppState.currentState === 'background' || AppState.currentState === 'inactive') {
+          MessageModule.showExpenseNotification(title, body);
+        }
+      };
+
       switch (decision) {
         case 'auto_save': {
-          const displayMerchant =
-            expense.merchant && expense.merchant !== 'Unknown'
-              ? expense.merchant
-              : 'Unknown';
-          if (
-            AppState.currentState === 'background' ||
-            AppState.currentState === 'inactive'
-          ) {
-            MessageModule.showExpenseNotification(
-              'Transaction Auto-Saved',
-              `₹${expense.amount} at ${displayMerchant} recorded.`,
-            );
-          }
+          notifyBackground('Transaction Auto-Saved', `₹${expense.amount} at ${displayMerchant} recorded.`);
           const id = saveExpense(expense);
           if (id !== null) {
             console.log(`Auto-saved expense to DB with ID: ${id}`);
@@ -57,19 +53,7 @@ export function useMessageListener() {
           break;
         }
         case 'show_popup': {
-          const displayMerchant =
-            expense.merchant && expense.merchant !== 'Unknown'
-              ? expense.merchant
-              : 'Unknown';
-          if (
-            AppState.currentState === 'background' ||
-            AppState.currentState === 'inactive'
-          ) {
-            MessageModule.showExpenseNotification(
-              'New Pending Transaction',
-              `₹${expense.amount} at ${displayMerchant}. Tap to approve.`,
-            );
-          }
+          notifyBackground('New Pending Transaction', `₹${expense.amount} at ${displayMerchant}. Tap to approve.`);
           queuePendingExpense(expense);
           break;
         }
