@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+set -e
+
+# ==============================================================================
+# SpendWise CLI Command Dispatcher (./run)
+# ==============================================================================
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS_DIR="$ROOT_DIR/scripts"
+
+# Terminal Colors
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+show_help() {
+  echo -e "${BOLD}${CYAN}SpendWise Command Runner${NC}"
+  echo -e "Usage: ${BOLD}./run <command> [options / flags]${NC}\n"
+
+  echo -e "${BOLD}Available Commands:${NC}"
+  echo -e "  ${GREEN}jaeger${NC}           Manage OpenTelemetry / Jaeger tracing  (see: ${YELLOW}./run jaeger --help${NC})"
+  echo -e "  ${GREEN}setup${NC}            Environment verification & SDK setup   (see: ${YELLOW}./run setup --help${NC})"
+  echo -e "  ${GREEN}app${NC}              Build and launch application           (see: ${YELLOW}./run app --help${NC})"
+  echo -e "  ${GREEN}test${NC}             Run test suites & device collectors    (see: ${YELLOW}./run test --help${NC})"
+  echo -e "  ${GREEN}parse, diagnose${NC}  Test SMS parser headlessly in CLI      (see: ${YELLOW}./run parse --help${NC})"
+  echo -e "  ${GREEN}clean${NC}            Clean build caches and trace databases (see: ${YELLOW}./run clean --help${NC})"
+  echo -e "  ${GREEN}start, metro${NC}     Start React Native Metro dev server    (see: ${YELLOW}./run start --help${NC})"
+  echo ""
+  echo -e "${BOLD}Tip:${NC} Flags and options are handled directly by each respective script in ${CYAN}scripts/${NC}."
+  echo -e "To view supported options for any command, run: ${BOLD}./run <command> --help${NC}"
+}
+
+COMMAND="$1"
+
+if [ -z "$COMMAND" ] || [ "$COMMAND" == "help" ] || [ "$COMMAND" == "--help" ] || [ "$COMMAND" == "-h" ]; then
+  show_help
+  exit 0
+fi
+
+shift
+
+case "$COMMAND" in
+  jaeger)
+    exec "$SCRIPTS_DIR/run_jaeger.sh" "$@"
+    ;;
+  setup)
+    exec "$SCRIPTS_DIR/run_setup.sh" "$@"
+    ;;
+  test)
+    exec "$SCRIPTS_DIR/run_test.sh" "$@"
+    ;;
+  app)
+    exec "$SCRIPTS_DIR/run_app.sh" "$@"
+    ;;
+  parse|diagnose)
+    exec "$SCRIPTS_DIR/run_parse.sh" "$@"
+    ;;
+  clean)
+    exec "$SCRIPTS_DIR/run_clean.sh" "$@"
+    ;;
+  start|metro)
+    cd "$ROOT_DIR"
+    exec npx react-native start "$@"
+    ;;
+  *)
+    # Check if a custom script matching run_<command>.sh exists in scripts/
+    if [ -f "$SCRIPTS_DIR/run_${COMMAND}.sh" ]; then
+      exec "$SCRIPTS_DIR/run_${COMMAND}.sh" "$@"
+    elif [ -f "$SCRIPTS_DIR/${COMMAND}.sh" ]; then
+      exec "$SCRIPTS_DIR/${COMMAND}.sh" "$@"
+    fi
+
+    echo -e "${RED}Unknown command:${NC} $COMMAND"
+    echo -e "Run ${BOLD}./run --help${NC} for a list of available commands."
+    exit 1
+    ;;
+esac
