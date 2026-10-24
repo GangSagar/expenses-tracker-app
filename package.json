@@ -5,9 +5,19 @@
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
+    "jaeger": "./run jaeger",
+    "jaeger:clean": "./run jaeger --clean",
+    "jaeger:start": "./run jaeger --start",
+    "jaeger:status": "./run jaeger --status",
+    "jaeger:stop": "./run jaeger --stop",
+    "benchmark": "node scripts/parse-cli.js --benchmark",
     "lint": "eslint .",
+    "parse": "./scripts/parse-sms.sh",
+    "postinstall": "node scripts/setup-android.js",
+    "setup:android": "node scripts/setup-android.js",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "test:collect": "python3 scripts/collect-testcases.py"
   },
   "dependencies": {
     "@react-native/new-app-screen": "0.85.3",
@@ -36,6 +46,7 @@
     "@react-native/metro-config": "0.85.3",
     "@react-native/typescript-config": "0.85.3",
     "@types/jest": "^29.5.13",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.2.0",
     "@types/react-test-renderer": "^19.1.0",
     "eslint": "^8.19.0",

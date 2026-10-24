@@ -5,6 +5,10 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$DIR")"
 JAEGER_BIN="$DIR/jaeger/jaeger-all-in-one"
 DATA_DIR="$DIR/jaeger/data"
+LOG_DIR="$DIR/jaeger/logs"
+LOG_FILE="$LOG_DIR/jaeger.log"
+
+UI_CONFIG="$DIR/jaeger/jaeger-ui.json"
 
 ensure_installed() {
   if [ ! -f "$JAEGER_BIN" ]; then
@@ -29,7 +33,7 @@ setup_adb_ports() {
 
 start_jaeger() {
   ensure_installed
-  mkdir -p "$DATA_DIR/keys" "$DATA_DIR/values"
+  mkdir -p "$DATA_DIR/keys" "$DATA_DIR/values" "$LOG_DIR"
   setup_adb_ports
 
   if pgrep -f "jaeger-all-in-one" >/dev/null; then
@@ -38,7 +42,13 @@ start_jaeger() {
     echo "🌐 Web UI: http://localhost:16686"
     echo "📡 OTLP Receiver: http://localhost:4318/v1/traces"
     echo "💾 Storage: $DATA_DIR"
+    echo "📄 Server Logs: $LOG_FILE"
     return 0
+  fi
+
+  UI_FLAGS=()
+  if [ -f "$UI_CONFIG" ]; then
+    UI_FLAGS=(--query.ui-config="$UI_CONFIG")
   fi
 
   if [[ "$1" == "-fg" || "$1" == "--fg" || "$2" == "-fg" || "$2" == "--fg" ]]; then
@@ -48,19 +58,23 @@ start_jaeger() {
     echo "💾 Permanent Storage: $DATA_DIR"
     SPAN_STORAGE_TYPE=badger "$JAEGER_BIN" \
       --badger.ephemeral=false \
+      --badger.consistency=true \
       --badger.directory-key="$DATA_DIR/keys" \
       --badger.directory-value="$DATA_DIR/values" \
-      --badger.span-store-ttl=0s
+      --badger.span-store-ttl=876000h \
+      "${UI_FLAGS[@]}"
     return 0
   fi
 
   echo "🚀 Starting Jaeger with permanent disk storage..."
-  nohup env SPAN_STORAGE_TYPE=badger "$JAEGER_BIN" \
+  setsid env SPAN_STORAGE_TYPE=badger "$JAEGER_BIN" \
     --badger.ephemeral=false \
+    --badger.consistency=true \
     --badger.directory-key="$DATA_DIR/keys" \
     --badger.directory-value="$DATA_DIR/values" \
-    --badger.span-store-ttl=0s \
-    > /tmp/jaeger.log 2>&1 &
+    --badger.span-store-ttl=876000h \
+    "${UI_FLAGS[@]}" \
+    > "$LOG_FILE" 2>&1 &
   PID=$!
   disown $PID 2>/dev/null || true
   sleep 1
@@ -70,20 +84,30 @@ start_jaeger() {
     echo "🌐 Web UI: http://localhost:16686"
     echo "📡 OTLP Receiver: http://localhost:4318/v1/traces"
     echo "💾 Permanent Storage: $DATA_DIR"
-    echo "   (Traces persist across reboots until cleaned with --clean)"
+    echo "📄 Server Logs: $LOG_FILE"
+    echo "   (Traces & logs persist forever until deleted with: ./run jaeger clean)"
   else
-    echo "❌ Failed to start Jaeger. Check /tmp/jaeger.log:"
-    tail -n 20 /tmp/jaeger.log
+    echo "❌ Failed to start Jaeger. Check $LOG_FILE:"
+    tail -n 20 "$LOG_FILE"
     exit 1
   fi
 }
 
 stop_jaeger() {
   if pgrep -f "jaeger-all-in-one" >/dev/null; then
-    echo "🛑 Stopping Jaeger..."
-    pkill -f "jaeger-all-in-one" || true
-    sleep 1
-    echo "✔ Jaeger stopped."
+    echo "🛑 Stopping Jaeger gracefully to flush all data to disk..."
+    pkill -TERM -f "jaeger-all-in-one" || true
+    for i in {1..10}; do
+      if ! pgrep -f "jaeger-all-in-one" >/dev/null; then
+        break
+      fi
+      sleep 0.5
+    done
+    if pgrep -f "jaeger-all-in-one" >/dev/null; then
+      echo "⚠️ Force stopping Jaeger..."
+      pkill -KILL -f "jaeger-all-in-one" || true
+    fi
+    echo "✔ Jaeger stopped and data flushed safely to disk."
   else
     echo "ℹ Jaeger is not running."
   fi
@@ -128,6 +152,21 @@ clean_jaeger() {
   echo "✔ Persistent Jaeger trace data purged."
 }
 
+export_jaeger() {
+  local outfile="${1:-$LOG_DIR/traces_$(date +%Y%m%d_%H%M%S).json}"
+  mkdir -p "$LOG_DIR"
+
+  if ! pgrep -f "jaeger-all-in-one" >/dev/null; then
+    echo "⚠️ Jaeger is not currently running. Starting it..."
+    start_jaeger
+    sleep 2
+  fi
+
+  echo "📥 Querying all traces from local Jaeger API..."
+  curl -s "http://localhost:16686/api/traces?service=expense-tracker-mobile&limit=10000&lookback=4w" > "$outfile"
+  echo "✔ Exported traces to: $outfile ($(du -h "$outfile" 2>/dev/null | cut -f1))"
+}
+
 show_help() {
   echo "Usage: ./run jaeger [command] [options]"
   echo ""
@@ -137,6 +176,7 @@ show_help() {
   echo "  restart     Restart Jaeger daemon"
   echo "  status      Check Jaeger status, ports, and storage size"
   echo "  clean       Purge persistent trace data from disk (-f to skip prompt)"
+  echo "  export      Export all traces to a JSON log file in scripts/jaeger/logs/"
   echo ""
   echo "Flags:"
   echo "  --start     Alias for start"
@@ -144,6 +184,7 @@ show_help() {
   echo "  --restart   Alias for restart"
   echo "  --status    Alias for status"
   echo "  --clean     Alias for clean"
+  echo "  --export    Alias for export [output.json]"
   echo "  --help, -h  Show this help message"
 }
 
@@ -163,6 +204,9 @@ case "${1:-start}" in
     ;;
   clean|--clean)
     clean_jaeger "$2"
+    ;;
+  export|--export)
+    export_jaeger "$2"
     ;;
   --help|-h|help)
     show_help
