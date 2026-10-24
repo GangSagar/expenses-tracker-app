@@ -50,25 +50,30 @@ export interface StructuredExpense {
   parserVersion: string;
 }
 
+export function toBaseTransactionType(type: ExtendedTransactionType): TransactionType {
+  if (type === 'credit' || type === 'refund' || type === 'reversal') {
+    return 'credit';
+  }
+  return 'debit';
+}
+
+export function toBasePaymentMode(mode: ExtendedPaymentMode): PaymentMode {
+  if (mode === 'upi' || mode === 'cc' || mode === 'wallet' || mode === 'cash') {
+    return mode;
+  }
+  if (mode === 'dc') {
+    return 'cc';
+  }
+  return 'unknown';
+}
+
 /**
- * Converts a StructuredExpense into the existing ParsedTransaction format
+ * Converts a StructuredExpense into the existing ParsedTransaction format,
  * ensuring 100% backwards compatibility with all services and UI screens.
  */
 export function toParsedTransaction(expense: StructuredExpense): ParsedTransaction {
-  // Map extended transaction type to basic 'debit' | 'credit' for legacy consumers
-  let baseType: TransactionType = 'debit';
-  if (expense.transactionType === 'credit' || expense.transactionType === 'refund' || expense.transactionType === 'reversal') {
-    baseType = 'credit';
-  }
-
-  // Map extended payment mode to existing PaymentMode
-  let baseMode: PaymentMode = 'unknown';
-  if (expense.paymentMode === 'upi' || expense.paymentMode === 'cc' || expense.paymentMode === 'wallet' || expense.paymentMode === 'cash') {
-    baseMode = expense.paymentMode;
-  } else if (expense.paymentMode === 'dc') {
-    baseMode = 'cc'; // fallback for card
-  }
-
+  const baseType = toBaseTransactionType(expense.transactionType);
+  const baseMode = toBasePaymentMode(expense.paymentMode);
   const rawOrNorm = expense.merchant || expense.normalizedMerchant;
 
   return {
@@ -91,15 +96,8 @@ export function toParsedTransaction(expense: StructuredExpense): ParsedTransacti
  * Converts a StructuredExpense into the storage-ready Expense model.
  */
 export function toExpenseModel(expense: StructuredExpense): Expense {
-  let baseType: TransactionType = 'debit';
-  if (expense.transactionType === 'credit' || expense.transactionType === 'refund' || expense.transactionType === 'reversal') {
-    baseType = 'credit';
-  }
-
-  let baseMode: PaymentMode = 'unknown';
-  if (expense.paymentMode === 'upi' || expense.paymentMode === 'cc' || expense.paymentMode === 'wallet' || expense.paymentMode === 'cash') {
-    baseMode = expense.paymentMode;
-  }
+  const baseType = toBaseTransactionType(expense.transactionType);
+  const baseMode = toBasePaymentMode(expense.paymentMode);
 
   return {
     amount: expense.amount,
