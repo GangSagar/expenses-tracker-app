@@ -14,8 +14,8 @@ import EditTransactionModal from '../components/EditTransactionModal';
 import ExpenseItem from '../components/ExpenseItem';
 import { formatAmount, getCategoryColor } from '../../../utils/formatHelpers';
 import BankCard from '../components/BankCard';
-import { getSetting } from '../../../database/expenseRepo';
-import { generateBudgetInsights } from '../../../services/advisorService';
+import { settingsService } from '../../../app/composition';
+import { generateBudgetInsights } from '../../../services/advisor/advisorService';
 import commonStyles from '../styles/commonStyles';
 import styles from '../styles/HomeScreenStyles';
 import { computeAccountSummaries } from '../../../utils/accountHelpers';
@@ -38,12 +38,11 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (isFocused) {
-      const saved = getSetting('monthly_budget_limit', '20000');
+      const saved = settingsService.getMonthlyBudgetLimit();
       setBudgetLimit(Number(saved) || 20000);
 
       try {
-        const savedHidden = getSetting('hidden_accounts', '[]');
-        setHiddenAccounts(JSON.parse(savedHidden));
+        setHiddenAccounts(settingsService.getHiddenAccounts());
       } catch (e) {
         console.error('Failed to parse hidden accounts', e);
       }
@@ -67,8 +66,7 @@ export default function HomeScreen() {
   const accountsList: { bank: string; account: string; balance: number; cardType: 'cc' | 'debit' }[] = [];
   for (const s of summaries) {
     // Check persisted cardType override or auto default
-    const typeKey = `account_type::${s.bank}::${s.account}`;
-    const saved = getSetting(typeKey);
+    const saved = settingsService.getAccountType(s.bank, s.account);
     const hasCCMode = s.transactions.some(e => e.paymentMode === 'cc' || /credit\s*card|cc\b/i.test(e.rawMessage));
     const cardType = (saved || (hasCCMode ? 'cc' : s.cardType)) as 'cc' | 'debit';
 

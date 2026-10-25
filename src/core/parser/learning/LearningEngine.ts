@@ -1,6 +1,5 @@
 import { Category } from '../../../types/expense';
 import { ILearningRepository, LearnedMapping } from './ILearningRepository';
-import { SQLiteLearningRepository } from './SQLiteLearningRepository';
 
 export interface ILearningEngine {
   learn(rawMerchant: string, displayName: string, category: Category): void;
@@ -12,8 +11,8 @@ export interface ILearningEngine {
 export class LearningEngine implements ILearningEngine {
   private repository: ILearningRepository;
 
-  constructor(repository?: ILearningRepository) {
-    this.repository = repository || new SQLiteLearningRepository();
+  constructor(repository: ILearningRepository) {
+    this.repository = repository;
   }
 
   public learn(rawMerchant: string, displayName: string, category: Category): void {
@@ -40,5 +39,3 @@ export class LearningEngine implements ILearningEngine {
     return this.repository.getAll();
   }
 }
-
-export const defaultLearningEngine = new LearningEngine();

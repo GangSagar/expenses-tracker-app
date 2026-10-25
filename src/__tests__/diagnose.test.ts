@@ -1,6 +1,6 @@
 import { parseMessage } from '../core/parser/parseMessage';
 import { isTransactionMessage, isTransactionalSender } from '../core/parser/filters';
-import { isSpam } from '../core/classifier/spamClassifier';
+import { spamClassifier } from '../app/composition';
 import { detectBank } from '../core/parser/bankMap';
 
 describe('Backend SMS Diagnostics CLI', () => {
@@ -12,7 +12,7 @@ describe('Backend SMS Diagnostics CLI', () => {
 
     const isTxSender = isTransactionalSender(sender);
     const isTxMsg = isTransactionMessage(rawMsg);
-    const spam = isSpam(rawMsg);
+    const spam = spamClassifier.isSpam(rawMsg);
     const bank = detectBank(sender, rawMsg);
     const parsed = parseMessage(rawMsg, sender, 'sms');
 

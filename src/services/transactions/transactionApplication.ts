@@ -9,15 +9,14 @@ import { TransactionCandidate } from '../../core/transactions/contracts';
 import { IncomingMessage, processIncomingMessage } from '../messaging/messageService';
 import { processTransaction } from './transactionDecisionService';
 import { orchestrateTransaction } from './transactionOrchestrator';
-import { defaultLearningEngine } from '../../core/parser/learning';
 import { setMerchantMapping } from '../../core/classifier/merchantMap';
-import { transactionStorage } from './transactionDependencies';
+import { learningEngine, transactionStorage } from '../../app/composition';
 import { notifyTransactionSaved } from '../notifications/transactionSavedNotification';
 
 function learnCorrection(alias: string, merchant: string, category: Expense['category']) {
   try {
     setMerchantMapping(alias, category, merchant);
-    defaultLearningEngine.learn(alias, merchant, category);
+    learningEngine.learn(alias, merchant, category);
   } catch (error) {
     // Learning is a follow-up side effect; it must not hide a successful write.
     console.error('Transaction saved, but merchant/category learning failed:', error);

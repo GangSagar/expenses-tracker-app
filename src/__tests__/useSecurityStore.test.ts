@@ -1,5 +1,4 @@
 import { useSecurityStore } from '../hooks/useSecurityStore';
-import * as securityService from '../services/securityService';
 
 jest.mock('../database/expenseRepo', () => {
   const store: Record<string, string> = {};

@@ -194,7 +194,9 @@ The app adopts its known pre-versioned schema as version 0 and migrates it addit
 
 ### Phase 8 — Domain organization and dependency guardrails
 
-After runtime ownership is stable, organize domain/application/infrastructure code by feature (transactions, splits, accounts, security, budgeting) and layer. Keep the parser as a focused subsystem. Leave screens and visual components for the planned UI replacement; add only narrow import conventions or lint checks that prevent observed dependency regressions.
+**Status: Complete.** The detailed audit, implementation record, dependency boundaries, and verification are in [Phase 8: Domain Organization and Dependency Guardrails](./PHASE_8_DOMAIN_ORGANIZATION_AND_DEPENDENCY_GUARDRAILS.md).
+
+Organize domain/application/infrastructure code only where ownership is clear. Keep the parser focused and leave screens and visual components for the planned UI replacement. Address observed layer inversions and add narrow import rules; avoid a speculative feature-folder rewrite.
 
 **Exit condition:** domain/application/infrastructure ownership is findable and imports follow the intended dependency direction. Presentation restructuring is not required for this exit condition.
 

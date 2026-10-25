@@ -1,5 +1,3 @@
-import { configManager } from '../config';
-
 /**
  * Normalizes different currency notations into a single canonical symbol.
  * Example: "Rs. 500", "INR 500", "inr500", "Rs500" -> "₹ 500"
@@ -7,7 +5,6 @@ import { configManager } from '../config';
 export function normalizeCurrency(text: string): string {
   if (!text) return '';
 
-  const tokenDict = configManager.getTokenDictionary();
   let result = text;
 
   // Replace Indian Rupee variants: Rs., Rs, INR, inr with ₹

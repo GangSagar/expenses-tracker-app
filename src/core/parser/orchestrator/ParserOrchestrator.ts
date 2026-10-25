@@ -6,7 +6,7 @@ import { IMerchantResolver, defaultMerchantResolver } from '../resolver/Merchant
 import { ITransactionResolver, defaultTransactionResolver } from '../resolver/TransactionResolver';
 import { ICategoryResolver, defaultCategoryResolver } from '../resolver/CategoryResolver';
 import { IConfidenceEngine, defaultConfidenceEngine } from '../confidence';
-import { ILearningEngine, defaultLearningEngine } from '../learning';
+import { ILearningEngine, InMemoryLearningRepository, LearningEngine } from '../learning';
 import { IAIResolver, defaultAIResolver } from '../ai';
 import { MessageFilter, defaultMessageFilter } from '../filter';
 import { configManager, ParserConfigurationManager } from '../config';
@@ -50,7 +50,7 @@ export class ParserOrchestrator implements IParserOrchestrator {
     this.transactionResolver = dependencies?.transactionResolver || defaultTransactionResolver;
     this.categoryResolver = dependencies?.categoryResolver || defaultCategoryResolver;
     this.confidenceEngine = dependencies?.confidenceEngine || defaultConfidenceEngine;
-    this.learningEngine = dependencies?.learningEngine || defaultLearningEngine;
+    this.learningEngine = dependencies?.learningEngine || new LearningEngine(new InMemoryLearningRepository());
     this.aiResolver = dependencies?.aiResolver || defaultAIResolver;
     this.filter = dependencies?.filter || defaultMessageFilter;
     this.config = dependencies?.config || configManager;

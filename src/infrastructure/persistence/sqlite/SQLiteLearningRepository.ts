@@ -1,5 +1,5 @@
-import { ILearningRepository, LearnedMapping } from './ILearningRepository';
-import { InMemoryLearningRepository } from './InMemoryLearningRepository';
+import { ILearningRepository, LearnedMapping } from '../../../core/parser/learning/ILearningRepository';
+import { InMemoryLearningRepository } from '../../../core/parser/learning/InMemoryLearningRepository';
 import { Category } from '../../../types/expense';
 
 export class SQLiteLearningRepository implements ILearningRepository {

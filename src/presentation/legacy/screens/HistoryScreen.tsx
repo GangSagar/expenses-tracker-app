@@ -11,7 +11,7 @@ import {
 import { useExpenseStore } from '../../../hooks/useExpenses';
 import { Expense, Category } from '../../../types/expense';
 import { CATEGORIES as APP_CATEGORIES } from '../../../constants/appOptions';
-import { trainSpam } from '../../../core/classifier/spamClassifier';
+import { spamClassifier } from '../../../app/composition';
 import EditTransactionModal from '../components/EditTransactionModal';
 import CalendarModal from '../components/CalendarModal';
 import { getGroupedSections } from '../../../utils/dateHelpers';
@@ -309,7 +309,7 @@ export default function HistoryScreen() {
       if (!useExpenseStore.getState().invalidateExpense(id, false)) return;
       // If it was marked as spam previously, untrain
       if (selectedTrashExpense.trashReason === 'spam') {
-        trainSpam(selectedTrashExpense.rawMessage, false);
+        spamClassifier.train(selectedTrashExpense.rawMessage, false);
       }
     } else {
       // Keep trashed, but update reason
@@ -318,7 +318,7 @@ export default function HistoryScreen() {
       
       // If marked as spam, train AI
       if (action === 'spam') {
-        trainSpam(selectedTrashExpense.rawMessage, true);
+        spamClassifier.train(selectedTrashExpense.rawMessage, true);
       }
     }
 

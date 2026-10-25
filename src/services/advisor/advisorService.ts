@@ -1,4 +1,4 @@
-import { Expense } from '../types/expense';
+import { Expense } from '../../types/expense';
 
 export interface BudgetInsight {
   status: 'good' | 'warning' | 'danger';

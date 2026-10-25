@@ -11,7 +11,7 @@
     "jaeger:status": "./run jaeger --status",
     "jaeger:stop": "./run jaeger --stop",
     "benchmark": "node scripts/parse-cli.js --benchmark",
-    "lint": "eslint .",
+    "lint": "node scripts/check-import-boundaries.js && eslint .",
     "parse": "./scripts/parse-sms.sh",
     "postinstall": "node scripts/setup-android.js",
     "setup:android": "node scripts/setup-android.js",

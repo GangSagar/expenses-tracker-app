@@ -123,7 +123,7 @@ gantt
 
 * **Goal**: Provide enterprise-grade telemetry, automated physical device testing harnesses, and headless debugging scripts.
 * **Key Deliverables**:
-  - `src/services/telemetryService.ts`: OpenTelemetry instrumented tracer sending OTLP spans over HTTP (port 4318) to a local standalone Jaeger collector. Captures span attributes: `sms.count`, `sms.parsed_count`, `sms.duplicates`, `sms.duration_ms`.
+  - `src/infrastructure/observability/telemetryService.ts`: OpenTelemetry instrumented tracer sending OTLP spans over HTTP (port 4318) to a local standalone Jaeger collector. Captures span attributes: `sms.count`, `sms.parsed_count`, `sms.duplicates`, `sms.duration_ms`.
   - `scripts/jaeger/`: Standalone Jaeger binary deployment with npm management scripts (`npm run jaeger:start`, `npm run jaeger:stop`).
   - `scripts/collect-testcases.py`: Python ADB automation harness that queries physical Android devices (`adb shell content query --uri content://sms`), strips personal phone numbers for privacy, and generates executable Jest test suites (`src/__tests__/collected-real.test.ts`).
   - `scripts/parse-sms.sh` & `npm run parse`: Headless CLI runner executing TypeScript parser logic against arbitrary SMS strings in the terminal.
@@ -143,7 +143,7 @@ gantt
   - `src/core/parser/extractor/`: Targeted extractors (`AmountExtractor`, `AccountExtractor`, `BankExtractor`, `VpaExtractor`, `ReferenceExtractor`, `BalanceExtractor`, `PaymentModeExtractor`, `RawMerchantExtractor`) coordinated via `EntityExtractor`.
   - `src/core/parser/resolver/`: Contextual business resolvers (`MerchantResolver`, `TransactionResolver`, `CategoryResolver`).
   - `src/core/parser/confidence/`: Weighted multi-factor confidence scoring engine.
-  - `src/core/parser/learning/`: Adaptive on-device learning engine (`LearningEngine`) with repository abstraction (`ILearningRepository`, `InMemoryLearningRepository`, `SQLiteLearningRepository`).
+  - `src/core/parser/learning/`: Adaptive on-device learning engine (`LearningEngine`) with repository abstraction (`ILearningRepository`, `InMemoryLearningRepository`); its SQLite adapter lives in `src/infrastructure/persistence/sqlite/`.
   - `src/core/parser/ai/`: Offline AI fallback interface (`AIResolver`) with persistent local caching (`AICache`).
   - `src/core/parser/orchestrator/`: 10-stage pipeline coordinator (`ParserOrchestrator`).
   - `src/core/parser/parseMessage.ts`: Backward compatibility adapter returning typed `ParsedTransaction`.

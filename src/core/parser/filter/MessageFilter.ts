@@ -23,7 +23,7 @@ export class MessageFilter {
     /\blimited\s+period\s+offer\b/i,
   ];
 
-  public filter(rawMessage: string, sender: string = ''): FilterResult {
+  public filter(rawMessage: string, _sender: string = ''): FilterResult {
     if (!rawMessage || typeof rawMessage !== 'string' || rawMessage.trim().length === 0) {
       return { isTransaction: false, dropReason: 'malformed' };
     }

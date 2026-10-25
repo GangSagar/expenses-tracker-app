@@ -1,14 +1,12 @@
 import { TransactionSource } from '../../types/expense';
 import { StructuredExpense } from '../../core/parser/models';
-import { parseStructuredAsync } from '../../core/parser/parseMessage';
 import {
   isTransactionalSender,
   isTransactionMessage,
 } from '../../core/parser';
 import { normalizeUnicodeText } from '../../utils/formatHelpers';
-import { isSpam } from '../../core/classifier/spamClassifier';
 import { TransactionRejectionReason } from '../../core/transactions/contracts';
-import { telemetry } from '../telemetryService';
+import { parserOrchestrator, spamClassifier, telemetry } from '../../app/composition';
 
 export interface IncomingMessage {
   body: string;
@@ -43,10 +41,10 @@ export async function processIncomingMessage(
     rejectionSignals.push('non_transactional_sender');
   } else if (!isTransactionMessage(normalizedBody)) {
     rejectionSignals.push('blocked_message');
-  } else if (isSpam(normalizedBody)) {
+  } else if (spamClassifier.isSpam(normalizedBody)) {
     rejectionSignals.push('spam');
   } else {
-    parsed = await parseStructuredAsync(normalizedBody, normalizedSender, message.source);
+    parsed = await parserOrchestrator.parseAsync(normalizedBody, normalizedSender, message.source);
     if (!parsed || !Number.isFinite(parsed.amount) || parsed.amount <= 0) {
       rejectionSignals.push('missing_amount');
       parsed = null;

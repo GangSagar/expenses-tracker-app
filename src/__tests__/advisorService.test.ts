@@ -1,4 +1,4 @@
-import { generateBudgetInsights } from '../services/advisorService';
+import { generateBudgetInsights } from '../services/advisor/advisorService';
 import { Expense } from '../types/expense';
 
 describe('Local Smart Budget Advisor Engine', () => {

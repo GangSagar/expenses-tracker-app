@@ -3,38 +3,29 @@ import {
   generateSalt,
   hashPin,
   verifyPinHash,
-  savePin,
-  clearPin,
-  loadPersistedSecuritySettings,
-  setBiometricSetting,
-  setLockTimeoutSetting,
-  checkDeviceAuthAvailable,
-  authenticateWithBiometrics,
+  createSecurityService,
   DEFAULT_LOCK_TIMEOUT_MS,
   SECURITY_SETTING_KEYS,
-} from '../services/securityService';
-import { getSetting, setSetting } from '../database/expenseRepo';
+} from '../services/security/securityService';
 
-jest.mock('../database/expenseRepo', () => {
-  const store: Record<string, string> = {};
-  return {
-    getSetting: jest.fn((key: string, defaultValue: string = '') => {
-      return store[key] !== undefined ? store[key] : defaultValue;
-    }),
-    setSetting: jest.fn((key: string, value: string) => {
-      store[key] = value;
-    }),
-    __store: store,
-  };
-});
+const store: Record<string, string> = {};
+const settings = {
+  get: jest.fn((key: string, defaultValue = '') => store[key] ?? defaultValue),
+  set: jest.fn((key: string, value: string) => { store[key] = value; }),
+};
+const deviceAuth = {
+  getStatus: jest.fn(async () => ({ isAvailable: false, hasBiometrics: false, isDeviceSecure: false })),
+  authenticate: jest.fn(async () => false),
+  cancelAuthentication: jest.fn(async () => false),
+  setSecureFlag: jest.fn(async () => false),
+};
+let security: ReturnType<typeof createSecurityService>;
 
 describe('securityService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    const repo = require('../database/expenseRepo');
-    for (const key of Object.keys(repo.__store)) {
-      delete repo.__store[key];
-    }
+    Object.keys(store).forEach(key => delete store[key]);
+    security = createSecurityService(settings, deviceAuth);
   });
 
   describe('sha256', () => {
@@ -74,14 +65,14 @@ describe('securityService', () => {
 
   describe('persistence functions', () => {
     it('saves PIN and sets app lock to true', () => {
-      const { salt, hash } = savePin('4321');
+      const { salt, hash } = security.savePin('4321');
       expect(salt).toBeDefined();
       expect(hash).toBeDefined();
-      expect(setSetting).toHaveBeenCalledWith(SECURITY_SETTING_KEYS.APP_LOCK_PIN_SALT, salt);
-      expect(setSetting).toHaveBeenCalledWith(SECURITY_SETTING_KEYS.APP_LOCK_PIN_HASH, hash);
-      expect(setSetting).toHaveBeenCalledWith(SECURITY_SETTING_KEYS.APP_LOCK_ENABLED, 'true');
+      expect(settings.set).toHaveBeenCalledWith(SECURITY_SETTING_KEYS.APP_LOCK_PIN_SALT, salt);
+      expect(settings.set).toHaveBeenCalledWith(SECURITY_SETTING_KEYS.APP_LOCK_PIN_HASH, hash);
+      expect(settings.set).toHaveBeenCalledWith(SECURITY_SETTING_KEYS.APP_LOCK_ENABLED, 'true');
 
-      const loaded = loadPersistedSecuritySettings();
+      const loaded = security.loadPersistedSecuritySettings();
       expect(loaded.hasPinSet).toBe(true);
       expect(loaded.isAppLockEnabled).toBe(true);
       expect(loaded.pinSalt).toBe(salt);
@@ -90,23 +81,23 @@ describe('securityService', () => {
     });
 
     it('clears PIN and disables app lock', () => {
-      savePin('1234');
-      clearPin();
+      security.savePin('1234');
+      security.clearPin();
 
-      const loaded = loadPersistedSecuritySettings();
+      const loaded = security.loadPersistedSecuritySettings();
       expect(loaded.hasPinSet).toBe(false);
       expect(loaded.isAppLockEnabled).toBe(false);
       expect(loaded.isBiometricEnabled).toBe(false);
     });
 
     it('toggles biometric and timeout settings', () => {
-      setBiometricSetting(true);
-      expect(setSetting).toHaveBeenCalledWith(SECURITY_SETTING_KEYS.APP_LOCK_BIOMETRIC_ENABLED, 'true');
+      security.setBiometricSetting(true);
+      expect(settings.set).toHaveBeenCalledWith(SECURITY_SETTING_KEYS.APP_LOCK_BIOMETRIC_ENABLED, 'true');
 
-      setLockTimeoutSetting(60000);
-      expect(setSetting).toHaveBeenCalledWith(SECURITY_SETTING_KEYS.APP_LOCK_TIMEOUT_MS, '60000');
+      security.setLockTimeoutSetting(60000);
+      expect(settings.set).toHaveBeenCalledWith(SECURITY_SETTING_KEYS.APP_LOCK_TIMEOUT_MS, '60000');
 
-      const loaded = loadPersistedSecuritySettings();
+      const loaded = security.loadPersistedSecuritySettings();
       expect(loaded.isBiometricEnabled).toBe(true);
       expect(loaded.lockTimeout).toBe(60000);
     });
@@ -114,10 +105,10 @@ describe('securityService', () => {
 
   describe('native biometric graceful fallback', () => {
     it('returns false/unavailable when SecurityModule is not present', async () => {
-      const status = await checkDeviceAuthAvailable();
+      const status = await security.checkDeviceAuthAvailable();
       expect(status.isAvailable).toBe(false);
 
-      const authResult = await authenticateWithBiometrics();
+      const authResult = await security.authenticateWithBiometrics();
       expect(authResult).toBe(false);
     });
   });

@@ -1,7 +1,7 @@
 import { Expense, Category } from '../types/expense';
 import { QuickSQLiteConnection } from 'react-native-quick-sqlite';
 import { getDatabase } from './db';
-import { telemetry } from '../services/telemetryService';
+import { telemetry } from '../infrastructure/observability/telemetryService';
 import { SplitSettlementUpdate } from '../core/transactions/repaymentPlanner';
 import { TransactionMutation } from '../core/transactions/contracts';
 import {

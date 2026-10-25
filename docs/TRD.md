@@ -423,7 +423,7 @@ Split rows preserve their original `amount` and may store cumulative `paidAmount
 
 ### 7.1 Architecture
 
-The app implements an OpenTelemetry OTLP JSON trace exporter running inside `src/services/telemetryService.ts`:
+The app implements an OpenTelemetry OTLP JSON trace exporter running inside `src/infrastructure/observability/telemetryService.ts`:
 
 * **Receiver**: Local Jaeger v1.60 running on developer workstation (`:4318/v1/traces`).
 * **Routing**:

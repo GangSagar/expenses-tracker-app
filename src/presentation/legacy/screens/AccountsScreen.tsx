@@ -11,7 +11,7 @@ import { useExpenseStore } from '../../../hooks/useExpenses';
 import { Expense } from '../../../types/expense';
 import EditTransactionModal from '../components/EditTransactionModal';
 import { formatAmount } from '../../../utils/formatHelpers';
-import { getSetting, setSetting } from '../../../database/expenseRepo';
+import { settingsService } from '../../../app/composition';
 import { deleteAccountTransactions } from '../../../services/transactions/transactionApplication';
 import { useFocusEffect } from '@react-navigation/native';
 import { Modal as RNModal } from 'react-native';
@@ -73,11 +73,8 @@ export default function AccountsScreen() {
     useCallback(() => {
       try {
         loadExpenses();
-        const savedAnomalies = getSetting('ignored_anomalies', '[]');
-        setIgnoredSignatures(JSON.parse(savedAnomalies));
-
-        const savedHidden = getSetting('hidden_accounts', '[]');
-        setHiddenAccounts(JSON.parse(savedHidden));
+        setIgnoredSignatures(settingsService.getIgnoredAnomalies());
+        setHiddenAccounts(settingsService.getHiddenAccounts());
       } catch (e) {
         console.error('Failed to parse settings in Accounts', e);
       }
@@ -154,7 +151,7 @@ export default function AccountsScreen() {
   // Helper to retrieve live card type
   const getLiveCardType = (bank: string, account: string) => {
     const key = `account_type::${bank}::${account}`;
-    const saved = getSetting(key);
+    const saved = settingsService.getAccountType(bank, account);
     const summary = summaries.find(s => s.bank === bank && s.account === account);
     const defaultType = summary?.cardType || 'debit';
     return (accountTypesOverride[key] || saved || defaultType) as 'cc' | 'debit';
@@ -166,7 +163,7 @@ export default function AccountsScreen() {
     const currentType = getLiveCardType(bank, account);
     const nextType = currentType === 'cc' ? 'debit' : 'cc';
     
-    setSetting(key, nextType);
+    settingsService.setAccountType(bank, account, nextType);
     setAccountTypesOverride(prev => ({ ...prev, [key]: nextType }));
   };
 
@@ -180,7 +177,7 @@ export default function AccountsScreen() {
     const key = `${selectedOptionsCard.bank}::${selectedOptionsCard.account}`;
     const newList = [...hiddenAccounts, key];
     setHiddenAccounts(newList);
-    setSetting('hidden_accounts', JSON.stringify(newList));
+    settingsService.setHiddenAccounts(newList);
     setOptionsModalVisible(false);
   };
 
@@ -215,7 +212,7 @@ export default function AccountsScreen() {
 
   const handleRestoreHiddenCards = () => {
     setHiddenAccounts([]);
-    setSetting('hidden_accounts', '[]');
+    settingsService.setHiddenAccounts([]);
   };
 
   // Ignored Anomalies Actions
@@ -223,19 +220,19 @@ export default function AccountsScreen() {
     const sig = `${anomaly.bank}::${anomaly.account}::${anomaly.startDate}::${anomaly.endDate}`;
     const newList = [...ignoredSignatures, sig];
     setIgnoredSignatures(newList);
-    setSetting('ignored_anomalies', JSON.stringify(newList));
+    settingsService.setIgnoredAnomalies(newList);
   };
 
   const handleIgnoreAllAnomalies = () => {
     const newSigs = anomalies.map(item => `${item.bank}::${item.account}::${item.startDate}::${item.endDate}`);
     const newList = Array.from(new Set([...ignoredSignatures, ...newSigs]));
     setIgnoredSignatures(newList);
-    setSetting('ignored_anomalies', JSON.stringify(newList));
+    settingsService.setIgnoredAnomalies(newList);
   };
 
   const handleResetIgnoredAnomalies = () => {
     setIgnoredSignatures([]);
-    setSetting('ignored_anomalies', '[]');
+    settingsService.setIgnoredAnomalies([]);
   };
 
   // Filter calculated anomalies to get visible/active ones

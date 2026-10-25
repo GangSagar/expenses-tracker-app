@@ -298,7 +298,7 @@ The parser follows Clean Architecture principles with complete separation of con
 | **Extractor Tier** | `src/core/parser/extractor/` | Targeted extraction units: `AmountExtractor`, `AccountExtractor`, `VpaExtractor`, `ReferenceExtractor`, `BalanceExtractor`, `BankExtractor`, `PaymentModeExtractor`, `RawMerchantExtractor`, unified by `EntityExtractor`. |
 | **Resolver Tier** | `src/core/parser/resolver/` | Business heuristics: `MerchantResolver` (cleans UPI garbage, strips bank headers, matches alias registry), `TransactionResolver` (debit vs credit directionality priorities), and `CategoryResolver` (rule-based and learned category assignment). |
 | **Confidence Tier** | `src/core/parser/confidence/` | Parser confidence uses configurable weights: amount `0.35`, transaction type `0.25`, merchant `0.20`, category `0.10`, account `0.10`. A separate decision policy consumes parser evidence and the legacy classifier score. |
-| **Learning Tier** | `src/core/parser/learning/` | `LearningEngine` stores explicit merchant/category corrections through `ILearningRepository` and the SQLite-backed merchant category table. |
+| **Learning Tier** | `src/core/parser/learning/` | `LearningEngine` stores explicit merchant/category corrections through `ILearningRepository`; the SQLite implementation lives in `src/infrastructure/persistence/sqlite/` and is selected by app composition. |
 | **AI Tier** | `src/core/parser/ai/` | `AIResolver` and `AICache` define a local fallback boundary, but no inference handler/model is configured and AI remains disabled. |
 | **Filter Tier** | `src/core/parser/filter/` | Pre-parsing heuristic message filter (`MessageFilter`) rejecting non-financial alerts. |
 | **Orchestrator** | `src/core/parser/orchestrator/` | Coordinates the 10-stage execution pipeline, assembling extracted and resolved entities into `StructuredExpense`. |
@@ -314,12 +314,12 @@ The parser follows Clean Architecture principles with complete separation of con
 * Backup append/overwrite and clear-all operations run transactionally. Overwrite restore replaces expense rows only, preserving app settings and learned merchant mappings; snapshot split payments are restored as stored without repayment replay.
 * Learning repository tables remain a separate capability for on-device merchant mapping and category frequency tracking.
 
-#### 4. Observability Service (`src/services/telemetryService.ts`)
+#### 4. Observability Adapter (`src/infrastructure/observability/telemetryService.ts`)
 * Manages an in-memory queue of `RawSpan` records.
 * Dispatches traces asynchronously every 2000ms using native `fetch` to local Jaeger OTLP endpoint (`http://127.0.0.1:4318/v1/traces`).
 * Safely falls back to Android emulator host alias (`http://10.0.2.2:4318`) if localhost is unreachable.
 
-#### 5. Security & App Lock Subsystem (`src/services/securityService.ts`, `src/hooks/useSecurityStore.ts`)
+#### 5. Security & App Lock Subsystem (`src/services/security/securityService.ts`, `src/hooks/useSecurityStore.ts`)
 * **Cryptographic PIN Storage**: Hashes user PIN with high-entropy cryptographic salt using SHA-256 (`$spendwise$<salt>$<pin>$`), persisting only salt and hash in the SQLite `settings` table.
 * **Native Biometric & Screen Lock Bridge (`SecurityModule.kt`)**: Leverages `androidx.biometric.BiometricPrompt` with version-adaptive authenticators (supporting `BIOMETRIC_STRONG | DEVICE_CREDENTIAL` across API 24–36), React Native `LifecycleEventListener` pause/destroy cleanup, and an atomic concurrency lock preventing duplicate prompt collisions.
 * **Recent Apps Preview Obscuration (`FLAG_SECURE` & Privacy Shield)**: Configures `WindowManager.LayoutParams.FLAG_SECURE` in `MainActivity.kt` (`onCreate` and `onResume`) and renders an instant privacy veil in `SecurityGate.tsx` during `AppState` transitions. When locked, the underlying app content is isolated with `display: 'none'`, preventing view leakage or task switcher snapshots across OEM launchers.

@@ -17,7 +17,7 @@ The current UI is scheduled for replacement. This work therefore changes transac
 | 5. Splits and repayment domain boundary | Complete | Split decisions moved out of Zustand; new repayments store exact allocation links, linked mutations reverse atomically, and unsafe legacy repayment mutations are blocked. |
 | 6. Unified deduplication | Complete | Live, import, review, and maintenance use the shared policy; successful saves and edits request local notifications. |
 | 7. Explicit database migrations | Complete | Existing unversioned installs migrate through a transactional legacy baseline; new databases use the same versioned schema path. |
-| 8. Domain organization and dependency guardrails | Not started | Only the new transaction contracts/planner are grouped under `src/core/transactions/`; broader organization and import rules are deferred. |
+| 8. Domain organization and dependency guardrails | Planned | Detailed plan records observed dependency inversions, capability grouping, legacy adapter scope, and import-boundary checks; implementation has not started. |
 | 9. Documentation and future feature readiness | In progress | Restructuring plan, Phase 1 record, and this log document the actual flow; broader docs still need reconciliation as phases land. |
 
 ## Phase 1 v1 — Baseline, contracts, and urgent correctness fixes
@@ -299,18 +299,32 @@ Detailed scope and supported upgrade boundary: [Phase 7: Explicit Database Migra
 
 Verification: `npx tsc --noEmit` passed; `npx jest --runInBand` passed (33 suites, 674 tests), including six migration cases; ESLint on changed migration code/tests passed with no errors; `git diff --check` passed. A one-off Node SQLite in-memory smoke check migrated a populated legacy database to version 2, preserved its transaction row, and verified all four indexes. Graphify code graph was refreshed and reclustered to 1,562 nodes, 3,255 edges, and 108 communities; semantic extraction for changed Markdown files failed with a Gemini connection error, so Graphify may still surface stale phase-status text.
 
-## Phase 8 — Domain organization and dependency guardrails (not started)
+## Phase 8 — Domain organization and dependency guardrails (complete)
 
-**Goal:** organize domain/application/infrastructure by feature after runtime ownership settles. The UI is excluded because it will be replaced.
+Detailed plan: [Phase 8: Domain Organization and Dependency Guardrails](./PHASE_8_DOMAIN_ORGANIZATION_AND_DEPENDENCY_GUARDRAILS.md).
 
-**Expected file areas and rationale:**
+**Goal:** remove observed dependency inversions, make service ownership easy to find, and enforce a lightweight dependency direction. UI redesign remains out of scope.
 
-| Expected files | Planned work |
+**Completed changes:**
+
+| Files | Change and rationale |
 |---|---|
-| `src/core/transactions/`, `src/core/splits/`, `src/services/`, `src/database/` | Move modules only where the move reflects stable ownership; avoid a bulk rename. |
-| `src/features/*` (only if useful) | Introduce feature folders for transactions, splits, accounts, security, or budgeting when each has real ownership boundaries. |
-| `tsconfig.json`, `package.json` lint configuration (only if useful) | Add import boundaries only to prevent observed dependency regressions. |
-| import-boundary documentation | Explain allowed dependency direction without prescribing UI structure. |
+| `src/core/classifier/spamClassifier.ts`, `src/infrastructure/persistence/sqlite/SQLiteSpamClassifierRepository.ts` | Kept classification policy in core and moved learned-state persistence behind a repository port. |
+| `src/core/parser/learning/`, `src/infrastructure/persistence/sqlite/SQLiteLearningRepository.ts` | Removed SQLite construction from `LearningEngine`; app composition selects the production repository. |
+| `src/core/settings/`, `src/infrastructure/persistence/sqlite/SQLiteSettingsRepository.ts`, `src/services/settings/settingsService.ts` | Added a settings port, concrete adapter, and focused capability methods for existing callers. |
+| `src/core/security/securityPorts.ts`, `src/services/security/securityService.ts`, `src/infrastructure/native/ReactNativeDeviceAuthProvider.ts` | Isolated security behavior from persistence and native-module access. |
+| `src/services/advisor/advisorService.ts`, `src/infrastructure/observability/telemetryService.ts` | Grouped advisor by capability and moved telemetry into infrastructure; `expenseRepo` now depends on the adapter location rather than a service. |
+| `src/app/composition/`, `src/services/transactions/transactionApplication.ts`, `src/services/messaging/messageService.ts` | Centralized concrete adapter selection and routed production parser/transaction dependencies through it. |
+| `src/presentation/legacy/screens/{Accounts,History,Home,Settings}Screen.tsx`, `src/hooks/useSecurityStore.ts` | Repointed legacy callers through capability services without changing UI layout or behavior. |
+| `src/__tests__/{securityService,spamClassifier,settingsService,importBoundaries}.test.ts` and updated related tests | Added port-based behavior and persistence coverage plus explicit allow/deny boundary cases. |
+| `scripts/check-import-boundaries.js`, `package.json` | Added a small import scanner to `npm run lint`, covering core, database, infrastructure, services, composition, hooks, and presentation direction. |
+| `docs/ARCHITECTURE.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/TRD.md`, Phase 8 plan, architecture plan | Corrected moved-file references and recorded the implemented boundaries and known follow-up. |
+
+The scanner runs over production source files and excludes test fixtures, because boundary tests intentionally contain invalid imports as input. A narrow `services -> app/composition` exception remains for the current configured singleton access in messaging and transaction application modules; other service-to-app paths are rejected.
+
+Small lint fixes made during Phase 8 verification: `scripts/parse-cli.js` now imports Node's `performance` API explicitly, and unused parameters/imports in the AI test, `BankExtractor`, `MessageFilter`, and currency normalizer were removed or marked intentionally unused. These had been blocking the repository-wide lint command before the new boundary check could be considered verified.
+
+Verification: `npx tsc --noEmit` passed; `npm test -- --runInBand` passed (36 suites, 681 tests); `npm run lint` passed (boundary scan passed, ESLint had 0 errors and 118 existing warnings); `git diff --check` passed. Graphify was refreshed and reclustered to 1,673 nodes, 3,324 edges, and 116 communities. Phase 2 local AI/model work remains independent and is not a Phase 8 blocker.
 
 ## Phase 9 — Documentation and future feature readiness (in progress)
 

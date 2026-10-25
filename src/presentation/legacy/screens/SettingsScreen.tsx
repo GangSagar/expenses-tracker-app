@@ -18,13 +18,9 @@ import {
 import styles from '../styles/SettingsScreenStyles';
 import { useExpenseStore } from '../../../hooks/useExpenses';
 import { useSecurityStore } from '../../../hooks/useSecurityStore';
-import { authenticateWithBiometrics } from '../../../services/securityService';
+import { securityService, settingsService, spamClassifier } from '../../../app/composition';
 import PinSetupModal from '../components/PinSetupModal';
 
-import {
-  getSetting,
-  setSetting,
-} from '../../../database/expenseRepo';
 import commonStyles from '../styles/commonStyles';
 import CalendarModal from '../components/CalendarModal';
 import {
@@ -33,7 +29,6 @@ import {
   importHistoricalTransactions,
   previewHistoricalMessage,
 } from '../../../services/transactions/transactionApplication';
-import { resetSpamClassifier } from '../../../core/classifier/spamClassifier';
 import { resetMerchantMap } from '../../../core/classifier/merchantMap';
 
 const { MessageModule } = NativeModules;
@@ -84,7 +79,7 @@ export default function SettingsScreen() {
 
   const handleToggleBiometric = async (enable: boolean) => {
     if (enable) {
-      const verified = await authenticateWithBiometrics(
+      const verified = await securityService.authenticateWithBiometrics(
         'Verify Identity',
         'Confirm fingerprint, face, or phone lock to enable',
       );
@@ -431,19 +426,19 @@ export default function SettingsScreen() {
   useEffect(() => {
     checkContactsPermission();
     // Load persisted scratchpad note
-    const savedNote = getSetting('future_updates_note', '');
+    const savedNote = settingsService.getFutureUpdatesNote();
     setNote(savedNote);
     // Load persisted budget limit
-    const savedBudget = getSetting('monthly_budget_limit', '20000');
+    const savedBudget = settingsService.getMonthlyBudgetLimit();
     setBudget(savedBudget);
   }, []);
 
   useEffect(() => {
     // Save note after 1s of inactivity
     const timeout = setTimeout(() => {
-      if (note !== getSetting('future_updates_note', '')) {
+      if (note !== settingsService.getFutureUpdatesNote()) {
         setIsSaving(true);
-        setSetting('future_updates_note', note);
+        settingsService.setFutureUpdatesNote(note);
         setTimeout(() => setIsSaving(false), 500);
       }
     }, 1000);
@@ -486,7 +481,7 @@ export default function SettingsScreen() {
   const handleBudgetChange = (text: string) => {
     const cleaned = text.replace(/[^0-9]/g, '');
     setBudget(cleaned);
-    setSetting('monthly_budget_limit', cleaned);
+    settingsService.setMonthlyBudgetLimit(cleaned);
   };
 
   // notification settings helper removed (unused)
@@ -549,7 +544,7 @@ export default function SettingsScreen() {
           onPress: () => {
             try {
               clearTransactionData();
-              resetSpamClassifier();
+              spamClassifier.reset();
               resetMerchantMap();
               loadExpenses();
               Alert.alert(
