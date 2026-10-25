@@ -3,7 +3,7 @@ import { QuickSQLiteConnection } from 'react-native-quick-sqlite';
 import { getDatabase } from './db';
 import { telemetry } from '../services/telemetryService';
 import { SplitSettlementUpdate } from '../core/transactions/repaymentPlanner';
-import { TransactionDedupCache } from '../core/transactions/contracts';
+import { TransactionDedupCache, TransactionMutation } from '../core/transactions/contracts';
 
 // ==========================================
 // Centralized Database SQL Command Constants
@@ -20,12 +20,6 @@ export const INSERT_EXPENSE_SQL = `
 export const UPDATE_EXPENSE_WITH_AMOUNT_SQL = `
   UPDATE expenses 
   SET merchant = ?, category = ?, bank = ?, payment_mode = ?, amount = ?, splits = ?, transaction_type = COALESCE(?, transaction_type)
-  WHERE id = ?
-`;
-
-export const UPDATE_EXPENSE_SQL = `
-  UPDATE expenses 
-  SET merchant = ?, category = ?, bank = ?, payment_mode = ?, splits = ?, transaction_type = COALESCE(?, transaction_type)
   WHERE id = ?
 `;
 
@@ -116,6 +110,12 @@ export const INVALIDATE_EXPENSE_RESET_SQL = `
 
 export const INVALIDATE_EXPENSE_SQL = `
   UPDATE expenses SET is_invalid = ? WHERE id = ?
+`;
+
+export const INVALIDATE_EXPENSE_WITH_SPLITS_SQL = `
+  UPDATE expenses SET is_invalid = ?, splits = ?,
+    trash_reason = CASE WHEN ? = 0 THEN NULL ELSE trash_reason END
+  WHERE id = ?
 `;
 
 export const UPDATE_TRASH_REASON_SQL = `
@@ -218,29 +218,11 @@ export function insertExpenseWithRepayment(
     { amount: expense.amount, type: expense.transactionType, source: expense.source },
     () => runInDatabaseTransaction(execute => {
       writeSplitUpdates(execute, updates);
-      return execute(INSERT_EXPENSE_SQL, getInsertExpenseParams(expense)).insertId ?? -1;
-    }),
-  );
-}
-
-/** Atomically persist an incoming credit's repayment link and older split updates. */
-export function updateExpenseWithRepayment(
-  expenseId: number,
-  repaymentSplits: Expense['splits'],
-  updates: SplitSettlementUpdate[],
-): void {
-  telemetry.traceSync(
-    'db.updateExpenseWithRepayment',
-    { expenseId, settlementCount: updates.length },
-    () => runInDatabaseTransaction(execute => {
-      writeSplitUpdates(execute, updates);
-      const result = execute(UPDATE_EXPENSE_SPLITS_SQL, [
-        repaymentSplits ? JSON.stringify(repaymentSplits) : null,
-        expenseId,
-      ]);
-      if (result.rowsAffected !== 1) {
-        throw new Error(`Could not update repayment transaction ${expenseId}`);
+      const insertId = execute(INSERT_EXPENSE_SQL, getInsertExpenseParams(expense)).insertId;
+      if (!Number.isInteger(insertId) || Number(insertId) <= 0) {
+        throw new Error('SQLite did not return a valid repayment transaction identifier.');
       }
+      return insertId!;
     }),
   );
 }
@@ -253,47 +235,48 @@ export function updateSplitExpensesAtomically(updates: SplitSettlementUpdate[]):
   });
 }
 
-export function updateExpense(
+/** Atomically applies one transaction mutation and every related split adjustment. */
+export function mutateExpenseWithSplitUpdatesAtomically(
   id: number,
-  merchant: string,
-  category: Category,
-  bank?: string,
-  paymentMode?: string,
-  amount?: number,
-  splits?: any[],
-  transactionType?: 'debit' | 'credit',
+  mutation: TransactionMutation,
+  updates: SplitSettlementUpdate[],
 ): void {
-  const db = getDatabase();
-  const splitsStr = splits ? JSON.stringify(splits) : null;
-
-  if (amount !== undefined) {
-    const result = db.execute(UPDATE_EXPENSE_WITH_AMOUNT_SQL, [
-      merchant,
-      category,
-      bank || null,
-      paymentMode || 'unknown',
-      amount,
-      splitsStr,
-      transactionType || null,
-      id,
-    ]);
-    if (result.rowsAffected !== undefined && result.rowsAffected !== 1) {
-      throw new Error(`Could not update transaction ${id}`);
+  runInDatabaseTransaction(execute => {
+    writeSplitUpdates(execute, updates);
+    let result;
+    if (mutation.kind === 'update') {
+      result = execute(UPDATE_EXPENSE_WITH_AMOUNT_SQL, [
+        mutation.merchant,
+        mutation.category,
+        mutation.bank || null,
+        mutation.paymentMode || 'unknown',
+        mutation.amount,
+        mutation.splits ? JSON.stringify(mutation.splits) : null,
+        mutation.transactionType,
+        id,
+      ]);
+    } else if (mutation.kind === 'invalidate') {
+      if (mutation.splits !== undefined) {
+        result = execute(INVALIDATE_EXPENSE_WITH_SPLITS_SQL, [
+          mutation.isInvalid ? 1 : 0,
+          mutation.splits ? JSON.stringify(mutation.splits) : null,
+          mutation.isInvalid ? 1 : 0,
+          id,
+        ]);
+      } else {
+        result = execute(
+          mutation.isInvalid ? INVALIDATE_EXPENSE_SQL : INVALIDATE_EXPENSE_RESET_SQL,
+          mutation.isInvalid ? [1, id] : [0, id],
+        );
+      }
+    } else {
+      result = execute(DELETE_EXPENSE_SQL, [id]);
     }
-  } else {
-    const result = db.execute(UPDATE_EXPENSE_SQL, [
-      merchant,
-      category,
-      bank || null,
-      paymentMode || 'unknown',
-      splitsStr,
-      transactionType || null,
-      id,
-    ]);
     if (result.rowsAffected !== undefined && result.rowsAffected !== 1) {
-      throw new Error(`Could not update transaction ${id}`);
+      const operation = mutation.kind === 'delete' ? 'delete' : 'update';
+      throw new Error(`Could not ${operation} transaction ${id}`);
     }
-  }
+  });
 }
 
 export function getExpenseById(id: number): Expense | null {
@@ -528,8 +511,41 @@ export function restoreExpenseSnapshot(expenses: Expense[], overwrite: boolean):
     // Replacing a backup replaces the ledger only; app preferences and learned
     // merchant mappings are not part of the transaction snapshot.
     if (overwrite) execute(CLEAR_ALL_EXPENSES_SQL);
+    const insertedRows: Array<{ source: Expense; id: number }> = [];
+    const restoredIds = new Map<number, number>();
     for (const item of expenses) {
-      execute(INSERT_EXPENSE_SQL, getInsertExpenseParams(mapBackupExpense(item)));
+      const withoutLinks = mapBackupExpense({
+        ...item,
+        splits: item.splits?.map(split => {
+          const withoutAllocations = { ...split };
+          delete withoutAllocations.repaymentAllocations;
+          return withoutAllocations;
+        }),
+      });
+      const result = execute(INSERT_EXPENSE_SQL, getInsertExpenseParams(withoutLinks));
+      if (!Number.isInteger(result.insertId) || Number(result.insertId) <= 0) {
+        throw new Error('SQLite did not return a valid transaction identifier while restoring the backup.');
+      }
+      const id = Number(result.insertId);
+      if (item.id !== undefined) restoredIds.set(item.id, id);
+      insertedRows.push({ source: item, id });
+    }
+    for (const { source, id } of insertedRows) {
+      if (!source.splits?.some(split => Array.isArray(split.repaymentAllocations))) continue;
+      const splits = source.splits.map(split => ({
+        ...split,
+        repaymentAllocations: split.repaymentAllocations?.map(allocation => {
+          const restoredExpenseId = restoredIds.get(allocation.expenseId);
+          if (restoredExpenseId === undefined) {
+            throw new Error(`Backup repayment allocation references missing transaction ${allocation.expenseId}.`);
+          }
+          return { ...allocation, expenseId: restoredExpenseId };
+        }),
+      }));
+      const result = execute(UPDATE_EXPENSE_SPLITS_SQL, [JSON.stringify(splits), id]);
+      if (result.rowsAffected !== undefined && result.rowsAffected !== 1) {
+        throw new Error(`Could not restore repayment allocation links for transaction ${id}.`);
+      }
     }
   });
 }
@@ -538,33 +554,16 @@ export function clearAllExpenses(): void {
   runInDatabaseTransaction(execute => clearAllExpenseData(execute));
 }
 
-export function deleteExpense(id: number): void {
-  const db = getDatabase();
-  const result = db.execute(DELETE_EXPENSE_SQL, [id]);
-  if (result.rowsAffected !== undefined && result.rowsAffected !== 1) {
-    throw new Error(`Could not delete transaction ${id}`);
-  }
-}
-
 export function deleteTransactionsForAccount(
   bank: string,
   account: string,
 ): void {
   const db = getDatabase();
+  const affected = exportAllExpensesData().filter(expense => expense.bank === bank && expense.account === account);
+  if (affected.some(hasSettlementHistory)) {
+    throw new Error('Cannot remove this account while its transactions have split settlement or repayment history. Reconcile those splits first.');
+  }
   db.execute(DELETE_TRANSACTIONS_FOR_ACCOUNT_SQL, [bank, account]);
-}
-
-export function invalidateExpense(id: number, isInvalid: boolean): void {
-  const db = getDatabase();
-  let result;
-  if (!isInvalid) {
-    result = db.execute(INVALIDATE_EXPENSE_RESET_SQL, [0, id]);
-  } else {
-    result = db.execute(INVALIDATE_EXPENSE_SQL, [1, id]);
-  }
-  if (result.rowsAffected !== undefined && result.rowsAffected !== 1) {
-    throw new Error(`Could not update invalidation state for transaction ${id}`);
-  }
 }
 
 export function updateTrashReason(id: number, reason: string | null): void {
@@ -615,6 +614,9 @@ export function deduplicateDatabase(): number {
   }
 
   if (duplicates.length > 0) {
+    if (duplicates.some(hasSettlementHistory)) {
+      throw new Error('Deduplication would invalidate a transaction with split settlement history. Reconcile that transaction first.');
+    }
     runInDatabaseTransaction(execute => {
       for (const duplicate of duplicates) {
         const result = execute(
@@ -629,6 +631,16 @@ export function deduplicateDatabase(): number {
   }
 
   return duplicates.length;
+}
+
+function hasSettlementHistory(expense: Expense): boolean {
+  return (expense.splits || []).some(split =>
+    (Number(split.paidAmount) || 0) > 0 ||
+    (Number(split.manualPaidAmount) || 0) > 0 ||
+    (Number(split.repaymentPaidAmount) || 0) > 0 ||
+    !!split.repaymentAllocations?.length ||
+    !!split.owedByMe,
+  );
 }
 
 function normalizeMerchant(merchant: string): string {

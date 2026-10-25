@@ -7,13 +7,13 @@ import {
   TransactionCandidate,
   TransactionDedupCache,
   TransactionMaintenanceRepository,
+  TransactionMutation,
   TransactionRepository,
 } from '../core/transactions/contracts';
 import {
   clearAllExpenses,
   createDedupCache,
   deduplicateDatabase,
-  deleteExpense,
   deleteTransactionsForAccount,
   exportAllExpensesData,
   getAllExpenses,
@@ -25,10 +25,9 @@ import {
   getWindowedExpenses,
   insertExpense,
   insertExpenseWithRepayment,
-  invalidateExpense,
   isDuplicateWithCache,
+  mutateExpenseWithSplitUpdatesAtomically,
   restoreExpenseSnapshot,
-  updateExpense,
   updateSplitExpensesAtomically,
   updateTrashReason,
 } from './expenseRepo';
@@ -58,20 +57,6 @@ export class SQLiteTransactionRepository implements ExpenseRepositoryPort {
     return persisted(candidate, insertExpenseWithRepayment(candidate, updates));
   }
 
-  update(
-    id: number,
-    merchant: string,
-    category: Category,
-    bank?: string,
-    paymentMode?: string,
-    amount?: number,
-    splits?: Expense['splits'],
-    transactionType?: Expense['transactionType'],
-  ): void {
-    updateExpense(id, merchant, category, bank, paymentMode, amount, splits, transactionType);
-    if (!getExpenseById(id)) throw new Error(`Could not update transaction ${id}`);
-  }
-
   findById(id: number): PersistedTransaction | null {
     const expense = getExpenseById(id);
     return expense?.id === undefined ? null : expense as PersistedTransaction;
@@ -85,18 +70,16 @@ export class SQLiteTransactionRepository implements ExpenseRepositoryPort {
     return getExpensesWithSplits();
   }
 
-  invalidate(id: number, isInvalid: boolean): void {
-    invalidateExpense(id, isInvalid);
-    if (!getExpenseById(id)) throw new Error(`Could not update invalidation state for transaction ${id}`);
-  }
-
-  delete(id: number): void {
-    deleteExpense(id);
-    if (getExpenseById(id)) throw new Error(`Could not delete transaction ${id}`);
-  }
-
   updateSplitExpensesAtomically(updates: SplitSettlementUpdate[]): void {
     updateSplitExpensesAtomically(updates);
+  }
+
+  mutateWithSplitUpdates(
+    id: number,
+    mutation: TransactionMutation,
+    updates: SplitSettlementUpdate[],
+  ): void {
+    mutateExpenseWithSplitUpdatesAtomically(id, mutation, updates);
   }
 
   getAllExpenses(limit?: number, offset?: number): Expense[] {

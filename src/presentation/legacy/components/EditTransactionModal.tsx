@@ -189,8 +189,7 @@ export default function EditTransactionModal({
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            useExpenseStore.getState().deleteExpense(expense.id!);
-            onClose();
+            if (useExpenseStore.getState().deleteExpense(expense.id!)) onClose();
           }
         }
       ]
@@ -212,8 +211,7 @@ export default function EditTransactionModal({
           text: movingToTrash ? 'Move to Trash' : 'Restore',
           style: movingToTrash ? 'destructive' : 'default',
           onPress: () => {
-            useExpenseStore.getState().invalidateExpense(expense.id!, movingToTrash);
-            onClose();
+            if (useExpenseStore.getState().invalidateExpense(expense.id!, movingToTrash)) onClose();
           }
         }
       ]

@@ -130,8 +130,9 @@ export default function SplitsScreen() {
           text: 'Confirm Settle Up',
           style: 'default',
           onPress: () => {
-            settleContactSplits(contactName);
-            Alert.alert('Success', `All outstanding balances with ${contactName} have been settled!`);
+            if (settleContactSplits(contactName)) {
+              Alert.alert('Success', `All outstanding balances with ${contactName} have been settled!`);
+            }
           }
         }
       ]
@@ -148,8 +149,9 @@ export default function SplitsScreen() {
           text: 'Confirm Unsettle',
           style: 'destructive',
           onPress: () => {
-            unsettleContactSplits(contactName);
-            Alert.alert('Success', `All balances with ${contactName} are now active again!`);
+            if (unsettleContactSplits(contactName)) {
+              Alert.alert('Success', `All balances with ${contactName} are now active again!`);
+            }
           }
         }
       ]

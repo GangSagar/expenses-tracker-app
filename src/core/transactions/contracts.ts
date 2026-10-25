@@ -93,6 +93,20 @@ export interface TransactionDedupCache {
   temporalIndex: Array<{ amount: number; timestamp: number }>;
 }
 
+export type TransactionMutation =
+  | {
+      kind: 'update';
+      merchant: string;
+      category: Category;
+      bank?: string;
+      paymentMode?: Expense['paymentMode'];
+      amount: number;
+      splits?: Expense['splits'];
+      transactionType: Expense['transactionType'];
+    }
+  | { kind: 'invalidate'; isInvalid: boolean; splits?: Expense['splits'] | null }
+  | { kind: 'delete' };
+
 /** Transaction operations required by application use cases. */
 export interface TransactionRepository {
   insert(candidate: TransactionCandidate): PersistedTransaction;
@@ -100,22 +114,15 @@ export interface TransactionRepository {
     candidate: TransactionCandidate,
     updates: SplitSettlementUpdate[],
   ): PersistedTransaction;
-  update(
-    id: number,
-    merchant: string,
-    category: Category,
-    bank?: string,
-    paymentMode?: string,
-    amount?: number,
-    splits?: Expense['splits'],
-    transactionType?: Expense['transactionType'],
-  ): void;
   findById(id: number): PersistedTransaction | null;
   getRecentExpenses(minutes?: number): Expense[];
   getExpensesWithSplits(): Expense[];
-  invalidate(id: number, isInvalid: boolean): void;
-  delete(id: number): void;
   updateSplitExpensesAtomically(updates: SplitSettlementUpdate[]): void;
+  mutateWithSplitUpdates(
+    id: number,
+    mutation: TransactionMutation,
+    updates: SplitSettlementUpdate[],
+  ): void;
 }
 
 /** Read operations used by presentation adapters and reporting. */

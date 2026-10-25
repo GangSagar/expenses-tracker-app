@@ -102,7 +102,7 @@ Before Phase 2, live processing used the synchronous compatibility adapter and d
 
 `applyRepaymentIfApplicable()` in `useExpenses.ts` matched incoming credits to pending splits and marked a row paid before confirming the full row fit within the remaining credit. This could over-settle. Phase 1 v2 added an immutable partial-allocation planner; the Phase 1 audit closure now queries all split-bearing ledger rows and atomically inserts live repayment credits with their split/link updates. Contact-wide settle/unsettle also query and update the full ledger transactionally.
 
-**Remaining risks:** Phase 3 now routes historical import through shared chronological repayment persistence. Phase 6 must unify import/live dedup semantics. Split rules remain coordinated by Zustand until Phase 5; reversal of linked repayments still needs allocation history.
+**Remaining risks:** Phase 3 now routes historical import through shared chronological repayment persistence. Phase 5 has since moved split rules out of Zustand and added exact allocation history for new repayments; legacy summary-only repayment mutations are guarded. Phase 6 must unify import/live dedup semantics.
 
 **Approved follow-up:** preserve partial allocation; move split operations into a dedicated domain/use-case boundary; route import through the shared chronological transaction path. The full-ledger query and live atomic-insert gaps were closed before Phase 2 integration. Keep UI redesign out of scope.
 
@@ -156,7 +156,7 @@ This phase also brings historical imports through the shared repayment path. For
 
 **Status: Complete.** Detailed contract scope, backup/reset semantics, implementation record, and later-phase boundaries are in [Phase 4: Repository Boundary](./PHASE_4_REPOSITORY_BOUNDARY.md).
 
-The transaction repository port and SQLite adapter are implemented. Transaction, backup restore, reset, account deletion, split persistence, and maintenance writes go through repository-backed operations. Zustand still owns split calculation rules until Phase 5; only persistence moved in this phase.
+At Phase 4 exit, the transaction repository port and SQLite adapter were implemented. Transaction, backup restore, reset, account deletion, split persistence, and maintenance writes went through repository-backed operations. Split calculations moved out of Zustand in Phase 5.
 
 **Implemented areas:** `src/core/transactions/contracts.ts`, `src/core/transactions/applicationUseCases.ts`, `src/database/SQLiteTransactionRepository.ts`, `src/database/expenseRepo.ts`, `src/services/transactions/`, `src/hooks/useExpenses.ts`, and Settings/Accounts persistence wiring.
 
@@ -164,7 +164,9 @@ The transaction repository port and SQLite adapter are implemented. Transaction,
 
 ### Phase 5 — Splits and repayment domain boundary
 
-Move all split settlement behavior out of Zustand into a focused domain/application boundary. Partial repayment of a split is now a supported requirement; preserve original amounts and record allocations against them. Coordinate related persistence changes transactionally.
+**Status: Complete.** Split settlement and repayment decisions now live in core application/domain operations. New repayment allocations carry exact links and reverse atomically; summary-only legacy repayment mutations are blocked as approved. Details and per-file changes are in [Phase 5: Split Settlement and Repayment Domain](./PHASE_5_SPLIT_REPAYMENT_DOMAIN.md) and the [implementation log](./IMPLEMENTATION_CHANGELOG.md#phase-5--split-and-repayment-domain-complete).
+
+Partial repayment remains supported. Original split amounts stay intact while manual payment and exact repayment allocation totals are tracked separately. Linked row changes commit atomically.
 
 **Likely areas:** `src/hooks/useExpenses.ts`, split types/UI, and transaction/split repositories.
 

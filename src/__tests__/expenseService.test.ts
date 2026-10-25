@@ -112,10 +112,16 @@ describe('saveExpense', () => {
     });
 
     expect(repository.insertExpenseWithRepayment).toHaveBeenCalledWith(
-      expect.objectContaining({ splits: [{ contactName: 'Alex', amount: 40, isPaid: true, owedByMe: true }] }),
+      expect.objectContaining({ splits: [{
+        contactName: 'Alex', amount: 40, isPaid: true, owedByMe: true,
+        repaymentAllocations: [{ expenseId: 4, splitId: 'legacy-4-0', amount: 40 }],
+      }] }),
       [{
         expenseId: 4,
-        splits: [{ contactName: 'Alex', amount: 100, paidAmount: 40, isPaid: false }],
+        splits: [{
+          contactName: 'Alex', amount: 100, paidAmount: 40, isPaid: false,
+          manualPaidAmount: 0, repaymentPaidAmount: 40, splitId: 'legacy-4-0',
+        }],
       }],
     );
     expect(repository.insertExpense).not.toHaveBeenCalled();

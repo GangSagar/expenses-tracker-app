@@ -1,9 +1,25 @@
-import { PersistedTransaction, TransactionCandidate, TransactionRepository } from './contracts';
+import {
+  PersistedTransaction,
+  TransactionCandidate,
+  TransactionMutation,
+  TransactionRepository,
+} from './contracts';
+import { Expense, ExpenseSplit } from '../../types/expense';
 import {
   planAutomaticRepayment,
   repaymentSplit,
   SplitSettlementUpdate,
 } from './repaymentPlanner';
+import {
+  applySplitUpdates,
+  ensureSplitIds,
+  getManualSplitUpdates,
+  hasExactRepaymentHistory,
+  isRepaymentCredit,
+  planRepaymentReversal,
+  getSplitPaymentState,
+  validateDebtSplitMutation,
+} from './splitSettlement';
 
 export type PersistenceResult =
   | { status: 'saved'; transaction: PersistedTransaction; repaymentUpdates: SplitSettlementUpdate[] }
@@ -18,10 +34,11 @@ export function persistAcceptedTransaction(
 ): PersistenceResult {
   try {
     if (isDuplicate()) return { status: 'duplicate' };
-    const plan = candidate.transactionType === 'credit'
-      ? planAutomaticRepayment(candidate, repository.getExpensesWithSplits())
+    const normalizedCandidate = { ...candidate, splits: ensureSplitIds(candidate.splits) };
+    const plan = normalizedCandidate.transactionType === 'credit'
+      ? planAutomaticRepayment(normalizedCandidate, repository.getExpensesWithSplits())
       : null;
-    const transaction = plan ? { ...candidate, splits: [repaymentSplit(plan)] } : candidate;
+    const transaction = plan ? { ...normalizedCandidate, splits: [repaymentSplit(plan)] } : normalizedCandidate;
     const persisted = plan
       ? repository.insertWithRepayment(transaction, plan.updates)
       : repository.insert(transaction);
@@ -74,15 +91,154 @@ export async function importTransactions(
   return results;
 }
 
-export function updateTransaction(
+export function settleSplits(
   repository: TransactionRepository,
-  input: Parameters<TransactionRepository['update']>,
-): void { repository.update(...input); }
+  contactName: string,
+  action: 'settle' | 'unsettle' | 'toggle',
+  expenseId?: number,
+): SplitSettlementUpdate[] {
+  const updates = getManualSplitUpdates(repository.getExpensesWithSplits(), contactName, action, expenseId);
+  repository.updateSplitExpensesAtomically(updates);
+  return updates;
+}
 
-export function invalidateTransaction(
-  repository: TransactionRepository, id: number, invalid: boolean,
-): void { repository.invalidate(id, invalid); }
+export interface TransactionEdit {
+  merchant: string;
+  category: Expense['category'];
+  bank?: string;
+  paymentMode?: Expense['paymentMode'];
+  amount: number;
+  splits?: ExpenseSplit[];
+  transactionType: Expense['transactionType'];
+}
+
+export function updateTransactionWithRepaymentRules(
+  repository: TransactionRepository,
+  id: number,
+  edit: TransactionEdit,
+): SplitSettlementUpdate[] {
+  const existing = requireTransaction(repository, id);
+  if (!Number.isFinite(edit.amount) || edit.amount <= 0) {
+    throw new Error('Amount must be a positive number.');
+  }
+  if (!edit.merchant.trim()) throw new Error('Merchant or description is required.');
+  const mutation: TransactionMutation = { kind: 'update', ...edit };
+  let updates: SplitSettlementUpdate[] = [];
+
+  if (isRepaymentCredit(existing)) {
+    assertExactRepaymentHistory(existing);
+    const ledger = repository.getExpensesWithSplits();
+    const reversed = planRepaymentReversal(existing, ledger);
+    const afterReversal = applySplitUpdates(ledger, reversed);
+    const candidate: TransactionCandidate = {
+      ...existing,
+      ...edit,
+      splits: undefined,
+      isInvalid: existing.isInvalid,
+    };
+    let nextSplits: ExpenseSplit[] | null = existing.isInvalid ? existing.splits || null : null;
+    if (!existing.isInvalid && candidate.transactionType === 'credit') {
+      const plan = planAutomaticRepayment(candidate, afterReversal);
+      if (plan) nextSplits = [repaymentSplit(plan)];
+      if (plan) updates = mergeUpdates(reversed, plan.updates);
+      else updates = reversed;
+    } else {
+      updates = reversed;
+    }
+    repository.mutateWithSplitUpdates(id, { ...mutation, splits: nextSplits || undefined }, updates);
+    return updates;
+  }
+
+  const nextSplits = ensureSplitIds(edit.splits);
+  validateDebtSplitMutation(existing, nextSplits);
+  const oldByContact = new Map((existing.splits || []).map(split => [split.contactName.trim().toLocaleLowerCase(), split]));
+  const preservedSplits = nextSplits?.map(split => {
+    const old = existing.splits?.find(item => item.splitId && item.splitId === split.splitId) ||
+      oldByContact.get(split.contactName.trim().toLocaleLowerCase());
+    const normalized = old?.splitId ? { ...split, splitId: old.splitId } : split;
+    const paymentState = getSplitPaymentState(normalized);
+    const paidAmount = Math.min(Number(normalized.amount), paymentState.manualPaidAmount + paymentState.repaymentPaidAmount);
+    return {
+      ...normalized,
+      manualPaidAmount: paymentState.manualPaidAmount,
+      repaymentPaidAmount: paymentState.repaymentPaidAmount,
+      paidAmount,
+      isPaid: paidAmount >= Number(normalized.amount) - 0.000001,
+    };
+  });
+  repository.mutateWithSplitUpdates(id, { ...mutation, splits: preservedSplits }, updates);
+  return updates;
+}
+
+export function invalidateTransactionWithRepaymentRules(
+  repository: TransactionRepository,
+  id: number,
+  invalid: boolean,
+): SplitSettlementUpdate[] {
+  const existing = requireTransaction(repository, id);
+  if (isRepaymentCredit(existing)) {
+    assertExactRepaymentHistory(existing);
+    if (existing.isInvalid === invalid) return [];
+    if (invalid) {
+      const ledger = repository.getExpensesWithSplits();
+      const updates = planRepaymentReversal(existing, ledger);
+      repository.mutateWithSplitUpdates(id, { kind: 'invalidate', isInvalid: true }, updates);
+      return updates;
+    }
+    const ledger = repository.getExpensesWithSplits();
+    const candidate: TransactionCandidate = { ...existing, isInvalid: false };
+    const plan = planAutomaticRepayment(candidate, ledger);
+    const splits = plan ? [repaymentSplit(plan)] : null;
+    const updates = plan?.updates || [];
+    repository.mutateWithSplitUpdates(id, { kind: 'invalidate', isInvalid: false, splits }, updates);
+    return updates;
+  }
+
+  if (invalid && (existing.splits || []).some(split => {
+    const state = getSplitPaymentState(split);
+    return state.manualPaidAmount + state.repaymentPaidAmount > 0;
+  })) {
+    throw new Error('Cannot invalidate a settled split transaction. Unsettle or reconcile its payments first.');
+  }
+  repository.mutateWithSplitUpdates(id, { kind: 'invalidate', isInvalid: invalid }, []);
+  return [];
+}
 
 export function deleteTransaction(repository: TransactionRepository, id: number): void {
-  repository.delete(id);
+  const existing = requireTransaction(repository, id);
+  let updates: SplitSettlementUpdate[] = [];
+  if (isRepaymentCredit(existing)) {
+    assertExactRepaymentHistory(existing);
+    const ledger = repository.getExpensesWithSplits();
+    updates = planRepaymentReversal(existing, ledger);
+  } else if ((existing.splits || []).some(split => {
+    const state = getSplitPaymentState(split);
+    return state.manualPaidAmount + state.repaymentPaidAmount > 0;
+  })) {
+    throw new Error('Cannot delete a settled split transaction. Unsettle or reconcile its payments first.');
+  }
+  repository.mutateWithSplitUpdates(id, { kind: 'delete' }, updates);
+}
+
+function requireTransaction(repository: TransactionRepository, id: number): Expense {
+  const expense = repository.findById(id);
+  if (!expense) throw new Error(`Transaction ${id} could not be found.`);
+  return expense;
+}
+
+function assertExactRepaymentHistory(expense: Expense): void {
+  if (!hasExactRepaymentHistory(expense)) {
+    throw new Error(
+      'This older repayment has no exact allocation history. Its linked splits were left unchanged; reconcile it before editing, restoring, or deleting it.',
+    );
+  }
+}
+
+function mergeUpdates(
+  first: SplitSettlementUpdate[],
+  second: SplitSettlementUpdate[],
+): SplitSettlementUpdate[] {
+  const byId = new Map(first.map(update => [update.expenseId, update]));
+  for (const update of second) byId.set(update.expenseId, update);
+  return Array.from(byId.values());
 }

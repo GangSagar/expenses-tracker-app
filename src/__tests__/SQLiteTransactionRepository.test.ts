@@ -6,8 +6,8 @@ jest.mock('../database/expenseRepo', () => ({
   insertExpense: jest.fn(),
   insertExpenseWithRepayment: jest.fn(),
   getExpenseById: jest.fn(),
-  updateExpense: jest.fn(),
   restoreExpenseSnapshot: jest.fn(),
+  mutateExpenseWithSplitUpdatesAtomically: jest.fn(),
 }));
 
 const mockedRepo = expenseRepo as jest.Mocked<typeof expenseRepo>;
@@ -33,18 +33,6 @@ describe('SQLiteTransactionRepository', () => {
     expect(repository.insert(candidate)).toEqual({ ...candidate, id: 23 });
   });
 
-  it('reports an update for a missing row as failure', () => {
-    mockedRepo.getExpenseById.mockReturnValue(null);
-    const repository = new SQLiteTransactionRepository();
-
-    expect(() => repository.update(404, 'Coffee', 'Food & Dining')).toThrow(
-      'Could not update transaction 404',
-    );
-    expect(mockedRepo.updateExpense).toHaveBeenCalledWith(
-      404, 'Coffee', 'Food & Dining', undefined, undefined, undefined, undefined, undefined,
-    );
-  });
-
   it('delegates backup snapshots without deriving transaction or repayment rules', () => {
     const backup = [{
       ...candidate,
@@ -56,5 +44,15 @@ describe('SQLiteTransactionRepository', () => {
     repository.restoreSnapshot(backup, true);
 
     expect(mockedRepo.restoreExpenseSnapshot).toHaveBeenCalledWith(backup, true);
+  });
+
+  it('routes an atomic transaction mutation and split adjustments to SQLite', () => {
+    const repository = new SQLiteTransactionRepository();
+    const mutation = { kind: 'delete' as const };
+    const updates = [{ expenseId: 3, splits: [{ contactName: 'Alex', amount: 40, paidAmount: 0 }] }];
+
+    repository.mutateWithSplitUpdates(7, mutation, updates);
+
+    expect(mockedRepo.mutateExpenseWithSplitUpdatesAtomically).toHaveBeenCalledWith(7, mutation, updates);
   });
 });

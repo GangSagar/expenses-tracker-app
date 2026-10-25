@@ -34,12 +34,10 @@ function repository(ledger: Expense[] = []): TransactionRepository & { inserted:
       inserted.push(persisted);
       return persisted;
     },
-    update: () => {},
     findById: id => inserted.find(item => item.id === id) as (Expense & { id: number }) | undefined || null,
     getRecentExpenses: () => [],
-    invalidate: () => {},
-    delete: () => {},
     updateSplitExpensesAtomically: () => {},
+    mutateWithSplitUpdates: () => {},
   };
 }
 
@@ -79,6 +77,7 @@ describe('transaction application use cases', () => {
     expect(result.status).toBe('saved');
     expect(writes.inserted[0].splits).toEqual([{
       contactName: 'Alex', amount: 35, isPaid: true, owedByMe: true,
+      repaymentAllocations: [{ expenseId: 9, splitId: 'legacy-9-0', amount: 35 }],
     }]);
   });
 

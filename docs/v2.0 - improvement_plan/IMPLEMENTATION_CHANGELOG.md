@@ -14,7 +14,7 @@ The current UI is scheduled for replacement. This work therefore changes transac
 | 2. One transaction decision policy | In progress | Typed policy is wired into live ingestion and import preview; a local offline AI inference runtime remains unimplemented. |
 | 3. Shared application use cases | Complete | Live, historical import, manual creation, review confirmation, edit, invalidation, and delete now enter named application operations; historical imports use chronological shared repayment persistence. |
 | 4. Repository boundary and temporary presentation adapters | Complete | Focused repository ports are implemented by SQLite; transaction, backup, reset, split-persistence, account-delete, and maintenance writes now cross the boundary. |
-| 5. Splits and repayment domain boundary | Partially prepared | Pure partial-allocation planning is in place; manual settle/unsettle/toggle and the complete split use case remain in Zustand. |
+| 5. Splits and repayment domain boundary | Complete | Split decisions moved out of Zustand; new repayments store exact allocation links, linked mutations reverse atomically, and unsafe legacy repayment mutations are blocked. |
 | 6. Unified deduplication | Not started | Live and import deduplication still use different rules. |
 | 7. Explicit database migrations | Not started | Existing best-effort `ALTER TABLE` migration sequence remains. |
 | 8. Domain organization and dependency guardrails | Not started | Only the new transaction contracts/planner are grouped under `src/core/transactions/`; broader organization and import rules are deferred. |
@@ -193,7 +193,7 @@ Detailed scope and semantics: [Phase 4: Repository Boundary](./PHASE_4_REPOSITOR
 - Transaction and backup/reset writes from hooks/screens pass through repository-backed transaction application operations. Generic app settings and merchant-learning persistence remain their own capability boundaries.
 - Backup payloads are validated before writes. Append and overwrite batches are atomic. Overwrite replaces expense rows only, preserving settings and learned merchant mappings that are not in the backup snapshot.
 - Restore copies split payment values from the snapshot and never reruns parser policy, deduplication, or automatic repayment allocation.
-- Split settlement calculations remain in Zustand until Phase 5. Live and import deduplication remain separate until Phase 6. Schema migration redesign remains Phase 7. The offline AI runtime remains Phase 2 work.
+- At Phase 4 exit, split settlement calculations still remained in Zustand; Phase 5 has since moved them to core use cases. Live and import deduplication remain separate until Phase 6. Schema migration redesign remains Phase 7. The offline AI runtime remains Phase 2 work.
 
 ### Boundary audit and carry-forward
 
@@ -204,22 +204,45 @@ Detailed scope and semantics: [Phase 4: Repository Boundary](./PHASE_4_REPOSITOR
 
 Verification: `npx tsc --noEmit` passed; `npm test -- --runInBand` passed (31 suites, 648 tests); focused Phase 4 tests passed (3 suites, 23 tests); changed-file ESLint passed with 0 errors and 19 existing inline-style warnings in `SettingsScreen.tsx`; `git diff --check` passed. Graphify refreshed to 1,478 nodes and 2,988 edges across 104 communities; it reported a pre-existing Android Gradle syntax limitation and requested community relabeling after the community set changed.
 
-## Phase 5 — Splits and repayment domain boundary (partially prepared)
+## Phase 5 — Split and repayment domain (complete)
 
-**Goal:** move all split settlement behavior out of Zustand, not just automatic credit matching. Define partial payment separately if the product requires it.
+Detailed plan: [Phase 5: Split Settlement and Repayment Domain](./PHASE_5_SPLIT_REPAYMENT_DOMAIN.md).
 
-**Already done:** `repaymentPlanner.ts` is pure and automatic repayment writes are grouped transactionally.
+| File | Change | Why and how |
+|---|---|---|
+| `src/types/expense.ts` | Added stable split IDs, separate manual/repayment paid totals, and exact repayment allocation DTOs. | Existing `amount`, `paidAmount`, and `isPaid` remain readable; original debt amounts are not overwritten. |
+| `src/core/transactions/repaymentPlanner.ts` | Extended FIFO partial allocation to assign stable legacy split IDs, update separate payment totals, and return exact destination allocation records. | New repayment credits can later be reversed without recomputing history. |
+| `src/core/transactions/splitSettlement.ts` (new) | Added pure split ID, manual settlement, payment-state, reversal, and debt-mutation validation rules. | Keeps settlement decisions outside Zustand and makes manual values distinct from incoming repayments. |
+| `src/core/transactions/applicationUseCases.ts` | Added named settlement, repayment edit/reversal, invalidation/restore, and guarded delete operations. Removed raw update/invalidate/delete methods from the core application-facing repository contract. | Core coordinates rules and requires atomic repository mutation for linked transaction/split changes. |
+| `src/core/transactions/contracts.ts` | Added typed atomic transaction mutation commands. | Describes linked update/invalidate/delete operations without SQLite details. |
+| `src/database/expenseRepo.ts` | Added transaction-plus-split atomic mutation, insert-ID rollback validation, backup allocation-ID remapping, and protections for account deletion/deduplication. | Prevents partial repayment reversals, dangling links, or silently invalidated settlement history. |
+| `src/database/SQLiteTransactionRepository.ts` | Adapted the atomic mutation operation to SQLite. | Implements the core persistence contract. |
+| `src/services/transactions/transactionApplication.ts` | Routes edits, deletion, invalidation, manual settlement, and backup validation to the domain operations. | Keeps the concrete repository composed outside core and rejects malformed/dangling backup allocations. |
+| `src/hooks/useExpenses.ts` | Removed settle/unsettle/toggle calculations; dispatches use cases and refreshes state after persisted results. Added clear mutation failure messages. | Zustand is now a state adapter for split operations. |
+| `src/presentation/legacy/screens/SplitsScreen.tsx`, `HistoryScreen.tsx` | Kept layout; only show success after settlement succeeds and stop trash actions when guarded invalidation fails. | Exposes domain outcomes without redesigning UI. |
+| `src/__tests__/splitSettlement.test.ts` (new) | Covers exact allocation, manual versus repayment balances, reversal, legacy protection, mutation guards, and use-case routing. | Verifies domain behavior independently of SQLite. |
+| `src/__tests__/expenseRepo.test.ts`, `transactionRepayment.test.ts`, `transactionApplicationUseCases.test.ts`, `expenseService.test.ts`, `SQLiteTransactionRepository.test.ts` | Added rollback, backup ID remapping, account/dedup protection, and end-to-end use-case assertions for exact allocation metadata. | Covers SQLite and application boundaries. |
+| `README.md`, `docs/ARCHITECTURE.md`, `docs/APP_MESSAGE_LISTENER_FLOW.md`, roadmap, Phase 3/5 plans, this log | Updated architecture, handoffs, status, and supported legacy behavior. | Keeps implementation records aligned with the active runtime. |
 
-**Remaining expected file areas:**
+### Phase 5 follow-up closure
 
-| Expected files | Planned work |
-|---|---|
-| `src/core/transactions/repaymentPlanner.ts` | Extend only after settlement semantics are agreed; define partial allocation if supported. |
-| `src/core/splits/` or `src/core/transactions/` | Add domain rules/use cases for manual settle, unsettle, toggle, and automatic repayment. |
-| `src/database/expenseRepo.ts` or dedicated split repository | Add atomic multi-expense settlement operations and support residual/allocated amounts if partial payment is adopted. |
-| `src/hooks/useExpenses.ts` | Reduce to invoking use cases and reflecting results. |
-| `src/presentation/legacy/screens/SplitsScreen.tsx` | Keep UI intact; change only API wiring when use cases move. |
-| split/repayment tests | Cover full, partial (if supported), reversal/unsettle, invalidation, and failure atomicity. |
+| File | Change | Why and how |
+|---|---|---|
+| `src/database/SQLiteTransactionRepository.ts`, `src/database/expenseRepo.ts` | Removed unused raw update/invalidate/delete adapter methods and low-level functions, plus the obsolete repayment-link update operation. | Transaction mutation now has one app-facing path through guarded use cases and atomic repository commands. |
+| `src/hooks/useExpenses.ts`, `src/presentation/legacy/components/EditTransactionModal.tsx` | `deleteExpense` now reports success; the edit modal closes after delete/trash/restore only when the store confirms persistence succeeded. | A blocked legacy or settled mutation leaves the transaction visible for the user to review. |
+| `src/__tests__/SQLiteTransactionRepository.test.ts`, `src/__tests__/expenseRepo.test.ts` | Removed tests for deleted raw mutation paths. | Keeps tests aligned with the supported repository contract. |
+| `PHASE_5_SPLIT_REPAYMENT_DOMAIN.md` | Replaced stale pre-implementation “starting point” and “proposed” sections with the implemented boundary and allocation representation. | Prevents the plan from contradicting the shipped Phase 5 behavior. |
+
+### Behavior and remaining boundaries
+
+- New automatic repayments allocate FIFO and store exact `{expenseId, splitId, amount}` links in the repayment transaction. Debt split rows retain original amounts and track manual settlement separately from active repayment totals.
+- Editing a new repayment reverses its exact old allocations and replans the edited credit in one transaction. Invalidating reverses; restoring replans against current outstanding splits; deleting reverses before removing the credit.
+- Debt split changes that remove/reassign an already-settled split or reduce its amount below the settled total are rejected. Settled debt transactions cannot be invalidated/deleted until reconciled.
+- Older repayment rows without exact links are preserved and their edit/invalidation/deletion is blocked. Account removal and deduplication also refuse to invalidate transactions with settlement history.
+- Backup restore remaps linked expense IDs and rolls back if an allocation target is missing. It does not re-run repayment matching.
+- Live/import dedup unification remains Phase 6; explicit migrations remain Phase 7; settings/learning dependency cleanup remains broader architecture work; local AI remains Phase 2.
+
+Verification: `npx tsc --noEmit` passed; `npx jest --runInBand` passed (32 suites, 666 tests). Focused Phase 5 tests passed (6 suites, 49 tests). Changed-file ESLint passed with 0 errors and 5 existing inline-style warnings in `HistoryScreen.tsx` and `SplitsScreen.tsx`. `git diff --check` passed.
 
 ## Phase 6 — Unified deduplication (not started)
 
@@ -290,5 +313,5 @@ Future receipt OCR, notification providers, import formats, or backup should ent
 1. The local/offline AI inference runtime and its operational limits; the product requirement for offline fallback is approved.
 2. Exact deletion versus soft-invalidation semantics.
 3. Which historical database schemas must remain upgradeable (Phase 7).
-4. The 30-day repayment window, live credit-link failure, and historical-import routing gaps are closed. Phase 5 still owns moving split rules out of Zustand and defining safe reversal for linked repayment edits/deletes.
+4. The 30-day repayment window, live credit-link failure, and historical-import routing gaps are closed. Phase 5 has since moved split rules out of Zustand and added safe reversal for new linked repayments; legacy summary-only repayment mutations remain blocked pending reconciliation.
 

@@ -1,8 +1,8 @@
-import { Expense } from '../../types/expense';
+import { Expense, ExpenseSplit } from '../../types/expense';
 import { isDuplicate } from '../../core/dedup';
 import {
-  deleteTransaction, importTransactions, invalidateTransaction,
-  persistAcceptedTransaction, updateTransaction,
+  deleteTransaction, importTransactions, invalidateTransactionWithRepaymentRules,
+  persistAcceptedTransaction, settleSplits, updateTransactionWithRepaymentRules,
 } from '../../core/transactions/applicationUseCases';
 import { TransactionCandidate } from '../../core/transactions/contracts';
 import { IncomingMessage, processIncomingMessage } from '../messaging/messageService';
@@ -114,20 +114,36 @@ export function confirmReviewedTransaction(
 export function updateTransactionUseCase(
   existing: Expense | undefined,
   alias: string | undefined,
-  ...args: Parameters<typeof transactionStorage.update>
+  id: number,
+  merchant: string,
+  category: Expense['category'],
+  bank?: string,
+  paymentMode?: Expense['paymentMode'],
+  amount?: number,
+  splits?: Expense['splits'],
+  transactionType?: Expense['transactionType'],
 ) {
-  updateTransaction(transactionStorage, args);
-  const [, merchant, category] = args;
+  const persisted = transactionStorage.findById(id) || existing;
+  const updates = updateTransactionWithRepaymentRules(transactionStorage, id, {
+    merchant,
+    category,
+    bank,
+    paymentMode,
+    amount: amount ?? persisted?.amount ?? 0,
+    splits: splits as ExpenseSplit[] | undefined,
+    transactionType: transactionType || persisted?.transactionType || 'debit',
+  });
   const effectiveAlias = alias || merchant;
-  if (effectiveAlias && effectiveAlias !== 'Unknown' && existing && (
-    existing.alias !== alias || existing.merchant !== merchant || existing.category !== category
+  if (effectiveAlias && effectiveAlias !== 'Unknown' && persisted && (
+    persisted.alias !== alias || persisted.merchant !== merchant || persisted.category !== category
   )) {
     learnCorrection(effectiveAlias, merchant, category);
   }
+  return updates;
 }
 
 export function invalidateTransactionUseCase(id: number, invalid: boolean) {
-  return invalidateTransaction(transactionStorage, id, invalid);
+  return invalidateTransactionWithRepaymentRules(transactionStorage, id, invalid);
 }
 
 export function deleteTransactionUseCase(id: number) {
@@ -138,12 +154,12 @@ export const queryAllTransactions = (limit?: number, offset?: number) =>
   transactionStorage.getAllExpenses(limit, offset);
 export const queryWindowedTransactions = (days?: number) =>
   transactionStorage.getWindowedExpenses(days);
-export const querySplitLedger = () => transactionStorage.getExpensesWithSplits();
 export const exportTransactionSnapshot = () => transactionStorage.exportAllExpenses();
 export function restoreTransactionSnapshot(expenses: Expense[], overwrite: boolean): void {
   if (!Array.isArray(expenses)) {
     throw new Error('Backup data must contain a transaction array.');
   }
+  const snapshotIds = new Set<number>();
   expenses.forEach((expense, index) => {
     if (!expense || typeof expense !== 'object') {
       throw new Error(`Backup transaction ${index + 1} is not an object.`);
@@ -157,18 +173,52 @@ export function restoreTransactionSnapshot(expenses: Expense[], overwrite: boole
     if (!Number.isFinite(expense.timestamp) || typeof expense.category !== 'string') {
       throw new Error(`Backup transaction ${index + 1} is missing required transaction data.`);
     }
-    if (expense.splits && (!Array.isArray(expense.splits) || expense.splits.some(split =>
-      typeof split.contactName !== 'string' || !Number.isFinite(split.amount) ||
-      (split.paidAmount !== undefined && !Number.isFinite(split.paidAmount)),
-    ))) {
-      throw new Error(`Backup transaction ${index + 1} has invalid split data.`);
+    if (expense.id !== undefined) {
+      if (!Number.isInteger(expense.id) || expense.id <= 0 || snapshotIds.has(expense.id)) {
+        throw new Error(`Backup transaction ${index + 1} has an invalid or repeated ID.`);
+      }
+      snapshotIds.add(expense.id);
+    }
+    if (expense.splits && (!Array.isArray(expense.splits) || expense.splits.some(split => {
+      if (!split || typeof split !== 'object') return true;
+      if (typeof split.contactName !== 'string' || !Number.isFinite(split.amount)) return true;
+      if (split.splitId !== undefined && (typeof split.splitId !== 'string' || !split.splitId)) return true;
+      if (split.paidAmount !== undefined && !Number.isFinite(split.paidAmount)) return true;
+      if (split.manualPaidAmount !== undefined && !Number.isFinite(split.manualPaidAmount)) return true;
+      if (split.repaymentPaidAmount !== undefined && !Number.isFinite(split.repaymentPaidAmount)) return true;
+      if (split.repaymentAllocations !== undefined && (!Array.isArray(split.repaymentAllocations) ||
+        split.repaymentAllocations.some(allocation =>
+          !allocation || typeof allocation !== 'object' ||
+          !Number.isInteger(allocation.expenseId) || allocation.expenseId <= 0 ||
+          typeof allocation.splitId !== 'string' || !allocation.splitId ||
+          !Number.isFinite(allocation.amount) || allocation.amount <= 0,
+        ))) return true;
+      return false;
+    }))) {
+      throw new Error(`Backup transaction ${index + 1} has invalid split or repayment allocation data.`);
+    }
+  });
+  const expensesById = new Map(expenses.filter(expense => expense.id !== undefined)
+    .map(expense => [expense.id!, expense]));
+  expenses.forEach((expense, index) => {
+    for (const split of expense.splits || []) {
+      for (const allocation of split.repaymentAllocations || []) {
+        const allocatedExpense = expensesById.get(allocation.expenseId);
+        if (!snapshotIds.has(allocation.expenseId) || !allocatedExpense?.splits?.some(
+          allocatedSplit => allocatedSplit.splitId === allocation.splitId,
+        )) {
+          throw new Error(`Backup transaction ${index + 1} contains a repayment allocation to a transaction outside the snapshot.`);
+        }
+      }
     }
   });
   transactionStorage.restoreSnapshot(expenses, overwrite);
 }
 export const clearTransactionData = () => transactionStorage.clearAll();
-export const persistSplitUpdates = (updates: Parameters<typeof transactionStorage.updateSplitExpensesAtomically>[0]) =>
-  transactionStorage.updateSplitExpensesAtomically(updates);
+export const settleSplitContact = (contactName: string, action: 'settle' | 'unsettle') =>
+  settleSplits(transactionStorage, contactName, action);
+export const toggleSplitSettlement = (expenseId: number, contactName: string) =>
+  settleSplits(transactionStorage, contactName, 'toggle', expenseId);
 export const updateTrashReasonUseCase = (id: number, reason: string | null) =>
   transactionStorage.updateTrashReason(id, reason);
 export const runTransactionDeduplication = () => transactionStorage.deduplicate();

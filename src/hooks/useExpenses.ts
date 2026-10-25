@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Alert } from 'react-native';
 import { Expense, Category } from '../types/expense';
 import { SplitSettlementUpdate } from '../core/transactions/repaymentPlanner';
 import {
@@ -6,12 +7,12 @@ import {
   deleteTransactionUseCase,
   exportTransactionSnapshot,
   invalidateTransactionUseCase,
-  persistSplitUpdates,
   queryAllTransactions,
-  querySplitLedger,
   queryWindowedTransactions,
   restoreTransactionSnapshot,
   runTransactionDeduplication,
+  settleSplitContact,
+  toggleSplitSettlement,
   updateTransactionUseCase,
   updateTrashReasonUseCase,
 } from '../services/transactions/transactionApplication';
@@ -38,11 +39,11 @@ interface ExpenseState {
   popPendingExpense: () => void;
   exportExpenses: () => Expense[];
   importExpenses: (imported: Expense[], overwrite: boolean) => void;
-  settleContactSplits: (contactName: string) => void;
-  unsettleContactSplits: (contactName: string) => void;
-  toggleSplitPaid: (expenseId: number, contactName: string) => void;
-  deleteExpense: (id: number) => void;
-  invalidateExpense: (id: number, isInvalid: boolean) => void;
+  settleContactSplits: (contactName: string) => boolean;
+  unsettleContactSplits: (contactName: string) => boolean;
+  toggleSplitPaid: (expenseId: number, contactName: string) => boolean;
+  deleteExpense: (id: number) => boolean;
+  invalidateExpense: (id: number, isInvalid: boolean) => boolean;
   updateTrashReason: (id: number, reason: string | null) => void;
   runDeduplication: () => number;
 }
@@ -119,30 +120,16 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         merchant,
         category,
         bank,
-        paymentMode,
+        paymentMode as Expense['paymentMode'],
         amount,
         splits,
         transactionType,
       );
 
-      set(state => ({
-        expenses: state.expenses.map(e =>
-          e.id === id
-            ? {
-                ...e,
-                merchant,
-                category,
-                bank,
-                paymentMode: paymentMode as any,
-                amount: amount !== undefined ? amount : e.amount,
-                splits: splits,
-                transactionType: transactionType || e.transactionType,
-              }
-            : e,
-        ),
-      }));
+      set({ expenses: queryAllTransactions(2000) });
     } catch (e) {
       console.error('Failed to update expense', e);
+      Alert.alert('Unable to update transaction', errorMessage(e));
     }
   },
 
@@ -176,93 +163,62 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   settleContactSplits: contactName => {
     try {
-      const expenses = querySplitLedger();
-      const affected = expenses.filter(
-        e => e.splits && e.splits.some(s => s.contactName === contactName && !s.isPaid),
-      );
-      const updates = affected.flatMap(e => e.id === undefined ? [] : [{
-        expenseId: e.id,
-        splits: e.splits!.map(s => s.contactName === contactName
-          ? { ...s, isPaid: true, paidAmount: s.amount }
-          : s),
-      }]);
-      persistSplitUpdates(updates);
-      set({ expenses: queryAllTransactions(2000) });
+      const updates = settleSplitContact(contactName, 'settle');
+      set(state => ({ expenses: applySplitUpdates(state.expenses, updates) }));
+      return true;
     } catch (e) {
       console.error('Failed to settle contact splits', e);
+      Alert.alert('Unable to settle splits', errorMessage(e));
+      return false;
     }
   },
 
   unsettleContactSplits: contactName => {
     try {
-      const expenses = querySplitLedger();
-      const affected = expenses.filter(
-        e => e.splits && e.splits.some(s =>
-          s.contactName === contactName && (s.isPaid || (Number(s.paidAmount) || 0) > 0),
-        ),
-      );
-      const updates = affected.flatMap(e => e.id === undefined ? [] : [{
-        expenseId: e.id,
-        splits: e.splits!.map(s => s.contactName === contactName
-          ? { ...s, isPaid: false, paidAmount: 0 }
-          : s),
-      }]);
-      persistSplitUpdates(updates);
-      set({ expenses: queryAllTransactions(2000) });
+      const updates = settleSplitContact(contactName, 'unsettle');
+      set(state => ({ expenses: applySplitUpdates(state.expenses, updates) }));
+      return true;
     } catch (e) {
       console.error('Failed to unsettle contact splits', e);
+      Alert.alert('Unable to unsettle splits', errorMessage(e));
+      return false;
     }
   },
 
   toggleSplitPaid: (expenseId, contactName) => {
     try {
-      const expenses = get().expenses;
-      const expense = expenses.find(e => e.id === expenseId);
-      if (!expense || !expense.splits) return;
-
-      const updatedSplits = expense.splits.map(s => {
-        if (s.contactName !== contactName) return s;
-        const markPaid = !s.isPaid;
-        return {
-          ...s,
-          isPaid: markPaid,
-          paidAmount: markPaid ? s.amount : 0,
-        };
-      });
-
-      // Save to DB
-      persistSplitUpdates([{ expenseId: expense.id!, splits: updatedSplits }]);
-
-      // Reload
-      const reloaded = queryAllTransactions(2000);
-      set({ expenses: reloaded });
+      const updates = toggleSplitSettlement(expenseId, contactName);
+      set(state => ({ expenses: applySplitUpdates(state.expenses, updates) }));
+      return true;
     } catch (e) {
       console.error('Failed to toggle split paid status', e);
+      Alert.alert('Unable to update split', errorMessage(e));
+      return false;
     }
   },
 
   deleteExpense: id => {
     try {
       deleteTransactionUseCase(id);
-      set(state => ({
-        expenses: state.expenses.filter(e => e.id !== id),
-      }));
+      set({ expenses: queryAllTransactions(2000) });
+      return true;
     } catch (e) {
       console.error('Failed to delete expense', e);
+      Alert.alert('Unable to delete transaction', errorMessage(e));
+      return false;
     }
   },
 
   invalidateExpense: (id, isInvalid) => {
     try {
       invalidateTransactionUseCase(id, isInvalid);
-      set(state => ({
-        expenses: state.expenses.map(e =>
-          e.id === id ? { ...e, isInvalid } : e,
-        ),
-      }));
+      set({ expenses: queryAllTransactions(2000) });
     } catch (e) {
       console.error('Failed to invalidate expense', e);
+      Alert.alert('Unable to change transaction status', errorMessage(e));
+      return false;
     }
+    return true;
   },
 
   updateTrashReason: (id, reason) => {
@@ -289,7 +245,12 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       return count;
     } catch (e) {
       console.error('Failed to deduplicate database', e);
+      Alert.alert('Unable to deduplicate transactions', errorMessage(e));
       return 0;
     }
   },
 }));
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

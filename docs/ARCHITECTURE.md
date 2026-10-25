@@ -369,7 +369,7 @@ erDiagram
     EXPENSES ||--o{ MERCHANT_CATEGORIES : "categorized by"
 ```
 
-The `splits` column stores split rows as JSON. Current rows retain the original `amount` and may include cumulative `paidAmount`, `isPaid`, and `owedByMe`. Outstanding balance is calculated from the original amount less paid amount; legacy rows without `paidAmount` remain compatible.
+The `splits` column stores split rows as JSON. Current rows retain the original `amount`, a stable `splitId`, and compatibility summaries (`paidAmount`, `isPaid`, and `owedByMe`). `manualPaidAmount` tracks explicit manual settlement; `repaymentPaidAmount` tracks active automatic repayment allocations. New repayment credit splits store exact `{expenseId, splitId, amount}` allocation links. This lets core use cases reverse or re-plan new repayments atomically without confusing them with manual settlement. Legacy rows without allocation metadata remain readable; unsafe mutation of legacy repayment credits is blocked instead of guessing which debt they paid. Backup restore remaps allocation expense IDs while preserving split state.
 
 ---
 

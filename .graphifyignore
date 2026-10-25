@@ -1,0 +1,12 @@
+# Binary image assets (app launcher icons, assets)
+*.png
+*.jpg
+*.jpeg
+*.ico
+*.webp
+android/app/src/main/res/
+ios/ExpenseTracker/Images.xcassets/
+
+# Android build outputs
+android/app/build/
+**/build/

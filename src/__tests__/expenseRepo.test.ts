@@ -8,12 +8,16 @@ import {
   getExpensesWithSplits,
   updateSplitExpensesAtomically,
   insertExpenseWithRepayment,
-  updateExpenseWithRepayment,
   restoreExpenseSnapshot,
   CLEAR_ALL_EXPENSES_SQL,
   CLEAR_ALL_MERCHANT_CATEGORIES_SQL,
   CLEAR_ALL_SETTINGS_SQL,
   clearAllExpenses,
+  mutateExpenseWithSplitUpdatesAtomically,
+  INVALIDATE_EXPENSE_SQL,
+  DELETE_EXPENSE_SQL,
+  deleteTransactionsForAccount,
+  deduplicateDatabase,
 } from '../database/expenseRepo';
 import { getDatabase } from '../database/db';
 
@@ -103,7 +107,6 @@ describe('isDuplicateTransaction (SQLite Ledger)', () => {
     );
   });
 });
-
 describe('insertExpenseWithRepayment', () => {
   let mockExecute: jest.Mock;
 
@@ -172,6 +175,30 @@ describe('insertExpenseWithRepayment', () => {
       UPDATE_EXPENSE_SPLITS_SQL,
       INSERT_EXPENSE_SQL,
       'ROLLBACK',
+    ]);
+  });
+
+  it('rolls back the split update when SQLite does not return the repayment ID', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 0 });
+
+    expect(() => insertExpenseWithRepayment({
+      amount: 75,
+      merchant: 'Repayment from Alex',
+      category: 'Other',
+      confidence: 1,
+      timestamp: 1000,
+      source: 'manual',
+      rawMessage: '',
+      transactionType: 'credit',
+    }, [{ expenseId: 7, splits: [{ contactName: 'Alex', amount: 75, paidAmount: 75 }] }]))
+      .toThrow(/valid repayment transaction identifier/i);
+
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION', UPDATE_EXPENSE_SPLITS_SQL, INSERT_EXPENSE_SQL, 'ROLLBACK',
     ]);
   });
 });
@@ -262,6 +289,110 @@ describe('updateSplitExpensesAtomically', () => {
   });
 });
 
+describe('mutateExpenseWithSplitUpdatesAtomically', () => {
+  let mockExecute: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockExecute = getDatabase().execute as jest.Mock;
+  });
+
+  it('commits a repayment deletion and its split reversal in one transaction', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 0 });
+
+    mutateExpenseWithSplitUpdatesAtomically(12, { kind: 'delete' }, [{
+      expenseId: 8,
+      splits: [{ contactName: 'Alex', amount: 100, paidAmount: 0, repaymentPaidAmount: 0 }],
+    }]);
+
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION',
+      UPDATE_EXPENSE_SPLITS_SQL,
+      DELETE_EXPENSE_SQL,
+      'COMMIT',
+    ]);
+  });
+
+  it('rolls back split reversals if the repayment transaction cannot be changed', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 0 })
+      .mockReturnValueOnce({ rowsAffected: 0 });
+
+    expect(() => mutateExpenseWithSplitUpdatesAtomically(12, {
+      kind: 'invalidate', isInvalid: true,
+    }, [{ expenseId: 8, splits: [{ contactName: 'Alex', amount: 100, paidAmount: 0 }] }]))
+      .toThrow('Could not update transaction 12');
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION',
+      UPDATE_EXPENSE_SPLITS_SQL,
+      INVALIDATE_EXPENSE_SQL,
+      'ROLLBACK',
+    ]);
+  });
+});
+
+describe('account transaction deletion safety', () => {
+  let mockExecute: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockExecute = getDatabase().execute as jest.Mock;
+  });
+
+  it('preserves an account with repayment history instead of orphaning allocations', () => {
+    mockExecute.mockReturnValueOnce({ rows: { _array: [{
+      id: 12, amount: 35, merchant: 'Repayment from Alex', category: 'Other',
+      confidence: 1, timestamp: 10, source: 'manual', raw_message: '',
+      transaction_type: 'credit', bank: 'Bank A', account: '1234',
+      splits: JSON.stringify([{
+        contactName: 'Alex', amount: 35, owedByMe: true,
+        repaymentAllocations: [{ expenseId: 8, splitId: 'debt-1', amount: 35 }],
+      }]),
+    }] } });
+
+    expect(() => deleteTransactionsForAccount('Bank A', '1234')).toThrow(/repayment history/i);
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('deduplication settlement safety', () => {
+  let mockExecute: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockExecute = getDatabase().execute as jest.Mock;
+  });
+
+  it('does not invalidate a duplicate with repayment history', () => {
+    mockExecute.mockReturnValueOnce({ rows: { _array: [
+      {
+        id: 1, amount: 35, merchant: 'Repayment from Alex', category: 'Other',
+        confidence: 1, timestamp: 10, source: 'manual', raw_message: '',
+        transaction_type: 'credit', is_duplicate: 0, is_invalid: 0,
+        splits: null,
+      },
+      {
+        id: 2, amount: 35, merchant: 'Repayment from Alex', category: 'Other',
+        confidence: 1, timestamp: 11, source: 'manual', raw_message: '',
+        transaction_type: 'credit', is_duplicate: 0, is_invalid: 0,
+        splits: JSON.stringify([{
+          contactName: 'Alex', amount: 35, owedByMe: true,
+          repaymentAllocations: [{ expenseId: 8, splitId: 'debt-split', amount: 35 }],
+        }]),
+      },
+    ] } });
+
+    expect(() => deduplicateDatabase()).toThrow(/split settlement history/i);
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('restoreExpenseSnapshot', () => {
   let mockExecute: jest.Mock;
 
@@ -331,6 +462,59 @@ describe('restoreExpenseSnapshot', () => {
       'BEGIN TRANSACTION', INSERT_EXPENSE_SQL, 'COMMIT',
     ]);
   });
+
+  it('remaps repayment allocation transaction IDs while restoring a snapshot', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 })
+      .mockReturnValueOnce({ rowsAffected: 2 })
+      .mockReturnValueOnce({ insertId: 31, rowsAffected: 1 })
+      .mockReturnValueOnce({ insertId: 32, rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 0 });
+    const debt = { ...backupExpense, id: 101, splits: [{
+      splitId: 'debt-split', contactName: 'Alex', amount: 60,
+      manualPaidAmount: 0, repaymentPaidAmount: 25, paidAmount: 25, isPaid: false,
+    }] };
+    const payment = {
+      ...backupExpense,
+      id: 202,
+      transactionType: 'credit' as const,
+      splits: [{
+        contactName: 'Alex', amount: 25, isPaid: true, owedByMe: true,
+        repaymentAllocations: [{ expenseId: 101, splitId: 'debt-split', amount: 25 }],
+      }],
+    };
+
+    restoreExpenseSnapshot([debt, payment], true);
+
+    expect(mockExecute.mock.calls[4][0]).toBe(UPDATE_EXPENSE_SPLITS_SQL);
+    expect(JSON.parse(mockExecute.mock.calls[4][1][0])[0].repaymentAllocations).toEqual([
+      { expenseId: 31, splitId: 'debt-split', amount: 25 },
+    ]);
+    expect(mockExecute.mock.calls[4][1][1]).toBe(32);
+  });
+
+  it('rolls back a snapshot that contains a dangling repayment allocation', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockReturnValueOnce({ insertId: 32, rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 0 });
+    const payment = {
+      ...backupExpense,
+      id: 202,
+      transactionType: 'credit' as const,
+      splits: [{
+        contactName: 'Alex', amount: 25, isPaid: true, owedByMe: true,
+        repaymentAllocations: [{ expenseId: 101, splitId: 'missing-debt', amount: 25 }],
+      }],
+    };
+
+    expect(() => restoreExpenseSnapshot([payment], true)).toThrow(/references missing transaction 101/i);
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION', CLEAR_ALL_EXPENSES_SQL, INSERT_EXPENSE_SQL, 'ROLLBACK',
+    ]);
+  });
 });
 
 describe('clearAllExpenses', () => {
@@ -372,39 +556,6 @@ describe('clearAllExpenses', () => {
       'BEGIN TRANSACTION',
       CLEAR_ALL_EXPENSES_SQL,
       CLEAR_ALL_MERCHANT_CATEGORIES_SQL,
-      'ROLLBACK',
-    ]);
-  });
-});
-
-describe('updateExpenseWithRepayment', () => {
-  let mockExecute: jest.Mock;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockExecute = getDatabase().execute as jest.Mock;
-  });
-
-  it('rolls back earlier split updates if linking the incoming credit fails', () => {
-    mockExecute
-      .mockReturnValueOnce({ rowsAffected: 0 }) // BEGIN
-      .mockReturnValueOnce({ rowsAffected: 1 }) // old split update
-      .mockImplementationOnce(() => {
-        throw new Error('credit update failed');
-      })
-      .mockReturnValueOnce({ rowsAffected: 0 }); // ROLLBACK
-
-    expect(() => updateExpenseWithRepayment(42, [
-      { contactName: 'Alex', amount: 75, isPaid: true, owedByMe: true },
-    ], [{
-      expenseId: 7,
-      splits: [{ contactName: 'Alex', amount: 75, isPaid: true }],
-    }])).toThrow('credit update failed');
-
-    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
-      'BEGIN TRANSACTION',
-      UPDATE_EXPENSE_SPLITS_SQL,
-      UPDATE_EXPENSE_SPLITS_SQL,
       'ROLLBACK',
     ]);
   });

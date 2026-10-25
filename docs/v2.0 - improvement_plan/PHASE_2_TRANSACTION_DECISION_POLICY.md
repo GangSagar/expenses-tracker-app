@@ -26,7 +26,7 @@ The audit surfaced gaps that affected Phase 2 and later work. The first five are
 | Finding | Resolution | Remaining boundary |
 |---|---|---|
 | The live adapter lost parser evidence and Phase 1 contracts mixed decisions with persistence results. | The live path now uses structured async parsing; the pure `TransactionDecision` receives parser confidence, breakdown, confirmation, and classifier evidence. Persistence outcomes are a separate type. | Generic repository wiring was completed in Phase 4. |
-| Repayment matching used only the current 30-day Zustand window. | `getExpensesWithSplits()` queries all split-bearing, non-duplicate ledger rows. Automatic/manual repayment and contact-wide settle/unsettle use this full data set. | Split domain ownership remains Phase 5. |
+| Repayment matching used only the current 30-day Zustand window. | `getExpensesWithSplits()` queries all split-bearing, non-duplicate ledger rows. Automatic/manual repayment and contact-wide settle/unsettle use this full data set. | Split domain ownership was completed in Phase 5. |
 | A live credit could persist before repayment linking failed. | Credit insert plus split allocations now run through one SQLite transaction. A failed operation returns an explicit persistence failure and leaves no unlinked credit. | Shared application use-case ownership was completed in Phase 3; repository injection was completed in Phase 4. |
 | Filters could drop inputs without a policy outcome. | `processIncomingMessage()` returns typed rejection signals; the same policy produces the reasoned reject decision. | Phase 3 now owns final historical-import persistence through the shared use case. |
 | Correction learning and async parser use were inactive in the production path. | Live ingestion and import preview now call `parseAsync()`; explicit merchant/category corrections call `LearningEngine.learn()`, which parser resolvers read from the same SQLite-backed mapping repository. | Local AI inference has no runtime/handler and remains inactive. |
@@ -194,7 +194,7 @@ Do not migrate Settings historical import into a parallel Phase 2 path. Phase 3 
 - Integrate a supported on-device/offline inference runtime behind `IAIResolver`, or keep fallback disabled and record the requirement as incomplete. Do not add network inference.
 - Define timeout/cancellation and runtime-unavailable behavior when the local model is selected.
 - The sanitized `sms-samples.json` parity corpus currently produces no decision differences from the legacy confidence thresholds. Keep this fixture suite and add collected production examples when extending the policy.
-- Split use-case ownership remains Phase 5 work; dedup unification remains Phase 6 work.
+- Split use-case ownership was completed in Phase 5; dedup unification remains Phase 6 work.
 
 ## Handoff
 

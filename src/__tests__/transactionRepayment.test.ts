@@ -41,22 +41,27 @@ describe('planAutomaticRepayment', () => {
 
     const plan = planAutomaticRepayment(credit, [newer, oldest]);
 
-    expect(plan).toEqual({
+    expect(plan).toMatchObject({
       contactName: 'Alex',
       settledAmount: 125,
+      allocations: [
+        { expenseId: 1, splitId: 'legacy-1-0', amount: 75 },
+        { expenseId: 2, splitId: 'legacy-2-0', amount: 50 },
+      ],
       updates: [{
         expenseId: 1,
-        splits: [{ contactName: 'Alex', amount: 75, paidAmount: 75, isPaid: true }],
+        splits: [{ contactName: 'Alex', amount: 75, paidAmount: 75, isPaid: true, manualPaidAmount: 0, repaymentPaidAmount: 75, splitId: 'legacy-1-0' }],
       }, {
         expenseId: 2,
-        splits: [{ contactName: 'Alex', amount: 100, paidAmount: 50, isPaid: false }],
+        splits: [{ contactName: 'Alex', amount: 100, paidAmount: 50, isPaid: false, manualPaidAmount: 0, repaymentPaidAmount: 50, splitId: 'legacy-2-0' }],
       }],
     });
-    expect(repaymentSplit(plan!)).toEqual({
+    expect(repaymentSplit(plan!)).toMatchObject({
       contactName: 'Alex',
       amount: 125,
       isPaid: true,
       owedByMe: true,
+      repaymentAllocations: plan!.allocations,
     });
     expect(oldest.splits?.[0].isPaid).toBeUndefined();
     expect(newer.splits?.[0].isPaid).toBeUndefined();
@@ -79,12 +84,13 @@ describe('planAutomaticRepayment', () => {
       transactionType: 'credit',
     });
 
-    expect(planAutomaticRepayment(credit, [newer, oldest])).toEqual({
+    expect(planAutomaticRepayment(credit, [newer, oldest])).toMatchObject({
       contactName: 'Alex',
       settledAmount: 100,
+      allocations: [{ expenseId: 1, splitId: 'legacy-1-0', amount: 100 }],
       updates: [{
         expenseId: 1,
-        splits: [{ contactName: 'Alex', amount: 150, paidAmount: 100, isPaid: false }],
+        splits: [{ contactName: 'Alex', amount: 150, paidAmount: 100, isPaid: false, manualPaidAmount: 0, repaymentPaidAmount: 100, splitId: 'legacy-1-0' }],
       }],
     });
   });
@@ -100,12 +106,13 @@ describe('planAutomaticRepayment', () => {
       transactionType: 'credit',
     });
 
-    expect(planAutomaticRepayment(credit, [partiallyPaid])).toEqual({
+    expect(planAutomaticRepayment(credit, [partiallyPaid])).toMatchObject({
       contactName: 'Alex',
       settledAmount: 30,
+      allocations: [{ expenseId: 1, splitId: 'legacy-1-0', amount: 30 }],
       updates: [{
         expenseId: 1,
-        splits: [{ contactName: 'Alex', amount: 100, paidAmount: 100, isPaid: true }],
+        splits: [{ contactName: 'Alex', amount: 100, paidAmount: 100, isPaid: true, manualPaidAmount: 70, repaymentPaidAmount: 30, splitId: 'legacy-1-0' }],
       }],
     });
   });

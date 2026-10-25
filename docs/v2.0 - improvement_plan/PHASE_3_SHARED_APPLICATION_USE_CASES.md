@@ -6,7 +6,7 @@
 
 All scoped entry paths now enter shared application operations: live ingestion, historical preview/import, manual create, review confirmation, update, invalidation, and delete. Historical rows are persisted oldest-first through the shared repayment operation, with stable ordering for equal timestamps and per-row results. Import-specific and live dedup strategies remain explicit and separate for Phase 6. The existing screens and store were retained as adapters with no visual redesign.
 
-Implementation files, rationale, behavior boundaries, and verification are recorded in the [implementation changelog](./IMPLEMENTATION_CHANGELOG.md#phase-3--shared-application-use-cases-complete). Phase 4 has since completed the repository port. Remaining related work is split settlement and allocation reversal history (Phase 5), unified dedup semantics (Phase 6), and the independent local AI runtime requirement (Phase 2).
+Implementation files, rationale, behavior boundaries, and verification are recorded in the [implementation changelog](./IMPLEMENTATION_CHANGELOG.md#phase-3--shared-application-use-cases-complete). Phases 4 and 5 have since completed the repository port and split/repayment domain. Remaining related work is unified dedup semantics (Phase 6) and the independent local AI runtime requirement (Phase 2).
 
 ## Purpose
 
@@ -85,7 +85,7 @@ Accept the reviewed candidate and the user’s selected category/merchant correc
 
 Move current edit persistence and correction recording behind an update use case. Preserve split `paidAmount` when changing unrelated fields or the transaction amount, using the existing edit rules.
 
-Before implementing edits that change transaction type, invalidate a repayment credit, or delete a repayment-linked transaction, define how prior split allocations are reversed. Current repayment markers do not preserve a full per-split allocation history, so Phase 3 must not guess a reverse allocation. Either retain current mutation semantics and mark split reversal as Phase 5 work, or pause that specific operation for an explicit product decision. Add regression coverage for the chosen behavior.
+At the Phase 3 checkpoint, repayment markers did not preserve a full per-split allocation history, so Phase 3 retained existing mutation semantics and deferred reversal. Phase 5 has since added exact allocation history for new repayments and blocks unsafe edits, invalidations, or deletions of legacy summary-only repayments.
 
 ### 6. Invalidate and delete
 
@@ -152,5 +152,5 @@ Confirm callers with `rg` before deleting or renaming compatibility functions. D
 ## Handoff to Phase 4–6
 
 - **Phase 4:** replace the narrow Phase 3 gateway with the complete transaction repository port and SQLite adapter; keep use-case contracts stable.
-- **Phase 5:** move split settlement/allocation rules out of Zustand and define repayment allocation history so edits/invalidation/deletion can safely reverse linked payments.
+- **Phase 5:** completed. Split settlement rules now live in core operations, and new repayment allocations can be reversed exactly. Legacy summary-only repayment mutation is guarded.
 - **Phase 6:** replace source-specific duplicate strategies with one policy, preserving legitimate repeated purchases and historical imports.

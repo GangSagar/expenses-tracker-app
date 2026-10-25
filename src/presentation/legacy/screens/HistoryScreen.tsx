@@ -306,14 +306,14 @@ export default function HistoryScreen() {
 
     if (action === 'restore') {
       // Un-trash
-      useExpenseStore.getState().invalidateExpense(id, false);
+      if (!useExpenseStore.getState().invalidateExpense(id, false)) return;
       // If it was marked as spam previously, untrain
       if (selectedTrashExpense.trashReason === 'spam') {
         trainSpam(selectedTrashExpense.rawMessage, false);
       }
     } else {
       // Keep trashed, but update reason
-      useExpenseStore.getState().invalidateExpense(id, true);
+      if (!useExpenseStore.getState().invalidateExpense(id, true)) return;
       useExpenseStore.getState().updateTrashReason(id, action);
       
       // If marked as spam, train AI
