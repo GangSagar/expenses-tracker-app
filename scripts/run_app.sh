@@ -18,6 +18,7 @@ case "${1:---android}" in
   --android|-a|android)
     shift || true
     echo "📱 Building and deploying Android app..."
+    adb reverse tcp:8081 tcp:8081 2>/dev/null || true
     npx react-native run-android "$@"
     ;;
   --ios|-i|ios)

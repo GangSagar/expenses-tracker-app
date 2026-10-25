@@ -572,6 +572,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.5,
   },
+  timeoutRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 8,
+  },
+  timeoutChip: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  timeoutChipActive: {
+    backgroundColor: '#1a73e8',
+    borderColor: '#1a73e8',
+  },
+  timeoutChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  timeoutChipTextActive: {
+    color: '#ffffff',
+  },
 });
 
 export default styles;
