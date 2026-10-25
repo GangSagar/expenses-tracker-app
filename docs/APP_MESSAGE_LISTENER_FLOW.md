@@ -1,8 +1,6 @@
 # App startup and message listener flow
 
-This is the first low-level flow slice: it starts at `App.tsx`, follows the
-component tree to `useMessageListener()`, and expands the hook's message
-handling branches. The diagrams describe the current implementation.
+This is the first low-level flow slice: it starts at `App.tsx`, follows the component tree to `useMessageListener()`, and expands the hook's message handling branches. The diagrams describe the current implementation.
 
 ## 1. App startup and hook setup
 
@@ -31,8 +29,7 @@ The effect has two store selectors in its dependency list:
 
 ## 2. Pending messages and live messages
 
-Both sources are converted to `IncomingMessage` and sent through the same
-`processMessage` function.
+Both sources are converted to `IncomingMessage` and sent through the same `processMessage` function.
 
 ```mermaid
 flowchart TD

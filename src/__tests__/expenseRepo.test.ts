@@ -2,6 +2,10 @@ import {
   isDuplicateTransaction,
   SELECT_EXPENSE_BY_REF_SQL,
   SELECT_EXPENSE_DEDUP_WINDOW_SQL,
+  INSERT_EXPENSE_SQL,
+  UPDATE_EXPENSE_SPLITS_SQL,
+  insertExpenseWithRepayment,
+  updateExpenseWithRepayment,
 } from '../database/expenseRepo';
 import { getDatabase } from '../database/db';
 
@@ -89,5 +93,110 @@ describe('isDuplicateTransaction (SQLite Ledger)', () => {
       SELECT_EXPENSE_DEDUP_WINDOW_SQL,
       [300.0, 1621245600000 - 15 * 60 * 1000, 1621245600000 + 15 * 60 * 1000]
     );
+  });
+});
+
+describe('insertExpenseWithRepayment', () => {
+  let mockExecute: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockExecute = getDatabase().execute as jest.Mock;
+  });
+
+  it('commits split updates and the new repayment expense as one transaction', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 }) // BEGIN
+      .mockReturnValueOnce({ rowsAffected: 1 }) // split update
+      .mockReturnValueOnce({ insertId: 42, rowsAffected: 1 }) // insert
+      .mockReturnValueOnce({ rowsAffected: 0 }); // COMMIT
+
+    const id = insertExpenseWithRepayment({
+      amount: 75,
+      merchant: 'Repayment from Alex',
+      category: 'Other',
+      confidence: 1,
+      timestamp: 1000,
+      source: 'manual',
+      rawMessage: '',
+      transactionType: 'credit',
+      splits: [{ contactName: 'Alex', amount: 75, isPaid: true, owedByMe: true }],
+    }, [{
+      expenseId: 7,
+      splits: [{ contactName: 'Alex', amount: 75, isPaid: true }],
+    }]);
+
+    expect(id).toBe(42);
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION',
+      UPDATE_EXPENSE_SPLITS_SQL,
+      INSERT_EXPENSE_SQL,
+      'COMMIT',
+    ]);
+  });
+
+  it('rolls back related split updates if inserting the repayment fails', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 }) // BEGIN
+      .mockReturnValueOnce({ rowsAffected: 1 }) // split update
+      .mockImplementationOnce(() => {
+        throw new Error('insert failed');
+      })
+      .mockReturnValueOnce({ rowsAffected: 0 }); // ROLLBACK
+
+    expect(() => insertExpenseWithRepayment({
+      amount: 75,
+      merchant: 'Repayment from Alex',
+      category: 'Other',
+      confidence: 1,
+      timestamp: 1000,
+      source: 'manual',
+      rawMessage: '',
+      transactionType: 'credit',
+      splits: [{ contactName: 'Alex', amount: 75, isPaid: true, owedByMe: true }],
+    }, [{
+      expenseId: 7,
+      splits: [{ contactName: 'Alex', amount: 75, isPaid: true }],
+    }])).toThrow('insert failed');
+
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION',
+      UPDATE_EXPENSE_SPLITS_SQL,
+      INSERT_EXPENSE_SQL,
+      'ROLLBACK',
+    ]);
+  });
+});
+
+describe('updateExpenseWithRepayment', () => {
+  let mockExecute: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockExecute = getDatabase().execute as jest.Mock;
+  });
+
+  it('rolls back earlier split updates if linking the incoming credit fails', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 }) // BEGIN
+      .mockReturnValueOnce({ rowsAffected: 1 }) // old split update
+      .mockImplementationOnce(() => {
+        throw new Error('credit update failed');
+      })
+      .mockReturnValueOnce({ rowsAffected: 0 }); // ROLLBACK
+
+    expect(() => updateExpenseWithRepayment(42, [
+      { contactName: 'Alex', amount: 75, isPaid: true, owedByMe: true },
+    ], [{
+      expenseId: 7,
+      splits: [{ contactName: 'Alex', amount: 75, isPaid: true }],
+    }])).toThrow('credit update failed');
+
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION',
+      UPDATE_EXPENSE_SPLITS_SQL,
+      UPDATE_EXPENSE_SPLITS_SQL,
+      'ROLLBACK',
+    ]);
   });
 });

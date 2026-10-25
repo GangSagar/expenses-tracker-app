@@ -1,6 +1,8 @@
 import { Expense, Category } from '../types/expense';
+import { QuickSQLiteConnection } from 'react-native-quick-sqlite';
 import { getDatabase } from './db';
 import { telemetry } from '../services/telemetryService';
+import { SplitSettlementUpdate } from '../core/transactions/repaymentPlanner';
 
 // ==========================================
 // Centralized Database SQL Command Constants
@@ -24,6 +26,10 @@ export const UPDATE_EXPENSE_SQL = `
   UPDATE expenses 
   SET merchant = ?, category = ?, bank = ?, payment_mode = ?, splits = ?, transaction_type = COALESCE(?, transaction_type)
   WHERE id = ?
+`;
+
+export const UPDATE_EXPENSE_SPLITS_SQL = `
+  UPDATE expenses SET splits = ? WHERE id = ?
 `;
 
 export const GET_RECENT_EXPENSES_SQL = `
@@ -127,29 +133,103 @@ export function insertExpense(expense: Omit<Expense, 'id'>): number {
     },
     () => {
       const db = getDatabase();
-      const splitsStr = expense.splits ? JSON.stringify(expense.splits) : null;
-      const result = db.execute(INSERT_EXPENSE_SQL, [
-        expense.amount,
-        expense.merchant,
-        expense.alias || null,
-        expense.category,
-        expense.confidence,
-        expense.timestamp,
-        expense.source,
-        expense.rawMessage,
-        expense.transactionType,
-        expense.account || null,
-        expense.bank || null,
-        expense.paymentMode || 'unknown',
-        expense.isDuplicate ? 1 : 0,
-        expense.availableBalance !== undefined ? expense.availableBalance : null,
-        splitsStr,
-        expense.referenceId || null,
-        expense.isInvalid ? 1 : 0,
-        expense.trashReason || null,
-      ]);
+      const result = db.execute(INSERT_EXPENSE_SQL, getInsertExpenseParams(expense));
       return result.insertId ?? -1;
     }
+  );
+}
+
+function getInsertExpenseParams(expense: Omit<Expense, 'id'>): unknown[] {
+  return [
+    expense.amount,
+    expense.merchant,
+    expense.alias || null,
+    expense.category,
+    expense.confidence,
+    expense.timestamp,
+    expense.source,
+    expense.rawMessage,
+    expense.transactionType,
+    expense.account || null,
+    expense.bank || null,
+    expense.paymentMode || 'unknown',
+    expense.isDuplicate ? 1 : 0,
+    expense.availableBalance !== undefined ? expense.availableBalance : null,
+    expense.splits ? JSON.stringify(expense.splits) : null,
+    expense.referenceId || null,
+    expense.isInvalid ? 1 : 0,
+    expense.trashReason || null,
+  ];
+}
+
+function runInDatabaseTransaction<T>(
+  work: (execute: QuickSQLiteConnection['execute']) => T,
+): T {
+  const db = getDatabase();
+  db.execute('BEGIN TRANSACTION');
+  try {
+    const result = work(db.execute.bind(db));
+    db.execute('COMMIT');
+    return result;
+  } catch (error) {
+    try {
+      db.execute('ROLLBACK');
+    } catch {
+      // Keep the original write failure as the reported cause.
+    }
+    throw error;
+  }
+}
+
+function writeSplitUpdates(
+  execute: (query: string, params?: any[]) => { rowsAffected: number },
+  updates: SplitSettlementUpdate[],
+): void {
+  for (const update of updates) {
+    const result = execute(UPDATE_EXPENSE_SPLITS_SQL, [
+      JSON.stringify(update.splits),
+      update.expenseId,
+    ]);
+    if (result.rowsAffected !== 1) {
+      throw new Error(`Could not update repayment split for expense ${update.expenseId}`);
+    }
+  }
+}
+
+/** Insert a manual credit and its related split settlements atomically. */
+export function insertExpenseWithRepayment(
+  expense: Omit<Expense, 'id'>,
+  updates: SplitSettlementUpdate[],
+): number {
+  return telemetry.traceSync(
+    'db.insertExpenseWithRepayment',
+    { amount: expense.amount, type: expense.transactionType, source: expense.source },
+    () => runInDatabaseTransaction(execute => {
+      writeSplitUpdates(execute, updates);
+      return execute(INSERT_EXPENSE_SQL, getInsertExpenseParams(expense)).insertId ?? -1;
+    }),
+  );
+}
+
+/** Atomically persist an incoming credit's repayment link and older split updates. */
+export function updateExpenseWithRepayment(
+  expenseId: number,
+  repaymentSplits: Expense['splits'],
+  updates: SplitSettlementUpdate[],
+): void {
+  telemetry.traceSync(
+    'db.updateExpenseWithRepayment',
+    { expenseId, settlementCount: updates.length },
+    () => runInDatabaseTransaction(execute => {
+      writeSplitUpdates(execute, updates);
+      const result = execute(UPDATE_EXPENSE_SPLITS_SQL, [
+        repaymentSplits ? JSON.stringify(repaymentSplits) : null,
+        expenseId,
+      ]);
+      if (result.rowsAffected !== 1) {
+        throw new Error(`Could not update repayment transaction ${expenseId}`);
+      }
+    }),
   );
 }
 
