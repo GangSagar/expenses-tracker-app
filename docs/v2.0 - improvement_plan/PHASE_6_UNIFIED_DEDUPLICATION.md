@@ -127,6 +127,6 @@ Implementation follows the plan's recommended defaults:
 ## Out of scope
 
 - Phase 5 split/repayment allocation and legacy reconciliation behavior.
-- Phase 7 schema migration framework.
+- Phase 7 schema migration framework (since completed; see the Phase 7 plan and changelog).
 - Local/offline AI from Phase 2.
 - Reworking the import UI beyond presenting the already available preview/selection state for an approved possible-match result.

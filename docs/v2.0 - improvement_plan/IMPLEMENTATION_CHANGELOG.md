@@ -16,7 +16,7 @@ The current UI is scheduled for replacement. This work therefore changes transac
 | 4. Repository boundary and temporary presentation adapters | Complete | Focused repository ports are implemented by SQLite; transaction, backup, reset, split-persistence, account-delete, and maintenance writes now cross the boundary. |
 | 5. Splits and repayment domain boundary | Complete | Split decisions moved out of Zustand; new repayments store exact allocation links, linked mutations reverse atomically, and unsafe legacy repayment mutations are blocked. |
 | 6. Unified deduplication | Complete | Live, import, review, and maintenance use the shared policy; successful saves and edits request local notifications. |
-| 7. Explicit database migrations | Not started | Existing best-effort `ALTER TABLE` migration sequence remains. |
+| 7. Explicit database migrations | Complete | Existing unversioned installs migrate through a transactional legacy baseline; new databases use the same versioned schema path. |
 | 8. Domain organization and dependency guardrails | Not started | Only the new transaction contracts/planner are grouped under `src/core/transactions/`; broader organization and import rules are deferred. |
 | 9. Documentation and future feature readiness | In progress | Restructuring plan, Phase 1 record, and this log document the actual flow; broader docs still need reconciliation as phases land. |
 
@@ -193,7 +193,7 @@ Detailed scope and semantics: [Phase 4: Repository Boundary](./PHASE_4_REPOSITOR
 - Transaction and backup/reset writes from hooks/screens pass through repository-backed transaction application operations. Generic app settings and merchant-learning persistence remain their own capability boundaries.
 - Backup payloads are validated before writes. Append and overwrite batches are atomic. Overwrite replaces expense rows only, preserving settings and learned merchant mappings that are not in the backup snapshot.
 - Restore copies split payment values from the snapshot and never reruns parser policy, deduplication, or automatic repayment allocation.
-- At Phase 4 exit, split settlement calculations still remained in Zustand; Phase 5 has since moved them to core use cases. Live and import deduplication also differed at that checkpoint; Phase 6 has since unified them. Schema migration redesign remains Phase 7. The offline AI runtime remains Phase 2 work.
+- At Phase 4 exit, split settlement calculations still remained in Zustand; Phase 5 has since moved them to core use cases. Live and import deduplication also differed at that checkpoint; Phase 6 has since unified them. Schema migration redesign was still Phase 7 work at that checkpoint and has since completed. The offline AI runtime remains Phase 2 work.
 
 ### Boundary audit and carry-forward
 
@@ -240,7 +240,7 @@ Detailed plan: [Phase 5: Split Settlement and Repayment Domain](./PHASE_5_SPLIT_
 - Debt split changes that remove/reassign an already-settled split or reduce its amount below the settled total are rejected. Settled debt transactions cannot be invalidated/deleted until reconciled.
 - Older repayment rows without exact links are preserved and their edit/invalidation/deletion is blocked. Account removal and deduplication also refuse to invalidate transactions with settlement history.
 - Backup restore remaps linked expense IDs and rolls back if an allocation target is missing. It does not re-run repayment matching.
-- At the Phase 5 checkpoint, live/import dedup unification remained Phase 6; Phase 6 has since completed it. Explicit migrations remain Phase 7; settings/learning dependency cleanup remains broader architecture work; local AI remains Phase 2.
+- At the Phase 5 checkpoint, live/import dedup unification remained Phase 6; Phase 6 has since completed it. Explicit migrations were Phase 7 work then and have since completed; settings/learning dependency cleanup remains broader architecture work; local AI remains Phase 2.
 
 Verification: `npx tsc --noEmit` passed; `npx jest --runInBand` passed (32 suites, 666 tests). Focused Phase 5 tests passed (6 suites, 49 tests). Changed-file ESLint passed with 0 errors and 5 existing inline-style warnings in `HistoryScreen.tsx` and `SplitsScreen.tsx`. `git diff --check` passed.
 
@@ -273,19 +273,31 @@ Detailed plan and adopted policy: [Phase 6: Unified Transaction Deduplication](.
 
 Verification: `npx tsc --noEmit` passed; `npx jest --runInBand` passed (32 suites, 668 tests); focused Phase 6 tests passed (5 suites, 43 tests); changed-file ESLint passed with 0 errors and 19 existing inline-style warnings in `SettingsScreen.tsx`; `git diff --check` passed. Graphify offline update re-extracted 27 changed code files and refreshed the graph to 1,546 nodes and 3,219 edges; its no-LLM mode skipped semantic extraction of nine changed Markdown files. Android `:app:compileDebugKotlin` completed successfully (Gradle 9.3.1; task reported `UP-TO-DATE`). iOS build remains unavailable because `xcodebuild` is not installed.
 
-## Phase 7 — Explicit database migrations (not started)
+## Phase 7 — Explicit database migrations (complete)
 
-**Goal:** make schema evolution ordered, versioned, testable, and safe for supported existing installs.
+Detailed scope and supported upgrade boundary: [Phase 7: Explicit Database Migrations](./PHASE_7_EXPLICIT_DATABASE_MIGRATIONS.md).
 
-**Expected file areas and rationale:**
+### Files changed and rationale
 
-| Expected files | Planned work |
-|---|---|
-| `src/database/db.ts` | Replace catch-and-ignore `ALTER TABLE` sequence with schema version tracking and ordered migrations. |
-| `src/database/migrations/` (new) | Store one migration per schema change with explicit forward behavior. |
-| `src/database/expenseRepo.ts` | Keep queries compatible with the current version and isolate row mapping. |
-| database migration fixtures/tests | Cover fresh database and each supported historical schema, including failed migration recovery. |
-| `docs/ARCHITECTURE.md`, this log | Record schema version and supported upgrade path. |
+| File | Change | Why and how |
+|---|---|---|
+| `src/database/schema.ts` (new) | Moved canonical table creation SQL out of database startup so schema statements can be owned by migrations and remain available through `db.ts` exports. |
+| `src/database/migrations/001_legacy_schema_baseline.ts` (new) | Creates missing tables, validates required legacy columns, and additively adds known optional columns. It preserves existing rows and fails on an unsupported legacy shape. |
+| `src/database/migrations/002_expense_indexes.ts` (new) | Creates the existing query indexes as a separately versioned migration. |
+| `src/database/migrations/index.ts` (new) | Uses SQLite `user_version`, applies migrations in order and in individual transactions, rolls back failures, and rejects future schema versions. |
+| `src/database/db.ts` | Replaced catch-and-ignore `ALTER TABLE` attempts with the migration runner. The connection is exposed only after migrations succeed; failed initialization closes the connection and remains retryable. |
+| `src/__tests__/databaseMigrations.test.ts` (new) | Covers fresh schema creation, legacy additive upgrades, failed-migration rollback/retry state, unsupported old schemas, and future-version refusal. |
+| `docs/v2.0 - improvement_plan/PHASE_7_EXPLICIT_DATABASE_MIGRATIONS.md` (new), architecture plan, this log | Records supported schema boundary, migration sequence, changed files, and verification. |
+
+### Supported schema boundary
+
+- Version 0 is the app's existing pre-Phase-7 schema family. Migration adds the known optional columns and support tables without deleting or rewriting transaction rows.
+- A legacy `expenses` table missing required core columns fails with a list of missing columns. The app does not guess how to reconstruct unknown formats.
+- Legacy installs missing `created_at` receive a nullable column because SQLite cannot add the fresh-install time-expression default to a populated table with `ALTER TABLE`; the app does not currently read this field.
+- A database with a `user_version` newer than the app's latest migration is refused without mutation.
+- Each migration and its version update commit together. If a migration fails, its version is not advanced and it can be retried after the cause is corrected.
+
+Verification: `npx tsc --noEmit` passed; `npx jest --runInBand` passed (33 suites, 673 tests), including five migration cases; ESLint on changed migration code/tests passed with no errors; `git diff --check` passed. Graphify code graph was refreshed and reclustered to 1,562 nodes, 3,255 edges, and 108 communities; offline mode skipped semantic extraction for changed Markdown files.
 
 ## Phase 8 — Domain organization and dependency guardrails (not started)
 

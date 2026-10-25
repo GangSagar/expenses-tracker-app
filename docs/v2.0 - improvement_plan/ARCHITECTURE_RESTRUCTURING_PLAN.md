@@ -184,7 +184,9 @@ Use one pure policy for live processing, historical import/preview/commit, revie
 
 ### Phase 7 — Explicit database migrations
 
-Introduce ordered, versioned migrations and define supported upgrade paths. Keep database initialization, migration ordering, and row mapping in the infrastructure layer.
+**Status: Complete.** The versioned runner, supported legacy starting schema, rollback behavior, and verification are recorded in [Phase 7: Explicit Database Migrations](./PHASE_7_EXPLICIT_DATABASE_MIGRATIONS.md) and the [implementation log](./IMPLEMENTATION_CHANGELOG.md#phase-7--explicit-database-migrations-complete).
+
+The app adopts its known pre-versioned schema as version 0 and migrates it additively. Unknown future versions and unrecognized legacy schemas fail clearly. Keep migration ordering and row mapping in the infrastructure layer.
 
 **Likely areas:** `src/database/db.ts`, repository row mappers, and database tests/fixtures.
 

@@ -296,7 +296,7 @@ Current evidence and recommendations:
 - **AI fallback:** approved as an active product requirement and restricted to local/offline inference, but not yet active. `AIResolver` has no default inference handler and no local runtime/model is installed.
 - **Partial split repayments:** approved and implemented in Phase 1 v2 using cumulative `paidAmount` with legacy `isPaid` compatibility.
 - **Deletion semantics:** both exist in code: soft invalidation and hard deletion. Product policy for each operation remains to be recorded before centralizing writes.
-- **Supported database upgrade versions:** current migration code uses best-effort sequential `ALTER TABLE` calls and has no explicit schema version. Record this as the migration baseline; versioned migration work is Phase 7.
+- **Supported database upgrade versions at the Phase 1 checkpoint:** startup used best-effort sequential `ALTER TABLE` calls and had no explicit schema version. Phase 7 has since added versioned migration support for that known legacy schema family.
 - **Representative input cases:** parser, filtering, dedup, classifier, and orchestrator examples already exist across `src/__tests__/parser.test.ts`, `src/__tests__/filter.test.ts`, `src/__tests__/dedup.test.ts`, `src/__tests__/classifier.test.ts`, and `src/__tests__/transactionOrchestrator.test.ts`; Phase 1 records their current decision thresholds above rather than duplicating raw message fixtures in docs.
 - **Phase 1 v2 correctness fixes implemented:** automatic repayment preserves FIFO allocation, supports repeated partial payments, and atomically writes split updates with manual inserts/live repayment links. Regression coverage is in `src/__tests__/transactionRepayment.test.ts` and `src/__tests__/expenseRepo.test.ts`.
 
