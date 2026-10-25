@@ -63,7 +63,6 @@ function repository(ledger: Expense[]) {
     insert: value => ({ ...value, id: 500 }),
     insertWithRepayment: value => ({ ...value, id: 500 }),
     findById: id => ledger.find(row => row.id === id) as (Expense & { id: number }) || null,
-    getRecentExpenses: () => [],
     getExpensesWithSplits: () => ledger,
     updateSplitExpensesAtomically: () => {},
     mutateWithSplitUpdates: (id, nextMutation, updates) => {

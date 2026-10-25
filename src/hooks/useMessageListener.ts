@@ -40,9 +40,11 @@ export function useMessageListener() {
             const saved = orchestrated.persistence;
             if (!saved) return;
             if (saved.status === 'saved') {
-              notifyBackground('Transaction Auto-Saved', `₹${candidate.amount} at ${displayMerchant} recorded.`);
               console.log(`Auto-saved expense to DB with ID: ${saved.transaction.id}`);
               addExpense(saved.transaction, saved.repaymentUpdates);
+            } else if (saved.status === 'possible_duplicate') {
+              notifyBackground('Possible Duplicate Transaction', `₹${candidate.amount} at ${displayMerchant}. Tap to review.`);
+              queuePendingExpense(candidate);
             } else if (saved.status === 'duplicate') {
               console.log('Expense was not saved because it matched an existing transaction.');
             } else {

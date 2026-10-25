@@ -28,7 +28,7 @@ import {
 import commonStyles from '../styles/commonStyles';
 import CalendarModal from '../components/CalendarModal';
 import {
-  createDedupCache,
+  createTransactionDedupCache,
   clearTransactionData,
   importHistoricalTransactions,
   previewHistoricalMessage,
@@ -43,6 +43,8 @@ function toImportCandidate(transaction: any) {
   delete candidate.tempId;
   delete candidate.checked;
   delete candidate.decision;
+  delete candidate.possibleDuplicate;
+  delete candidate.duplicateMatch;
   return candidate;
 }
 
@@ -222,7 +224,7 @@ export default function SettingsScreen() {
       }
 
       // High-performance in-memory deduplication index (1 SQL query instead of 3 queries per SMS)
-      const dedupCache = createDedupCache();
+      const dedupCache = createTransactionDedupCache();
 
       const proposed: any[] = [];
       let tempCounter = 0;
@@ -271,7 +273,8 @@ export default function SettingsScreen() {
             proposed.push({
               ...candidate,
               tempId: `temp_${Date.now()}_${tempCounter++}`,
-              checked: true,
+              checked: !processed.possibleDuplicate,
+              possibleDuplicate: processed.possibleDuplicate,
               decision: processed.decision.kind,
             });
             found++;
@@ -1186,6 +1189,9 @@ export default function SettingsScreen() {
                         <Text style={styles.previewMeta}>
                           {tx.category} • {formatDate(tx.timestamp)}
                         </Text>
+                        {tx.possibleDuplicate && (
+                          <Text style={styles.previewMeta}>Possible duplicate — review before importing</Text>
+                        )}
                         {tx.bank && (
                           <Text style={styles.previewBank}>
                             {tx.paymentMode?.toUpperCase()} • {tx.bank}

@@ -5,14 +5,13 @@ import {
   PersistedTransaction,
   TransactionBackupRepository,
   TransactionCandidate,
-  TransactionDedupCache,
   TransactionMaintenanceRepository,
   TransactionMutation,
   TransactionRepository,
 } from '../core/transactions/contracts';
+import { DedupCandidate, DedupRecord } from '../core/dedup/duplicateCheck';
 import {
   clearAllExpenses,
-  createDedupCache,
   deduplicateDatabase,
   deleteTransactionsForAccount,
   exportAllExpensesData,
@@ -21,11 +20,11 @@ import {
   getExpensesByCategory,
   getExpensesWithSplits,
   getMonthlyTotal,
-  getRecentExpenses,
   getWindowedExpenses,
   insertExpense,
   insertExpenseWithRepayment,
-  isDuplicateWithCache,
+  getAllDedupRecords,
+  getDedupCandidates,
   mutateExpenseWithSplitUpdatesAtomically,
   restoreExpenseSnapshot,
   updateSplitExpensesAtomically,
@@ -60,10 +59,6 @@ export class SQLiteTransactionRepository implements ExpenseRepositoryPort {
   findById(id: number): PersistedTransaction | null {
     const expense = getExpenseById(id);
     return expense?.id === undefined ? null : expense as PersistedTransaction;
-  }
-
-  getRecentExpenses(minutes?: number): Expense[] {
-    return getRecentExpenses(minutes);
   }
 
   getExpensesWithSplits(): Expense[] {
@@ -123,17 +118,11 @@ export class SQLiteTransactionRepository implements ExpenseRepositoryPort {
     deleteTransactionsForAccount(bank, account);
   }
 
-  createDedupCache(): TransactionDedupCache {
-    return createDedupCache();
+  getDedupCandidates(candidate: DedupCandidate): DedupRecord[] {
+    return getDedupCandidates(candidate);
   }
 
-  isDuplicateWithCache(
-    cache: TransactionDedupCache,
-    amount: number,
-    timestamp: number,
-    referenceId?: string,
-    rawMessage?: string,
-  ): boolean {
-    return isDuplicateWithCache(cache, amount, timestamp, referenceId, rawMessage);
+  getAllDedupRecords(): DedupRecord[] {
+    return getAllDedupRecords();
   }
 }

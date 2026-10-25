@@ -5,6 +5,7 @@ import {
   TransactionRepository,
 } from './contracts';
 import { Expense, ExpenseSplit } from '../../types/expense';
+import { DedupMatch } from '../dedup/duplicateCheck';
 import {
   planAutomaticRepayment,
   repaymentSplit,
@@ -23,17 +24,28 @@ import {
 
 export type PersistenceResult =
   | { status: 'saved'; transaction: PersistedTransaction; repaymentUpdates: SplitSettlementUpdate[] }
-  | { status: 'duplicate' }
+  | { status: 'duplicate'; match?: DedupMatch }
+  | { status: 'possible_duplicate'; match: DedupMatch }
   | { status: 'failed'; stage: 'processing' | 'persistence'; message: string };
+
+export type DuplicateLookupResult = DedupMatch | boolean | null;
 
 /** Shared accepted-transaction write path. Deduplication is injected per source. */
 export function persistAcceptedTransaction(
   candidate: TransactionCandidate,
   repository: TransactionRepository,
-  isDuplicate: () => boolean = () => false,
+  findMatch: () => DuplicateLookupResult = () => null,
+  allowPossibleDuplicate = false,
 ): PersistenceResult {
   try {
-    if (isDuplicate()) return { status: 'duplicate' };
+    const match = findMatch();
+    if (match === true) return { status: 'duplicate' };
+    if (match && typeof match === 'object' && match.kind === 'definite') {
+      return { status: 'duplicate', match };
+    }
+    if (match && typeof match === 'object' && match.kind === 'possible' && !allowPossibleDuplicate) {
+      return { status: 'possible_duplicate', match };
+    }
     const normalizedCandidate = { ...candidate, splits: ensureSplitIds(candidate.splits) };
     const plan = normalizedCandidate.transactionType === 'credit'
       ? planAutomaticRepayment(normalizedCandidate, repository.getExpensesWithSplits())
@@ -64,7 +76,7 @@ export type ImportRowResult =
 export async function importTransactions(
   candidates: TransactionCandidate[],
   repository: TransactionRepository,
-  isDuplicate: (candidate: TransactionCandidate) => boolean,
+  findMatch: (candidate: TransactionCandidate) => DuplicateLookupResult,
   onProgress?: (result: ImportRowResult, completed: number, total: number) => void,
   onImported?: (candidate: TransactionCandidate) => void,
 ): Promise<ImportRowResult[]> {
@@ -74,11 +86,15 @@ export async function importTransactions(
   const results: ImportRowResult[] = [];
   for (let index = 0; index < ordered.length; index += 1) {
     const { candidate } = ordered[index];
-    const result = persistAcceptedTransaction(candidate, repository, () => isDuplicate(candidate));
+    // Selected rows are an explicit user confirmation for weak matches; exact
+    // reference/message duplicates remain blocked by the shared policy.
+    const result = persistAcceptedTransaction(candidate, repository, () => findMatch(candidate), true);
     const row: ImportRowResult = result.status === 'saved'
       ? { status: 'imported', candidate }
       : result.status === 'duplicate'
         ? { status: 'duplicate', candidate }
+        : result.status === 'possible_duplicate'
+          ? { status: 'failed', candidate, message: 'A possible duplicate still requires confirmation.' }
         : { status: 'failed', candidate, message: result.message };
     results.push(row);
     if (row.status === 'imported') onImported?.(candidate);

@@ -15,7 +15,7 @@ The current UI is scheduled for replacement. This work therefore changes transac
 | 3. Shared application use cases | Complete | Live, historical import, manual creation, review confirmation, edit, invalidation, and delete now enter named application operations; historical imports use chronological shared repayment persistence. |
 | 4. Repository boundary and temporary presentation adapters | Complete | Focused repository ports are implemented by SQLite; transaction, backup, reset, split-persistence, account-delete, and maintenance writes now cross the boundary. |
 | 5. Splits and repayment domain boundary | Complete | Split decisions moved out of Zustand; new repayments store exact allocation links, linked mutations reverse atomically, and unsafe legacy repayment mutations are blocked. |
-| 6. Unified deduplication | Not started | Live and import deduplication still use different rules. |
+| 6. Unified deduplication | Complete | Live, import, review, and maintenance use the shared policy; successful saves and edits request local notifications. |
 | 7. Explicit database migrations | Not started | Existing best-effort `ALTER TABLE` migration sequence remains. |
 | 8. Domain organization and dependency guardrails | Not started | Only the new transaction contracts/planner are grouped under `src/core/transactions/`; broader organization and import rules are deferred. |
 | 9. Documentation and future feature readiness | In progress | Restructuring plan, Phase 1 record, and this log document the actual flow; broader docs still need reconciliation as phases land. |
@@ -93,7 +93,7 @@ The original path uses only expenses currently loaded in Zustand (currently wind
 **Expected file areas and rationale:**
 
 | Expected files | Planned work |
-|---|---|
+|---|---|---|
 | `src/core/transactions/contracts.ts`, `decisionPolicy.ts` | Replaced the draft mixed outcome contract with a pure, versioned reject/review/auto-save policy plus separate persistence outcomes. |
 | `src/services/messaging/messageService.ts`, `src/core/parser/parseMessage.ts` | Collect typed filtering/parse signals and invoke structured async parsing without discarding confidence details. |
 | `src/services/transactions/expenseService.ts`, `transactionOrchestrator.ts` | Map full parser/classifier evidence into one policy call and keep persistence results separate. Accepted credit insertion and repayment updates are atomic. |
@@ -155,7 +155,7 @@ Detailed design and original acceptance criteria: [Phase 3: Shared Application U
 - Historical imports retain the current import-specific dedup strategy. Rows are sorted by transaction timestamp, stable on ties, and committed one at a time. Failure does not undo earlier successful rows; failed rows remain selectable for retry.
 - Manual entries bypass parser-confidence policy because the user directly supplied the transaction. Parsed messages still use the one Phase 2 decision policy.
 - Existing hard-delete and invalidation semantics remain. Reversing repayment allocations after linked edits/deletes remains deferred to Phase 5 because allocation history is not represented.
-- The repository-port migration is complete in Phase 4. Split settlement decisions in Zustand remain Phase 5; dedup semantic unification remains Phase 6; local/offline AI remains the outstanding Phase 2 requirement.
+- The repository-port migration is complete in Phase 4. At that checkpoint split settlement decisions in Zustand remained Phase 5 and dedup semantic unification remained Phase 6; both have since completed. Local/offline AI remains the outstanding Phase 2 requirement.
 - Backup restore is a snapshot operation routed through the transaction repository. It preserves snapshot settlement state and does not replay repayment allocation.
 
 Verification: `npx tsc --noEmit` passed. `npx jest --runInBand` passed with 30 suites and 639 tests. ESLint on changed TypeScript files passed with 0 errors and 19 existing inline-style warnings in `SettingsScreen.tsx`. `git diff --check` passed. `graphify update .` refreshed the graph to 1,398 nodes and 2,797 edges; it reported one unsupported Gradle syntax file and requested community relabeling after the set changed.
@@ -193,7 +193,7 @@ Detailed scope and semantics: [Phase 4: Repository Boundary](./PHASE_4_REPOSITOR
 - Transaction and backup/reset writes from hooks/screens pass through repository-backed transaction application operations. Generic app settings and merchant-learning persistence remain their own capability boundaries.
 - Backup payloads are validated before writes. Append and overwrite batches are atomic. Overwrite replaces expense rows only, preserving settings and learned merchant mappings that are not in the backup snapshot.
 - Restore copies split payment values from the snapshot and never reruns parser policy, deduplication, or automatic repayment allocation.
-- At Phase 4 exit, split settlement calculations still remained in Zustand; Phase 5 has since moved them to core use cases. Live and import deduplication remain separate until Phase 6. Schema migration redesign remains Phase 7. The offline AI runtime remains Phase 2 work.
+- At Phase 4 exit, split settlement calculations still remained in Zustand; Phase 5 has since moved them to core use cases. Live and import deduplication also differed at that checkpoint; Phase 6 has since unified them. Schema migration redesign remains Phase 7. The offline AI runtime remains Phase 2 work.
 
 ### Boundary audit and carry-forward
 
@@ -240,23 +240,38 @@ Detailed plan: [Phase 5: Split Settlement and Repayment Domain](./PHASE_5_SPLIT_
 - Debt split changes that remove/reassign an already-settled split or reduce its amount below the settled total are rejected. Settled debt transactions cannot be invalidated/deleted until reconciled.
 - Older repayment rows without exact links are preserved and their edit/invalidation/deletion is blocked. Account removal and deduplication also refuse to invalidate transactions with settlement history.
 - Backup restore remaps linked expense IDs and rolls back if an allocation target is missing. It does not re-run repayment matching.
-- Live/import dedup unification remains Phase 6; explicit migrations remain Phase 7; settings/learning dependency cleanup remains broader architecture work; local AI remains Phase 2.
+- At the Phase 5 checkpoint, live/import dedup unification remained Phase 6; Phase 6 has since completed it. Explicit migrations remain Phase 7; settings/learning dependency cleanup remains broader architecture work; local AI remains Phase 2.
 
 Verification: `npx tsc --noEmit` passed; `npx jest --runInBand` passed (32 suites, 666 tests). Focused Phase 5 tests passed (6 suites, 49 tests). Changed-file ESLint passed with 0 errors and 5 existing inline-style warnings in `HistoryScreen.tsx` and `SplitsScreen.tsx`. `git diff --check` passed.
 
-## Phase 6 — Unified deduplication (not started)
+## Phase 6 — Unified deduplication (complete)
 
-**Goal:** align live and historical import duplicate semantics while preserving legitimate repeated transactions.
+Detailed plan and adopted policy: [Phase 6: Unified Transaction Deduplication](./PHASE_6_UNIFIED_DEDUPLICATION.md).
 
-**Expected file areas and rationale:**
+**Goal:** align live and historical import duplicate semantics while preserving legitimate repeated transactions. A shared post-save notification also confirms successful transaction creations and edits.
 
-| Expected files | Planned work |
+### Files changed and rationale
+
+| File | Change | Why and how |
 |---|---|
-| `src/core/dedup/duplicateCheck.ts` | Define the product-level duplicate policy and typed duplicate reason. |
-| `src/database/expenseRepo.ts` | Supply repository query/index data; keep SQL and caches as optimizations rather than alternate policies. |
-| `src/services/transactions/expenseService.ts`, transaction use cases | Invoke the same policy from live, import, and confirmation paths. |
-| `src/presentation/legacy/screens/SettingsScreen.tsx` | Remove the second import-only definition while retaining progress/preview UI. |
-| `src/__tests__/dedup.test.ts`, `src/__tests__/expenseRepo.test.ts`, import integration tests | Cover reference, raw body, source, timestamp, merchant, repeated purchase, invalidated and cross-source cases. |
+| `src/core/dedup/duplicateCheck.ts`, `src/core/dedup/index.ts` | Added typed definite/possible/no-match decisions, shared five-minute event-time matching, normalized reference/message comparisons, and an indexed candidate cache. | Keeps policy pure and makes reference/time indexes performance-only. |
+| `src/core/transactions/contracts.ts`, `src/database/expenseRepo.ts`, `src/database/SQLiteTransactionRepository.ts` | Replaced boolean SQL/cache decisions with broad candidate retrieval; removed the recent-slice dedup query. Maintenance dedup now invokes the shared policy. | Keeps SQLite from defining its own duplicate semantics and retains atomic maintenance writes plus Phase 5 settlement guards. |
+| `src/core/transactions/applicationUseCases.ts`, `src/services/transactions/transactionApplication.ts` | Routes live, import, review, and maintenance checks through one policy. Selected possible matches can be explicitly accepted; definite matches remain blocked. Notifications run only after successful writes. | Preserves chronological import and separates persistence outcome from duplicate evidence and notification side effects. |
+| `src/presentation/legacy/screens/SettingsScreen.tsx`, `src/hooks/useMessageListener.ts` | Shows possible imported matches unchecked with a review hint; queues live possible matches for confirmation; removes the old live saved-notification branch. | Reuses existing preview/pending interactions with minimal UI changes. |
+| `src/services/notifications/transactionSavedNotification.ts` (new) | Added queued best-effort local notification requests with concise transaction details and Android permission handling. | Keeps notification failures from changing transaction persistence results. |
+| `android/app/src/main/java/com/expensetracker/bridge/MessageModule.kt` | Updated the notification channel description used for saved transaction notices. | Reuses the existing Android local notification bridge. |
+| `ios/ExpenseTracker/TransactionNotificationModule.swift`, `TransactionNotificationModule.m`, `AppDelegate.swift`, `ios/ExpenseTracker.xcodeproj/project.pbxproj` | Added and registered an iOS local notification bridge, permission request, and foreground display delegate. | Provides saved-transaction notices on the supported iOS target. |
+| `src/__tests__/dedup.test.ts`, `expenseRepo.test.ts`, `expenseService.test.ts`, `transactionApplicationUseCases.test.ts`, `SQLiteTransactionRepository.test.ts` | Added policy boundary, weak-match confirmation, broad candidate query, maintenance safeguard, and saved-notification behavior coverage. | Verifies policy parity, no silent blocking of weak matches, and no notification for duplicate/failed saves. |
+| `docs/APP_MESSAGE_LISTENER_FLOW.md`, roadmap, Phase 6 plan, this log | Updated current flow, adopted rules, phase status, file history, and verification. | Keeps architecture documentation consistent with the implementation. |
+
+### Behavior and verification
+
+- Exact normalized reference matches are definite across eligible history. Exact normalized message matches require same amount and transaction type within five minutes. Amount/merchant/type/time similarity is possible and goes to confirmation.
+- Invalidated and duplicate rows do not suppress candidates. Cross-source matches are allowed. Manual entry remains user-authoritative and bypasses deduplication.
+- Import preview uses a temporary indexed cache; commit rebuilds from persisted rows and only includes earlier successful rows. Selected possible matches can be imported; definite matches are skipped. Maintenance dedup auto-invalidates only definite matches and refuses to touch Phase 5 settlement history.
+- Save notifications cover live, manual, confirmed, imported, and edited transactions. Failed writes, duplicates, and pending reviews do not produce a saved notice. Notification failure is logged and does not undo persistence.
+
+Verification: `npx tsc --noEmit` passed; `npx jest --runInBand` passed (32 suites, 668 tests); focused Phase 6 tests passed (5 suites, 43 tests); changed-file ESLint passed with 0 errors and 19 existing inline-style warnings in `SettingsScreen.tsx`; `git diff --check` passed. Graphify offline update re-extracted 27 changed code files and refreshed the graph to 1,546 nodes and 3,219 edges; its no-LLM mode skipped semantic extraction of nine changed Markdown files. iOS build was unavailable because `xcodebuild` is not installed. Android compile started after downloading Gradle 9.3.1 and compiling the React Native Gradle plugin, but was interrupted after prolonged silence during app dependency/configuration work; the Android app compile result is unverified.
 
 ## Phase 7 — Explicit database migrations (not started)
 

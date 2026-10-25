@@ -4,9 +4,9 @@
 
 ## Implementation result
 
-All scoped entry paths now enter shared application operations: live ingestion, historical preview/import, manual create, review confirmation, update, invalidation, and delete. Historical rows are persisted oldest-first through the shared repayment operation, with stable ordering for equal timestamps and per-row results. Import-specific and live dedup strategies remain explicit and separate for Phase 6. The existing screens and store were retained as adapters with no visual redesign.
+All scoped entry paths now enter shared application operations: live ingestion, historical preview/import, manual create, review confirmation, update, invalidation, and delete. Historical rows are persisted oldest-first through the shared repayment operation, with stable ordering for equal timestamps and per-row results. At the Phase 3 checkpoint, import-specific and live dedup strategies remained separate; Phase 6 has since unified them. The existing screens and store were retained as adapters with no visual redesign.
 
-Implementation files, rationale, behavior boundaries, and verification are recorded in the [implementation changelog](./IMPLEMENTATION_CHANGELOG.md#phase-3--shared-application-use-cases-complete). Phases 4 and 5 have since completed the repository port and split/repayment domain. Remaining related work is unified dedup semantics (Phase 6) and the independent local AI runtime requirement (Phase 2).
+Implementation files, rationale, behavior boundaries, and verification are recorded in the [implementation changelog](./IMPLEMENTATION_CHANGELOG.md#phase-3--shared-application-use-cases-complete). Phases 4, 5, and 6 have since completed the repository port, split/repayment domain, and unified dedup policy. The independent local AI runtime remains Phase 2 work.
 
 ## Purpose
 
@@ -39,9 +39,9 @@ This phase is about who coordinates a transaction operation and how its result i
 
 ## Deduplication boundary with Phase 6
 
-Live and import deduplication currently differ: live checks recent database rows with the live policy, while the Settings batch uses a separate cache and time window. Phase 6 is assigned the full semantic unification.
+At the Phase 3 checkpoint, live and import deduplication differed: live checked recent database rows while the Settings batch used a separate cache and time window. Phase 6 has since replaced both with one shared semantic policy.
 
-Phase 3 should still route both sources through shared use cases. Until Phase 6, pass an explicit source-specific deduplication strategy/gateway into the use case, preserving the observed behavior and documenting it. Do not hide import-specific dedup rules in `SettingsScreen`; do not silently combine the two strategies and accidentally suppress legitimate repeated purchases. Phase 6 will replace these adapters with one agreed policy and update the corresponding tests.
+Phase 3 routed both sources through shared use cases while preserving their observed dedup behavior. Phase 6 has since replaced those source-specific strategies with the shared policy and corresponding tests.
 
 ## Use-case design
 

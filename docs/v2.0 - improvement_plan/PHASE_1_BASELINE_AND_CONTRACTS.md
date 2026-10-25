@@ -205,7 +205,7 @@ The Phase 1 review found the following gaps. The first four were closed while be
 | Live credit could persist before repayment linking failed. | Automatic credit save now plans from all outstanding splits and inserts the repayment credit plus split updates in one SQLite transaction. On failure, the transaction rolls back and the caller receives an explicit persistence failure. | Shared application use-case ownership was completed in Phase 3, and repository injection followed in Phase 4. |
 | Live parsing dropped parser evidence; correction learning was not connected. | Live and import preview now call `parseAsync()` and send structured parser evidence through one policy. Explicit merchant/category corrections feed `LearningEngine`, whose SQLite repository is also read by parser resolvers. | There is still no default local AI inference runtime; AI fallback remains inactive and must not be claimed active. |
 
-At the Phase 1 audit checkpoint, historical import still used its own preview/dedup/direct-insert loop and did not apply repayment allocations. Phase 3 has since moved final import writes through shared use cases and processes the batch chronologically. Phase 6 still owns unifying the differing live/import duplicate semantics.
+At the Phase 1 audit checkpoint, historical import still used its own preview/dedup/direct-insert loop and did not apply repayment allocations. Phase 3 has since moved final import writes through shared use cases and processes the batch chronologically. Live/import duplicate semantics differed at the Phase 3 checkpoint; Phase 6 has since unified them.
 
 ## Workstream D: Bug triage and bounded fixes
 

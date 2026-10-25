@@ -1,11 +1,12 @@
 import {
-  isDuplicateTransaction,
-  SELECT_EXPENSE_BY_REF_SQL,
-  SELECT_EXPENSE_DEDUP_WINDOW_SQL,
+  GET_ALL_DEDUP_RECORDS_SQL,
+  GET_DEDUP_CANDIDATES_SQL,
   INSERT_EXPENSE_SQL,
   UPDATE_EXPENSE_SPLITS_SQL,
   GET_EXPENSES_WITH_SPLITS_SQL,
   getExpensesWithSplits,
+  getAllDedupRecords,
+  getDedupCandidates,
   updateSplitExpensesAtomically,
   insertExpenseWithRepayment,
   restoreExpenseSnapshot,
@@ -31,7 +32,7 @@ jest.mock('../database/db', () => {
   };
 });
 
-describe('isDuplicateTransaction (SQLite Ledger)', () => {
+describe('deduplication candidate repository queries', () => {
   let mockExecute: jest.Mock;
 
   beforeEach(() => {
@@ -39,72 +40,28 @@ describe('isDuplicateTransaction (SQLite Ledger)', () => {
     mockExecute = getDatabase().execute as jest.Mock;
   });
 
-  it('should return true if referenceId exists in database', () => {
-    // Mock the reference_id SELECT query to return a row
-    mockExecute.mockReturnValueOnce({
-      rows: [{ id: 100 }],
+  it('returns global reference and time-window rows for evaluation by the shared policy', () => {
+    mockExecute.mockReturnValueOnce({ rows: { _array: [{
+      id: 100, amount: 200, merchant: 'Shop', timestamp: 1000,
+      source: 'sms', raw_message: 'message', transaction_type: 'debit',
+      reference_id: 'REF-1', is_invalid: 0, is_duplicate: 0,
+    }] } });
+
+    const records = getDedupCandidates({
+      amount: 200, merchant: 'Shop', transactionType: 'debit', timestamp: 1000,
+      source: 'notification', rawMessage: 'message', referenceId: ' Ref-1 ',
     });
 
-    const result = isDuplicateTransaction(150.0, 1621245600000, 'TXN123456');
-
-    expect(result).toBe(true);
-    expect(mockExecute).toHaveBeenCalledWith(
-      SELECT_EXPENSE_BY_REF_SQL,
-      ['TXN123456']
-    );
-  });
-
-  it('should return true if amount and timestamp match in database (no referenceId)', () => {
-    // Mock the timestamp/amount SELECT query to return a row
-    mockExecute.mockReturnValueOnce({
-      rows: [{ id: 101 }],
-    });
-
-    const result = isDuplicateTransaction(200.0, 1621245600000);
-
-    expect(result).toBe(true);
-    expect(mockExecute).toHaveBeenCalledWith(
-      SELECT_EXPENSE_DEDUP_WINDOW_SQL,
-      [200.0, 1621245600000 - 15 * 60 * 1000, 1621245600000 + 15 * 60 * 1000]
-    );
-  });
-
-  it('should return false if no duplicates are found (with referenceId)', () => {
-    // Mock reference_id query to return empty
-    mockExecute.mockReturnValueOnce({
-      rows: [],
-    });
-    // Mock timestamp/amount query to return empty
-    mockExecute.mockReturnValueOnce({
-      rows: [],
-    });
-
-    const result = isDuplicateTransaction(150.0, 1621245600000, 'TXN999999');
-
-    expect(result).toBe(false);
-    expect(mockExecute).toHaveBeenCalledTimes(2);
-    expect(mockExecute).toHaveBeenNthCalledWith(1, SELECT_EXPENSE_BY_REF_SQL, ['TXN999999']);
-    expect(mockExecute).toHaveBeenNthCalledWith(2, SELECT_EXPENSE_DEDUP_WINDOW_SQL, [
-      150.0,
-      1621245600000 - 15 * 60 * 1000,
-      1621245600000 + 15 * 60 * 1000,
+    expect(records[0]).toMatchObject({ id: 100, referenceId: 'REF-1', isInvalid: false, isDuplicate: false });
+    expect(mockExecute).toHaveBeenCalledWith(GET_DEDUP_CANDIDATES_SQL, [
+      'ref-1', 'ref-1', 1000 - 5 * 60 * 1000, 1000 + 5 * 60 * 1000,
     ]);
   });
 
-  it('should return false if no duplicates are found (without referenceId)', () => {
-    // Mock timestamp/amount query to return empty
-    mockExecute.mockReturnValueOnce({
-      rows: [],
-    });
-
-    const result = isDuplicateTransaction(300.0, 1621245600000);
-
-    expect(result).toBe(false);
-    expect(mockExecute).toHaveBeenCalledTimes(1);
-    expect(mockExecute).toHaveBeenCalledWith(
-      SELECT_EXPENSE_DEDUP_WINDOW_SQL,
-      [300.0, 1621245600000 - 15 * 60 * 1000, 1621245600000 + 15 * 60 * 1000]
-    );
+  it('loads all dedup evidence fields for batch indexes', () => {
+    mockExecute.mockReturnValueOnce({ rows: { _array: [] } });
+    expect(getAllDedupRecords()).toEqual([]);
+    expect(mockExecute).toHaveBeenCalledWith(GET_ALL_DEDUP_RECORDS_SQL);
   });
 });
 describe('insertExpenseWithRepayment', () => {
@@ -374,13 +331,13 @@ describe('deduplication settlement safety', () => {
       {
         id: 1, amount: 35, merchant: 'Repayment from Alex', category: 'Other',
         confidence: 1, timestamp: 10, source: 'manual', raw_message: '',
-        transaction_type: 'credit', is_duplicate: 0, is_invalid: 0,
+      transaction_type: 'credit', reference_id: 'repayment-ref', is_duplicate: 0, is_invalid: 0,
         splits: null,
       },
       {
         id: 2, amount: 35, merchant: 'Repayment from Alex', category: 'Other',
         confidence: 1, timestamp: 11, source: 'manual', raw_message: '',
-        transaction_type: 'credit', is_duplicate: 0, is_invalid: 0,
+      transaction_type: 'credit', reference_id: ' REPAYMENT-REF ', is_duplicate: 0, is_invalid: 0,
         splits: JSON.stringify([{
           contactName: 'Alex', amount: 35, owedByMe: true,
           repaymentAllocations: [{ expenseId: 8, splitId: 'debt-split', amount: 35 }],
@@ -389,6 +346,24 @@ describe('deduplication settlement safety', () => {
     ] } });
 
     expect(() => deduplicateDatabase()).toThrow(/split settlement history/i);
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not auto-invalidate a weak amount/merchant/time similarity', () => {
+    mockExecute.mockReturnValueOnce({ rows: { _array: [
+      {
+        id: 1, amount: 200, merchant: 'Cafe North', category: 'Food & Dining',
+        confidence: 1, timestamp: 10, source: 'sms', raw_message: 'card purchase 200',
+        transaction_type: 'debit', is_duplicate: 0, is_invalid: 0,
+      },
+      {
+        id: 2, amount: 200, merchant: 'Cafe-North', category: 'Food & Dining',
+        confidence: 1, timestamp: 11, source: 'notification', raw_message: 'another card purchase 200',
+        transaction_type: 'debit', is_duplicate: 0, is_invalid: 0,
+      },
+    ] } });
+
+    expect(deduplicateDatabase()).toBe(0);
     expect(mockExecute).toHaveBeenCalledTimes(1);
   });
 });

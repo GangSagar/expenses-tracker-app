@@ -1,5 +1,6 @@
 import { Expense, ExpenseSplit } from '../../types/expense';
-import { isDuplicate } from '../../core/dedup';
+import { addDedupCandidate, createDedupCache, findDuplicate } from '../../core/dedup';
+import type { DedupCandidate, DedupCache } from '../../core/dedup/duplicateCheck';
 import {
   deleteTransaction, importTransactions, invalidateTransactionWithRepaymentRules,
   persistAcceptedTransaction, settleSplits, updateTransactionWithRepaymentRules,
@@ -11,6 +12,7 @@ import { orchestrateTransaction } from './transactionOrchestrator';
 import { defaultLearningEngine } from '../../core/parser/learning';
 import { setMerchantMapping } from '../../core/classifier/merchantMap';
 import { transactionStorage } from './transactionDependencies';
+import { notifyTransactionSaved } from '../notifications/transactionSavedNotification';
 
 function learnCorrection(alias: string, merchant: string, category: Expense['category']) {
   try {
@@ -22,8 +24,30 @@ function learnCorrection(alias: string, merchant: string, category: Expense['cat
   }
 }
 
-export const createDedupCache = () => transactionStorage.createDedupCache();
-export const isDuplicateWithCache = transactionStorage.isDuplicateWithCache.bind(transactionStorage);
+export const createTransactionDedupCache = () =>
+  createDedupCache(transactionStorage.getAllDedupRecords());
+
+function duplicateLookup(candidate: DedupCandidate) {
+  return findDuplicate(candidate, transactionStorage.getDedupCandidates(candidate));
+}
+
+function persistAndNotify(
+  candidate: TransactionCandidate,
+  match: () => ReturnType<typeof findDuplicate> | boolean,
+  allowPossibleDuplicate = false,
+) {
+  const result = persistAcceptedTransaction(candidate, transactionStorage, match, allowPossibleDuplicate);
+  if (result.status === 'saved') notifySavedBestEffort(result.transaction);
+  return result;
+}
+
+function notifySavedBestEffort(transaction: TransactionCandidate): void {
+  try {
+    notifyTransactionSaved(transaction);
+  } catch (error) {
+    console.warn('Transaction saved, but its notification could not be queued:', error);
+  }
+}
 
 export async function ingestLiveMessage(message: IncomingMessage) {
   const { processedExpense } = await orchestrateTransaction(message);
@@ -31,14 +55,13 @@ export async function ingestLiveMessage(message: IncomingMessage) {
   if (decision.kind !== 'auto_save' || !candidate) {
     return { candidate, decision, persistence: null };
   }
-  const recent = transactionStorage.getRecentExpenses(5);
-  const persistence = persistAcceptedTransaction(candidate, transactionStorage, () => isDuplicate(candidate, recent));
+  const persistence = persistAndNotify(candidate, () => duplicateLookup(candidate));
   return { candidate, decision, persistence };
 }
 
 export async function previewHistoricalMessage(
   message: IncomingMessage,
-  cache: ReturnType<typeof transactionStorage.createDedupCache>,
+  cache: DedupCache,
 ) {
   const analysis = await processIncomingMessage(message);
   if (analysis.parsed && message.timestamp !== undefined) {
@@ -46,36 +69,30 @@ export async function previewHistoricalMessage(
   }
   const processed = processTransaction(analysis);
   const candidate = processed.candidate;
-  const duplicate = !!candidate && transactionStorage.isDuplicateWithCache(
-    cache, candidate.amount, candidate.timestamp,
-    candidate.referenceId || undefined, candidate.rawMessage || undefined,
-  );
+  const duplicateMatch = candidate ? findDuplicate(candidate, cache) : null;
+  const duplicate = duplicateMatch?.kind === 'definite';
   if (candidate && !duplicate) {
-    if (candidate.referenceId) cache.refIds.add(candidate.referenceId.trim());
-    if (candidate.rawMessage) cache.rawMessages.add(candidate.rawMessage.trim());
-    cache.temporalIndex.push({ amount: candidate.amount, timestamp: candidate.timestamp });
+    addDedupCandidate(cache, candidate);
   }
-  return { ...processed, duplicate };
+  return {
+    ...processed,
+    duplicate,
+    possibleDuplicate: duplicateMatch?.kind === 'possible',
+    duplicateMatch,
+  };
 }
 
 export function importHistoricalTransactions(
   candidates: TransactionCandidate[],
   onProgress?: Parameters<typeof importTransactions>[3],
 ) {
-  const cache = transactionStorage.createDedupCache();
-  const isImportDuplicate = (candidate: TransactionCandidate) => transactionStorage.isDuplicateWithCache(
-      cache, candidate.amount, candidate.timestamp,
-      candidate.referenceId || undefined, candidate.rawMessage || undefined,
-    );
+  const cache = createTransactionDedupCache();
+  const findImportMatch = (candidate: TransactionCandidate) => findDuplicate(candidate, cache);
   const rememberImported = (candidate: TransactionCandidate) => {
-    // Earlier successful rows in this batch participate in the import strategy.
-    const refId = candidate.referenceId?.trim();
-    const rawMessage = candidate.rawMessage?.trim();
-    if (refId) cache.refIds.add(refId);
-    if (rawMessage) cache.rawMessages.add(rawMessage);
-    cache.temporalIndex.push({ amount: candidate.amount, timestamp: candidate.timestamp });
+    addDedupCandidate(cache, candidate);
+    notifySavedBestEffort(candidate);
   };
-  return importTransactions(candidates, transactionStorage, isImportDuplicate, onProgress, rememberImported);
+  return importTransactions(candidates, transactionStorage, findImportMatch, onProgress, rememberImported);
 }
 
 export function createManualTransaction(expense: Omit<Expense, 'id'>) {
@@ -93,15 +110,14 @@ export function createManualTransaction(expense: Omit<Expense, 'id'>) {
       message: 'Merchant or description is required.',
     };
   }
-  return persistAcceptedTransaction(expense, transactionStorage);
+  return persistAndNotify(expense, () => null);
 }
 
 export function confirmReviewedTransaction(
   expense: TransactionCandidate,
   previousCategory?: Expense['category'],
 ) {
-  const recent = transactionStorage.getRecentExpenses(5);
-  const result = persistAcceptedTransaction(expense, transactionStorage, () => isDuplicate(expense, recent));
+  const result = persistAndNotify(expense, () => duplicateLookup(expense), true);
   if (result.status === 'saved' && previousCategory !== undefined && previousCategory !== expense.category) {
     const alias = expense.alias || expense.merchant;
     if (alias && alias !== 'Unknown') {
@@ -133,6 +149,8 @@ export function updateTransactionUseCase(
     splits: splits as ExpenseSplit[] | undefined,
     transactionType: transactionType || persisted?.transactionType || 'debit',
   });
+  const updatedTransaction = transactionStorage.findById(id);
+  if (updatedTransaction) notifySavedBestEffort(updatedTransaction);
   const effectiveAlias = alias || merchant;
   if (effectiveAlias && effectiveAlias !== 'Unknown' && persisted && (
     persisted.alias !== alias || persisted.merchant !== merchant || persisted.category !== category

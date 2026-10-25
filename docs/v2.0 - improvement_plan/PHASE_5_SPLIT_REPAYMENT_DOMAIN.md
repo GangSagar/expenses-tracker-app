@@ -88,7 +88,7 @@ All rejections must leave both transaction rows and split rows unchanged. Domain
 ## Out of scope and later phases
 
 - No UI redesign.
-- Live/import dedup unification remains Phase 6.
+- Phase 6 has since unified live/import/maintenance deduplication while preserving the Phase 5 settlement-history guard.
 - Ordered database migration framework remains Phase 7; avoid adding SQL columns in Phase 5 unless a blocker is documented.
 - Settings and learning repository dependency cleanup remains broader architecture work.
 - Local/offline AI remains the independent Phase 2 requirement.

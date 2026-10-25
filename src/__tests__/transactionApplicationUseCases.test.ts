@@ -35,13 +35,41 @@ function repository(ledger: Expense[] = []): TransactionRepository & { inserted:
       return persisted;
     },
     findById: id => inserted.find(item => item.id === id) as (Expense & { id: number }) | undefined || null,
-    getRecentExpenses: () => [],
     updateSplitExpensesAtomically: () => {},
     mutateWithSplitUpdates: () => {},
   };
 }
 
 describe('transaction application use cases', () => {
+  it('returns a possible duplicate for confirmation without inserting it', () => {
+    const writes = repository();
+    const result = persistAcceptedTransaction(candidate(), writes, () => ({
+      kind: 'possible',
+      reason: 'amount_merchant_time',
+      existingTransactionId: 88,
+    }));
+
+    expect(result).toMatchObject({
+      status: 'possible_duplicate',
+      match: { kind: 'possible', existingTransactionId: 88 },
+    });
+    expect(writes.inserted).toHaveLength(0);
+  });
+
+  it('allows a user-confirmed weak match while still blocking definite matches', async () => {
+    const writes = repository();
+    const possible = { kind: 'possible' as const, reason: 'amount_merchant_time' as const };
+    const definite = { kind: 'definite' as const, reason: 'exact_message' as const };
+    const results = await importTransactions(
+      [candidate({ rawMessage: 'one' }), candidate({ timestamp: 200, rawMessage: 'two' })],
+      writes,
+      item => item.rawMessage === 'one' ? possible : definite,
+    );
+
+    expect(results.map(result => result.status)).toEqual(['imported', 'duplicate']);
+    expect(writes.inserted).toHaveLength(1);
+  });
+
   it('imports rows oldest-first while preserving scan order for equal timestamps', async () => {
     const writes = repository();
     const later = candidate({ timestamp: 300, rawMessage: 'later' });

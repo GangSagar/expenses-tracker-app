@@ -1,5 +1,6 @@
 import { Category, Expense } from '../../types/expense';
 import { SplitSettlementUpdate } from './repaymentPlanner';
+import { DedupCandidate, DedupRecord } from '../dedup/duplicateCheck';
 
 /** A storage-ready transaction that has not yet been accepted by the ledger. */
 export type TransactionCandidate = Omit<Expense, 'id'>;
@@ -87,12 +88,6 @@ export type TransactionProcessingOutcome =
   | { status: 'saved'; transaction: PersistedTransaction }
   | { status: 'failed'; stage: 'processing' | 'persistence'; message?: string };
 
-export interface TransactionDedupCache {
-  refIds: Set<string>;
-  rawMessages: Set<string>;
-  temporalIndex: Array<{ amount: number; timestamp: number }>;
-}
-
 export type TransactionMutation =
   | {
       kind: 'update';
@@ -115,7 +110,6 @@ export interface TransactionRepository {
     updates: SplitSettlementUpdate[],
   ): PersistedTransaction;
   findById(id: number): PersistedTransaction | null;
-  getRecentExpenses(minutes?: number): Expense[];
   getExpensesWithSplits(): Expense[];
   updateSplitExpensesAtomically(updates: SplitSettlementUpdate[]): void;
   mutateWithSplitUpdates(
@@ -145,14 +139,8 @@ export interface TransactionMaintenanceRepository {
   updateTrashReason(id: number, reason: string | null): void;
   deduplicate(): number;
   deleteForAccount(bank: string, account: string): void;
-  createDedupCache(): TransactionDedupCache;
-  isDuplicateWithCache(
-    cache: TransactionDedupCache,
-    amount: number,
-    timestamp: number,
-    referenceId?: string,
-    rawMessage?: string,
-  ): boolean;
+  getDedupCandidates(candidate: DedupCandidate): DedupRecord[];
+  getAllDedupRecords(): DedupRecord[];
 }
 
 /** Full storage capability injected by the composition module. */

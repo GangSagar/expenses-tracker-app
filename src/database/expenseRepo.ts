@@ -3,7 +3,15 @@ import { QuickSQLiteConnection } from 'react-native-quick-sqlite';
 import { getDatabase } from './db';
 import { telemetry } from '../services/telemetryService';
 import { SplitSettlementUpdate } from '../core/transactions/repaymentPlanner';
-import { TransactionDedupCache, TransactionMutation } from '../core/transactions/contracts';
+import { TransactionMutation } from '../core/transactions/contracts';
+import {
+  addDedupCandidate,
+  createDedupCache,
+  DedupCandidate,
+  DedupRecord,
+  DEDUP_WINDOW_MS,
+  findDuplicate,
+} from '../core/dedup/duplicateCheck';
 
 // ==========================================
 // Centralized Database SQL Command Constants
@@ -27,25 +35,22 @@ export const UPDATE_EXPENSE_SPLITS_SQL = `
   UPDATE expenses SET splits = ? WHERE id = ?
 `;
 
-export const GET_RECENT_EXPENSES_SQL = `
-  SELECT * FROM expenses WHERE timestamp > ? ORDER BY timestamp DESC
+export const GET_ALL_DEDUP_RECORDS_SQL = `
+  SELECT id, amount, merchant, transaction_type, timestamp, source, reference_id,
+    raw_message, is_invalid, is_duplicate
+  FROM expenses
+`;
+
+export const GET_DEDUP_CANDIDATES_SQL = `
+  SELECT id, amount, merchant, transaction_type, timestamp, source, reference_id,
+    raw_message, is_invalid, is_duplicate
+  FROM expenses
+  WHERE (? IS NOT NULL AND LOWER(TRIM(reference_id)) = ?)
+     OR (timestamp >= ? AND timestamp <= ?)
 `;
 
 export const GET_EXPENSE_BY_ID_SQL = `
   SELECT * FROM expenses WHERE id = ? LIMIT 1
-`;
-
-export const SELECT_EXPENSE_BY_REF_SQL = `
-  SELECT id FROM expenses WHERE reference_id = ?
-`;
-
-export const SELECT_EXPENSE_BY_RAW_SQL = `
-  SELECT id FROM expenses WHERE raw_message = ? AND is_duplicate = 0 AND is_invalid = 0
-`;
-
-export const SELECT_EXPENSE_DEDUP_WINDOW_SQL = `
-  SELECT id FROM expenses 
-  WHERE amount = ? AND timestamp >= ? AND timestamp <= ? AND is_duplicate = 0 AND is_invalid = 0
 `;
 
 export const GET_ALL_EXPENSES_SQL = `
@@ -286,110 +291,22 @@ export function getExpenseById(id: number): Expense | null {
   return row ? mapRows([row])[0] : null;
 }
 
-export function getRecentExpenses(minutes: number = 5): Expense[] {
+export function getAllDedupRecords(): DedupRecord[] {
   const db = getDatabase();
-  const since = Date.now() - minutes * 60 * 1000;
-  const result = db.execute(GET_RECENT_EXPENSES_SQL, [since]);
-  return mapRows(result.rows?._array || []);
+  const result = db.execute(GET_ALL_DEDUP_RECORDS_SQL);
+  return mapDedupRows(result.rows?._array || []);
 }
 
-export function isDuplicateTransaction(
-  amount: number,
-  timestamp: number,
-  referenceId?: string,
-  rawMessage?: string,
-): boolean {
+export function getDedupCandidates(candidate: DedupCandidate): DedupRecord[] {
   const db = getDatabase();
-
-  // 1. Check unique reference ID if present
-  if (referenceId) {
-    const result = db.execute(SELECT_EXPENSE_BY_REF_SQL, [referenceId]);
-    if (result.rows && result.rows.length > 0) return true;
-  }
-
-  // 2. Check identical message body if present
-  if (rawMessage) {
-    const result = db.execute(SELECT_EXPENSE_BY_RAW_SQL, [rawMessage]);
-    if (result.rows && result.rows.length > 0) return true;
-  }
-
-  // 3. Check identical amount within a 15-minute window to absorb live listener and manual entry timestamp drifts
-  const DEDUP_WINDOW_MS = 15 * 60 * 1000;
-  const result = db.execute(SELECT_EXPENSE_DEDUP_WINDOW_SQL, [
-    amount,
-    timestamp - DEDUP_WINDOW_MS,
-    timestamp + DEDUP_WINDOW_MS,
+  const referenceId = candidate.referenceId?.trim().toLocaleLowerCase() || null;
+  const result = db.execute(GET_DEDUP_CANDIDATES_SQL, [
+    referenceId,
+    referenceId,
+    candidate.timestamp - DEDUP_WINDOW_MS,
+    candidate.timestamp + DEDUP_WINDOW_MS,
   ]);
-  return !!(result.rows && result.rows.length > 0);
-}
-
-export type DedupCache = TransactionDedupCache;
-
-/**
- * Creates an in-memory deduplication index from the local SQLite database.
- * Allows checking thousands of messages in memory in microseconds rather than
- * issuing 3 synchronous SQLite queries per message over disk.
- */
-export function createDedupCache(): DedupCache {
-  const db = getDatabase();
-  const all = db.execute(
-    'SELECT amount, timestamp, reference_id, raw_message FROM expenses WHERE is_invalid = 0',
-  );
-  const rows = all.rows?._array || [];
-  const refIds = new Set<string>();
-  const rawMessages = new Set<string>();
-  const temporalIndex: Array<{ amount: number; timestamp: number }> = [];
-
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    if (r.reference_id) refIds.add(String(r.reference_id).trim());
-    if (r.raw_message) rawMessages.add(String(r.raw_message).trim());
-    if (typeof r.amount === 'number' && typeof r.timestamp === 'number') {
-      temporalIndex.push({ amount: r.amount, timestamp: r.timestamp });
-    }
-  }
-
-  return { refIds, rawMessages, temporalIndex };
-}
-
-export function isDuplicateWithCache(
-  cache: DedupCache,
-  amount: number,
-  timestamp: number,
-  referenceId?: string,
-  rawMessage?: string,
-): boolean {
-  if (referenceId && cache.refIds.has(String(referenceId).trim())) {
-    return true;
-  }
-  if (rawMessage && cache.rawMessages.has(String(rawMessage).trim())) {
-    return true;
-  }
-
-  const DEDUP_WINDOW_MS = 15 * 60 * 1000;
-  const minTs = timestamp - DEDUP_WINDOW_MS;
-  const maxTs = timestamp + DEDUP_WINDOW_MS;
-
-  for (let i = 0; i < cache.temporalIndex.length; i++) {
-    const item = cache.temporalIndex[i];
-    if (item.amount === amount && item.timestamp >= minTs && item.timestamp <= maxTs) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-export function addToDedupCache(
-  cache: DedupCache,
-  amount: number,
-  timestamp: number,
-  referenceId?: string,
-  rawMessage?: string,
-): void {
-  if (referenceId) cache.refIds.add(String(referenceId).trim());
-  if (rawMessage) cache.rawMessages.add(String(rawMessage).trim());
-  cache.temporalIndex.push({ amount, timestamp });
+  return mapDedupRows(result.rows?._array || []);
 }
 
 export function getAllExpenses(
@@ -575,41 +492,20 @@ export function updateTrashReason(id: number, reason: string | null): void {
 }
 
 export function deduplicateDatabase(): number {
-  const expenses = exportAllExpensesData().filter(e => !e.isInvalid);
-
-  // Sort by timestamp asc
-  expenses.sort((a, b) => a.timestamp - b.timestamp);
-
+  const expenses = exportAllExpensesData().filter(e => !e.isInvalid && !e.isDuplicate);
+  expenses.sort((a, b) => a.timestamp - b.timestamp || (a.id || 0) - (b.id || 0));
   const duplicates: Expense[] = [];
-  const DEDUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+  const prior = createDedupCache();
 
-  // Simple scan
-  for (let i = 0; i < expenses.length; i++) {
-    const current = expenses[i];
-    if (current.isInvalid) continue; // Already marked as dup in this loop
-
-    for (let j = i + 1; j < expenses.length; j++) {
-      const next = expenses[j];
-
-      // Stop checking if next transaction is beyond 5 mins
-      if (next.timestamp - current.timestamp > DEDUP_WINDOW_MS) {
-        break;
-      }
-
-      if (next.isInvalid) continue;
-
-      const sameAmount = current.amount === next.amount;
-      const sameMerchant =
-        normalizeMerchant(current.merchant) ===
-        normalizeMerchant(next.merchant);
-      const sameType = current.transactionType === next.transactionType;
-
-      if (sameAmount && sameMerchant && sameType) {
-        // Mark next as duplicate
-        next.isInvalid = true;
-        next.trashReason = 'duplicate';
-        duplicates.push(next);
-      }
+  for (const current of expenses) {
+    const match = findDuplicate(current, prior);
+    if (match?.kind === 'definite') {
+      current.isInvalid = true;
+      current.trashReason = 'duplicate';
+      duplicates.push(current);
+    } else {
+      // Possible amount/merchant/time matches are intentionally retained.
+      addDedupCandidate(prior, current);
     }
   }
 
@@ -641,10 +537,6 @@ function hasSettlementHistory(expense: Expense): boolean {
     !!split.repaymentAllocations?.length ||
     !!split.owedByMe,
   );
-}
-
-function normalizeMerchant(merchant: string): string {
-  return merchant.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 export function getSetting(key: string, defaultValue: string = ''): string {
@@ -703,4 +595,19 @@ function mapRows(rows: any[]): Expense[] {
       trashReason: row.trash_reason || undefined,
     };
   });
+}
+
+function mapDedupRows(rows: any[]): DedupRecord[] {
+  return mapRows(rows).map(expense => ({
+    id: expense.id,
+    amount: expense.amount,
+    merchant: expense.merchant,
+    transactionType: expense.transactionType,
+    timestamp: expense.timestamp,
+    source: expense.source,
+    referenceId: expense.referenceId,
+    rawMessage: expense.rawMessage,
+    isInvalid: expense.isInvalid,
+    isDuplicate: expense.isDuplicate,
+  }));
 }

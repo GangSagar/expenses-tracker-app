@@ -54,7 +54,7 @@ The compatibility thresholds are retained: legacy confidence below `0.5` rejects
 |---|---|---|
 | `reject` | Log the stable reason and stop. | No write. |
 | `review` | Queue the candidate and optionally notify in background. | No write before user confirmation. |
-| `auto_save` | The live-ingestion application operation checks live dedup and persists. | Duplicate, saved, and failed are separate results. The store updates only after a successful save. |
+| `auto_save` | The live-ingestion application operation checks the shared dedup policy and persists. | Definite duplicate, possible duplicate for review, saved, and failed are distinct outcomes. The store updates only after a successful save. |
 
 For accepted credits, the shared application persistence operation reads all split-bearing ledger rows through `TransactionRepository`, creates the oldest-first partial allocation plan, and commits the repayment credit and all affected split updates in one SQLite transaction via `SQLiteTransactionRepository`. The credit stores exact destination expense/split IDs and allocated amounts so later edits, invalidation, restoration, or deletion can reverse the same allocations atomically. Manual settlement is tracked separately and is not erased by repayment reversal. A transaction failure rolls back the credit and split changes; the listener logs the persistence failure separately from the prior auto-save decision. Manual and review-confirmed credits use the same operation. Hooks and screens dispatch split commands through the transaction application facade; Zustand no longer calculates settlement changes.
 
@@ -62,7 +62,9 @@ Older repayment credits have only contact/amount summaries and cannot be safely 
 
 ## 5. Import preview
 
-Settings historical import uses the same async parser and decision policy during preview, through `previewHistoricalMessage()`. The screen owns only message scanning, preview selection, and progress display. `importHistoricalTransactions()` sorts checked candidates by source timestamp (stable on ties) and imports each through the shared persistence operation. Repayment planning is refreshed per row, so earlier imported credits affect later ones. Each row commits independently; failed rows remain available for retry. Import-specific dedup behavior is intentionally retained until Phase 6.
+Settings historical import uses the same parser, transaction decision policy, and dedup policy during preview, through `previewHistoricalMessage()`. The screen owns message scanning, preview selection, and progress display. Definite duplicates are skipped; possible matches appear unchecked for review. `importHistoricalTransactions()` rechecks selected candidates against persisted rows and earlier successful imports, sorts by source timestamp (stable on ties), and imports each through the shared persistence operation. Repayment planning is refreshed per row, so earlier imported credits affect later ones. Each row commits independently; failed rows remain available for retry.
+
+After a successful live, manual, confirmed, imported, or edited transaction write, the application service requests one local notification with the transaction type, amount, and merchant/description. Duplicate, pending, or failed outcomes do not produce a saved notice. Notification failures do not alter persistence results.
 
 ## 6. Correction learning and AI fallback status
 

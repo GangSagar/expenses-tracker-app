@@ -6,6 +6,8 @@ jest.mock('../database/expenseRepo', () => ({
   insertExpense: jest.fn(),
   insertExpenseWithRepayment: jest.fn(),
   getExpenseById: jest.fn(),
+  getDedupCandidates: jest.fn(),
+  getAllDedupRecords: jest.fn(),
   restoreExpenseSnapshot: jest.fn(),
   mutateExpenseWithSplitUpdatesAtomically: jest.fn(),
 }));
@@ -21,6 +23,15 @@ const candidate: Omit<Expense, 'id'> = {
   source: 'manual',
   rawMessage: 'backup sample',
   transactionType: 'debit',
+};
+
+const dedupCandidate = {
+  amount: 12,
+  merchant: 'Coffee',
+  transactionType: 'debit' as const,
+  timestamp: 10,
+  source: 'sms' as const,
+  rawMessage: 'coffee purchase',
 };
 
 describe('SQLiteTransactionRepository', () => {
@@ -54,5 +65,14 @@ describe('SQLiteTransactionRepository', () => {
     repository.mutateWithSplitUpdates(7, mutation, updates);
 
     expect(mockedRepo.mutateExpenseWithSplitUpdatesAtomically).toHaveBeenCalledWith(7, mutation, updates);
+  });
+
+  it('provides candidate rows without deciding whether they are duplicates', () => {
+    const rows = [{ id: 5, amount: 12, merchant: 'Coffee' }];
+    mockedRepo.getDedupCandidates.mockReturnValue(rows as any);
+    mockedRepo.getAllDedupRecords.mockReturnValue(rows as any);
+    const repository = new SQLiteTransactionRepository();
+    expect(repository.getDedupCandidates(dedupCandidate)).toBe(rows);
+    expect(repository.getAllDedupRecords()).toBe(rows);
   });
 });

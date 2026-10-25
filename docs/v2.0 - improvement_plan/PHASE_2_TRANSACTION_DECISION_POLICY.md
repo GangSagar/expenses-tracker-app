@@ -31,7 +31,7 @@ The audit surfaced gaps that affected Phase 2 and later work. The first five are
 | Filters could drop inputs without a policy outcome. | `processIncomingMessage()` returns typed rejection signals; the same policy produces the reasoned reject decision. | Phase 3 now owns final historical-import persistence through the shared use case. |
 | Correction learning and async parser use were inactive in the production path. | Live ingestion and import preview now call `parseAsync()`; explicit merchant/category corrections call `LearningEngine.learn()`, which parser resolvers read from the same SQLite-backed mapping repository. | Local AI inference has no runtime/handler and remains inactive. |
 
-These closures do not move historical import writes into the decision policy. Phase 3 has since routed final imports through shared chronological use cases; Phase 6 still owns unifying live/import duplicate semantics.
+These closures do not move historical import writes into the decision policy. Phase 3 routed final imports through shared chronological use cases; Phase 6 has since unified live/import duplicate semantics in a separate pure policy.
 
 ## Current live decision path after the Phase 2 implementation
 
@@ -40,7 +40,7 @@ These closures do not move historical import writes into the decision policy. Ph
 3. `expenseService.processTransaction()` maps the full `StructuredExpense`, category classifier evidence, and compatibility score into one `TransactionDecisionInput` and invokes `decideTransaction()` exactly once.
 4. `useMessageListener` executes the policy result: reject is logged with a stable reason, review is queued, and auto-save calls persistence.
 5. For accepted credits, the transaction application operation queries all split-bearing ledger rows through `TransactionRepository` and commits credit insertion with repayment updates through the SQLite adapter. Duplicate/save failure remains a processing result, not a policy decision.
-6. Settings import preview uses the same parser and decision policy. Phase 3 now owns its chronological batch persistence through the shared application use case; import and live dedup remain separate until Phase 6.
+6. Settings import preview uses the same parser and decision policy. Phase 3 owns chronological batch persistence through the shared application use case; at that checkpoint import and live dedup differed, and Phase 6 has since unified them.
 
 The legacy thresholds remain `0.5` reject-below and `0.8` auto-save-at-or-above. Parser confidence below `0.5` rejects; `requiresConfirmation` forces review. Classifier category source is evidence, while its compatibility score preserves the established threshold behavior.
 
@@ -194,8 +194,8 @@ Do not migrate Settings historical import into a parallel Phase 2 path. Phase 3 
 - Integrate a supported on-device/offline inference runtime behind `IAIResolver`, or keep fallback disabled and record the requirement as incomplete. Do not add network inference.
 - Define timeout/cancellation and runtime-unavailable behavior when the local model is selected.
 - The sanitized `sms-samples.json` parity corpus currently produces no decision differences from the legacy confidence thresholds. Keep this fixture suite and add collected production examples when extending the policy.
-- Split use-case ownership was completed in Phase 5; dedup unification remains Phase 6 work.
+- Split use-case ownership was completed in Phase 5; Phase 6 has since completed dedup unification.
 
 ## Handoff
 
-Phase 3 has routed live input, historical import, manual creation, confirmation, edits, invalidation, and deletion through shared application use cases. Imported rows are processed chronologically through shared repayment persistence. Source-specific dedup behavior remains for Phase 6; the Phase 2 decision contract remains the single parsed-message policy.
+Phase 3 routed live input, historical import, manual creation, confirmation, edits, invalidation, and deletion through shared application use cases. Imported rows are processed chronologically through shared repayment persistence. Source-specific dedup behavior was unified in Phase 6; the Phase 2 decision contract remains the single parsed-message policy.

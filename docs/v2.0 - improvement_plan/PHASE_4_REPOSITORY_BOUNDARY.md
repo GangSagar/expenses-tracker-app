@@ -136,7 +136,7 @@ Before removing any compatibility repository export, use `rg` to verify all appl
 - Split settlement decisions may remain in Zustand for Phase 5, but all resulting database writes pass through the repository boundary and are atomic.
 - Read queries used by presentation are documented and routed through an explicit query/repository surface; they do not expose SQL.
 - Historical import repayment is verified end-to-end with old splits, chronological credits, partial accumulation, and per-row failure atomicity.
-- Phase 3's live/import source-specific dedup behavior remains unchanged; Phase 6 owns semantic unification.
+- At the Phase 4 checkpoint, Phase 3's live/import source-specific dedup behavior remained unchanged. Phase 6 has since completed semantic unification.
 - TypeScript/tests/lint/docs/changelog/Graphify pass and accurately describe the implementation.
 
 ## Handoff to Phase 5 and Phase 6

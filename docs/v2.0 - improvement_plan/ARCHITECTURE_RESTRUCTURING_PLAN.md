@@ -38,7 +38,7 @@ There are parallel paths for historical import in `SettingsScreen.tsx`, and for 
 
 This was the pre-Phase-2 flow: `messageService` called `parseMessage()` and discarded parser confidence/`requiresConfirmation`, then `expenseService` independently decided auto-save, review, or discard. **Phase 2 status: closed for live ingestion and import preview.** They now use structured async parsing and one `decideTransaction()` policy that receives parser and classifier evidence and returns a typed result.
 
-**Original risk, now addressed in the policy paths:** different decisions could occur and parser confirmation was ignored. Historical import final writes now use the shared chronological application operation; source-specific dedup remains until Phase 6.
+**Original risk, now addressed:** different decisions could occur and parser confirmation was ignored. Historical import final writes now use the shared chronological application operation. Dedup semantics differed at the Phase 3 checkpoint; Phase 6 has since unified them.
 
 **Implemented:** `src/core/transactions/decisionPolicy.ts` is the sole reject/review/auto-save policy. It centralizes the current thresholds and returns reason/evidence data. Shared application use cases for final import/manual/edit writes were completed in Phase 3; their SQLite dependencies were routed through the repository port in Phase 4.
 
@@ -78,7 +78,7 @@ The repository has in-memory duplicate checks in `src/core/dedup`, SQL-based che
 
 Before Phase 2, live processing used the synchronous compatibility adapter and did not record parser correction learning. Live and import-preview paths now invoke `parseAsync()`, and explicit merchant/category corrections call `LearningEngine.learn()`. Extraction still runs synchronously inside `parseAsync()`; AI fallback remains disabled because no local inference handler/model is installed.
 
-**Remaining risk:** developers could mistake the AI interface for an active model, or assume parser extraction itself is asynchronous. Final import persistence is now shared with the live/manual application operations; source-specific deduplication remains until Phase 6.
+**Remaining risk:** developers could mistake the AI interface for an active model, or assume parser extraction itself is asynchronous. Final import persistence is shared with the live/manual application operations, and Phase 6 has unified source-specific deduplication. Local AI inference remains separate Phase 2 work.
 
 **Approved direction:** async parser invocation, correction learning, and local/offline AI fallback are product requirements. Async invocation and correction recording are now wired to live processing/import preview and explicit edits. Offline AI fallback remains incomplete until an inference runtime is selected and integrated with defined failure behavior; do not describe it as active meanwhile.
 
@@ -174,7 +174,9 @@ Partial repayment remains supported. Original split amounts stay intact while ma
 
 ### Phase 6 — Unified deduplication
 
-Specify duplicate semantics, then use the same policy for live processing and import. Keep repository-backed indexes/caches as optimizations.
+**Status: Complete.** The shared dedup policy, post-save notifications, file-level changes, and verification are in [Phase 6: Unified Transaction Deduplication](./PHASE_6_UNIFIED_DEDUPLICATION.md) and the [implementation changelog](./IMPLEMENTATION_CHANGELOG.md#phase-6--unified-deduplication-complete).
+
+Use one pure policy for live processing, historical import/preview/commit, review confirmation, and maintenance dedup. Keep repository-backed indexes/caches as optimizations. After any transaction creation or explicit edit is persisted, notify the user with brief details through a shared notification adapter. Preserve legitimate repeated purchases and Phase 5 protections against invalidating settled transaction history.
 
 **Likely areas:** `src/core/dedup/`, `src/database/expenseRepo.ts`, import processing in `SettingsScreen.tsx`, and ingestion use cases.
 
