@@ -1,14 +1,14 @@
-import { TransactionSource } from '../types/expense';
-import { StructuredExpense } from '../core/parser/models';
-import { parseStructuredAsync } from '../core/parser/parseMessage';
+import { TransactionSource } from '../../types/expense';
+import { StructuredExpense } from '../../core/parser/models';
+import { parseStructuredAsync } from '../../core/parser/parseMessage';
 import {
   isTransactionalSender,
   isTransactionMessage,
-} from '../core/parser';
-import { normalizeUnicodeText } from '../utils/formatHelpers';
-import { isSpam } from '../core/classifier/spamClassifier';
-import { TransactionRejectionReason } from '../core/transactions/contracts';
-import { telemetry } from './telemetryService';
+} from '../../core/parser';
+import { normalizeUnicodeText } from '../../utils/formatHelpers';
+import { isSpam } from '../../core/classifier/spamClassifier';
+import { TransactionRejectionReason } from '../../core/transactions/contracts';
+import { telemetry } from '../telemetryService';
 
 export interface IncomingMessage {
   body: string;

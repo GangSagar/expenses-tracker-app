@@ -1,18 +1,18 @@
-import { orchestrateTransaction } from '../services/transactionOrchestrator';
-import { IncomingMessage } from '../services/messageService';
+import { orchestrateTransaction } from '../services/transactions/transactionOrchestrator';
+import { IncomingMessage } from '../services/messaging/messageService';
 
-jest.mock('../services/messageService', () => ({
+jest.mock('../services/messaging/messageService', () => ({
   processIncomingMessage: jest.fn(),
 }));
 
-jest.mock('../services/expenseService', () => ({
+jest.mock('../services/transactions/transactionDecisionService', () => ({
   processTransaction: jest.fn(),
 }));
 
-const { processIncomingMessage } = require('../services/messageService') as {
+const { processIncomingMessage } = require('../services/messaging/messageService') as {
   processIncomingMessage: jest.Mock;
 };
-const { processTransaction } = require('../services/expenseService') as {
+const { processTransaction } = require('../services/transactions/transactionDecisionService') as {
   processTransaction: jest.Mock;
 };
 
@@ -25,7 +25,10 @@ const fakeMessage: IncomingMessage = {
 const fakeAnalysis = { parsed: null, rejectionSignals: ['blocked_message'] };
 const fakeProcessedExpense = {
   candidate: null,
-  decision: { kind: 'reject', reason: 'blocked_message' },
+  decision: {
+    kind: 'reject', reason: 'blocked_message',
+    evidence: { policyVersion: '1.0.0' },
+  },
   repaymentUpdates: [],
 };
 
@@ -52,9 +55,10 @@ describe('orchestrateTransaction', () => {
 
     const result = await orchestrateTransaction(fakeMessage);
 
-    expect(result.processedExpense.decision).toEqual({
+    expect(result.processedExpense.decision).toMatchObject({
       kind: 'reject',
       reason: 'blocked_message',
     });
+    expect(result.processedExpense.decision.evidence.policyVersion).toBeTruthy();
   });
 });

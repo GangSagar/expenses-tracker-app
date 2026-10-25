@@ -1,5 +1,5 @@
-import { processTransaction, saveExpense } from '../services/expenseService';
-import { IncomingTransactionAnalysis } from '../services/messageService';
+import { processTransaction, saveExpense } from '../services/transactions/expenseService';
+import { IncomingTransactionAnalysis } from '../services/messaging/messageService';
 
 jest.mock('../database/expenseRepo', () => ({
   getExpensesWithSplits: jest.fn(),

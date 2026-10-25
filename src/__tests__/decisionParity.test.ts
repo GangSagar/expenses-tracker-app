@@ -2,8 +2,8 @@ import samples from './__fixtures__/sms-samples.json';
 import { parseMessage } from '../core/parser/parseMessage';
 import { classify } from '../core/classifier';
 import { calculateConfidence } from '../core/confidence';
-import { processIncomingMessage } from '../services/messageService';
-import { processTransaction } from '../services/expenseService';
+import { processIncomingMessage } from '../services/messaging/messageService';
+import { processTransaction } from '../services/transactions/expenseService';
 
 function legacyDecision(analysis: Awaited<ReturnType<typeof processIncomingMessage>>) {
   if (analysis.rejectionSignals.length > 0 || !analysis.parsed) return 'reject';

@@ -271,7 +271,7 @@ stateDiagram-v2
 
 ### 2.3 Detailed Subsystem Modules
 
-#### 1. Ingestion Subsystem (`src/services/messageService.ts`)
+#### 1. Ingestion Subsystem (`src/services/messaging/messageService.ts`)
 * **Interface `IncomingMessage`**:
   ```typescript
   export interface IncomingMessage {

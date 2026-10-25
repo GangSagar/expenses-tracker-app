@@ -24,20 +24,27 @@ import PinSetupModal from '../components/PinSetupModal';
 import {
   getSetting,
   setSetting,
-  createDedupCache,
-  isDuplicateWithCache,
-  addToDedupCache,
-  insertExpense,
   clearAllExpenses,
 } from '../../../database/expenseRepo';
 import commonStyles from '../styles/commonStyles';
 import CalendarModal from '../components/CalendarModal';
-import { processIncomingMessage } from '../../../services/messageService';
-import { processTransaction } from '../../../services/expenseService';
+import {
+  createDedupCache,
+  importHistoricalTransactions,
+  previewHistoricalMessage,
+} from '../../../services/transactions/transactionApplication';
 import { resetSpamClassifier } from '../../../core/classifier/spamClassifier';
 import { resetMerchantMap } from '../../../core/classifier/merchantMap';
 
 const { MessageModule } = NativeModules;
+
+function toImportCandidate(transaction: any) {
+  const candidate = { ...transaction };
+  delete candidate.tempId;
+  delete candidate.checked;
+  delete candidate.decision;
+  return candidate;
+}
 
 export default function SettingsScreen() {
   const { exportExpenses, importExpenses, loadExpenses, runDeduplication } =
@@ -244,31 +251,18 @@ export default function SettingsScreen() {
           await new Promise<void>(resolve => setTimeout(resolve, 0));
         }
 
-        const analysis = await processIncomingMessage({
+        const processed = await previewHistoricalMessage({
           body: msg.body,
           sender: msg.sender,
           source: 'sms',
           timestamp: msg.timestamp,
-        });
-
-        if (analysis.parsed) {
-          analysis.parsed.timestamp = msg.timestamp;
-        }
-        const processed = processTransaction(analysis);
+        }, dedupCache);
         const candidate = processed.candidate;
 
         if (candidate && processed.decision.kind !== 'reject') {
 
           // O(1) in-memory check (0.0001 ms)
-          const duplicate = isDuplicateWithCache(
-            dedupCache,
-            candidate.amount,
-            candidate.timestamp,
-            candidate.referenceId || undefined,
-            candidate.rawMessage || undefined,
-          );
-
-          if (duplicate) {
+          if (processed.duplicate) {
             dups++;
             if (i % 5 === 0) {
               appendLog(`🛡️ Dup: Skip ₹${candidate.amount.toFixed(2)} at ${candidate.merchant || 'Merchant'}`);
@@ -281,14 +275,6 @@ export default function SettingsScreen() {
               decision: processed.decision.kind,
             });
             found++;
-            // Add to memory dedup cache so later messages in same inbox don't duplicate
-            addToDedupCache(
-              dedupCache,
-              candidate.amount,
-              candidate.timestamp,
-              candidate.referenceId || undefined,
-              candidate.rawMessage || undefined,
-            );
             appendLog(`✅ Found: ₹${candidate.amount.toFixed(2)} at ${candidate.merchant} (${candidate.bank || 'Bank'})`);
           }
         } else {
@@ -349,23 +335,24 @@ export default function SettingsScreen() {
     if (!__DEV__) {
       // Instant SQLite writes in production!
       try {
-        let importedCount = 0;
-        for (const tx of proposedTransactions) {
-          if (tx.checked) {
-            const expenseData = { ...tx };
-            delete (expenseData as any).tempId;
-            delete (expenseData as any).checked;
-            insertExpense(expenseData);
-            importedCount++;
-          }
-        }
+        const toImport = proposedTransactions.filter(tx => tx.checked).map(toImportCandidate);
+        setSyncing(true);
+        const results = await importHistoricalTransactions(toImport);
+        const importedCount = results.filter(row => row.status === 'imported').length;
+        const failedCount = results.filter(row => row.status === 'failed').length;
+        const failedCandidates = results.filter(row => row.status === 'failed').map(row => row.candidate);
         loadExpenses();
-        setProposedTransactions([]);
+        setProposedTransactions(failedCount ? proposedTransactions.filter(tx =>
+          failedCandidates.some(candidate => candidate.rawMessage === tx.rawMessage && candidate.timestamp === tx.timestamp),
+        ).map(tx => ({ ...tx, checked: true })) : []);
+        setPreviewVisible(failedCount > 0);
+        setSyncing(false);
         Alert.alert(
-          'Sync Complete',
-          `Successfully imported ${importedCount} transactions to your ledger!`,
+          failedCount ? 'Sync Partially Complete' : 'Sync Complete',
+          `Imported ${importedCount} transactions${failedCount ? `; ${failedCount} failed and can be retried` : ''}.`,
         );
       } catch (err: any) {
+        setSyncing(false);
         Alert.alert('Import Failed', err.message || 'Failed to save transactions.');
       }
       return;
@@ -384,36 +371,34 @@ export default function SettingsScreen() {
         `\n💾 COMMITTING ${toImport.length} SELECTED TRANSACTIONS TO SQLITE DATABASE...`,
       ]);
 
+      const candidates = toImport.map(toImportCandidate);
       let count = 0;
-      for (const tx of toImport) {
-        // Wait 150ms per transaction for a high-fidelity visual committing stream
-        await new Promise<void>(resolve => setTimeout(() => resolve(), 150));
-        
-        const expenseData = { ...tx };
-        delete (expenseData as any).tempId;
-        delete (expenseData as any).checked;
-        insertExpense(expenseData);
-        count++;
-
-        const pct = Math.round((count / toImport.length) * 100);
+      const results = await importHistoricalTransactions(candidates, (row, completed, total) => {
+        if (row.status === 'imported') count++;
+        const pct = total ? Math.round((completed / total) * 100) : 100;
         setSyncProgressPct(pct);
-        setSyncProgress(`Imported: ${count} of ${toImport.length} (${pct}%)`);
-        
-        setSyncLogs(prev => [
-          ...prev,
-          `💾 [${count}/${toImport.length}] Saved: ₹${expenseData.amount.toFixed(2)} spent at ${expenseData.merchant} to history`,
-        ]);
-      }
+        setSyncProgress(`Processed: ${completed} of ${total}; ${count} imported (${pct}%)`);
+        if (row.status === 'failed') setSyncLogs(prev => [...prev, `❌ Failed ₹${row.candidate.amount} at ${row.candidate.merchant}: ${row.message}`]);
+        else if (row.status === 'imported') setSyncLogs(prev => [...prev, `💾 Saved ₹${row.candidate.amount} at ${row.candidate.merchant}`]);
+      });
+      const failures = results.filter(row => row.status === 'failed').length;
+      const failedCandidates = results.filter(row => row.status === 'failed').map(row => row.candidate);
+      setProposedTransactions(failures ? proposedTransactions.filter(tx =>
+        failedCandidates.some(candidate => candidate.rawMessage === tx.rawMessage && candidate.timestamp === tx.timestamp),
+      ).map(tx => ({ ...tx, checked: true })) : []);
+      setPreviewVisible(failures > 0);
 
       setSyncLogs(prev => [
         ...prev,
         `\n🎉 TRANSACTION IMPORT SUCCESSFUL!`,
-        `✅ ${count} records permanently synchronized and indexed in your local ledger.`,
+        `✅ ${count} records synchronized; ${failures} rows failed and may be retried.`,
       ]);
 
       loadExpenses();
+      setSyncing(false);
       setSyncStatus('import_done');
     } catch (err: any) {
+      setSyncing(false);
       setSyncLogs(prev => [
         ...prev,
         `\n❌ Database transaction import failed: ${err.message || 'Unknown SQLite error'}`,

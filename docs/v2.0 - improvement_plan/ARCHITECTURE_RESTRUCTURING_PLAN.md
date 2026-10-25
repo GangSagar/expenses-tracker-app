@@ -19,10 +19,12 @@ The active live-message path is approximately:
 ```text
 Native SMS/notification event
   → src/hooks/useMessageListener.ts
-  → src/services/transactionOrchestrator.ts
-  → src/services/messageService.ts
+  → src/services/transactions/transactionOrchestrator.ts
+  → src/services/messaging/messageService.ts
   → src/core/parser/parseMessage.ts (legacy ParsedTransaction adapter)
-  → src/services/expenseService.ts (classification and save/review/discard decision)
+  → src/services/transactions/transactionDecisionService.ts (candidate + policy input)
+  → src/core/transactions/applicationUseCases.ts (shared application rules)
+  → src/services/transactions/transactionApplication.ts (SQLite/service adapter)
   → SQLite through src/database/expenseRepo.ts
   → Zustand store in src/hooks/useExpenses.ts
   → screens
@@ -42,7 +44,7 @@ This was the pre-Phase-2 flow: `messageService` called `parseMessage()` and disc
 
 ### 2. Processing and persistence are split among entry points
 
-Live input uses `transactionOrchestrator.ts`. Historical import preview now uses the same parser and decision policy, but `SettingsScreen.tsx` still owns batch deduplication, preview, and final direct inserts. Manual creation and edits use store methods; `CategoryPopup.tsx` calls the save service.
+Originally, live input used `transactionOrchestrator.ts` while historical import, manual creation, edits, and review confirmation coordinated writes in separate places. **Phase 3 status: addressed for the scoped paths.** These entry points now delegate to application operations in `transactionApplication.ts` and `applicationUseCases.ts`; screens and Zustand remain adapters.
 
 **Risk:** validation, confidence, deduplication, and error behavior can differ depending on how the transaction entered the app.
 
@@ -100,7 +102,7 @@ Before Phase 2, live processing used the synchronous compatibility adapter and d
 
 `applyRepaymentIfApplicable()` in `useExpenses.ts` matched incoming credits to pending splits and marked a row paid before confirming the full row fit within the remaining credit. This could over-settle. Phase 1 v2 added an immutable partial-allocation planner; the Phase 1 audit closure now queries all split-bearing ledger rows and atomically inserts live repayment credits with their split/link updates. Contact-wide settle/unsettle also query and update the full ledger transactionally.
 
-**Remaining risks:** historical import does not apply repayment allocations and still writes through its screen-owned batch path. Phase 3 must move final import writes through a shared chronological use case; Phase 6 must unify its dedup semantics with live ingestion. Split rules remain coordinated by Zustand until Phase 5.
+**Remaining risks:** Phase 3 now routes historical import through shared chronological repayment persistence. Phase 6 must unify import/live dedup semantics. Split rules remain coordinated by Zustand until Phase 5; reversal of linked repayments still needs allocation history.
 
 **Approved follow-up:** preserve partial allocation; move split operations into a dedicated domain/use-case boundary; route import through the shared chronological transaction path. The full-ledger query and live atomic-insert gaps were closed before Phase 2 integration. Keep UI redesign out of scope.
 
@@ -130,21 +132,23 @@ Before Phase 2, live processing used the synchronous compatibility adapter and d
 
 **Exit condition:** current behavior is mapped, key contracts and decisions are recorded, and any in-scope correctness defect has a regression case and a bounded fix.
 
-### Phase 2 — One transaction decision policy
+### Phase 2 — One transaction decision policy & Local AI Hybrid Orchestration
 
-**Direction approved; implementation in progress:** one policy consumes parser facts and classifier evidence, then returns reject, review, or auto-save with a reason. The live path and import preview now call it. See [Phase 2: One Transaction Decision Policy](./PHASE_2_TRANSACTION_DECISION_POLICY.md) for implementation details, the remaining AI fallback requirement, parity requirements, and exit criteria.
+**Direction approved; implementation in progress:** one policy consumes parser facts and classifier evidence, then returns reject, review, or auto-save with a reason. The live path and import preview now call it. See [Phase 2: One Transaction Decision Policy](./PHASE_2_TRANSACTION_DECISION_POLICY.md) for the core decision policy and [Phase 2 v2: Local AI Hybrid Orchestration](./PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md) for user-driven model selection, pros/cons catalog, multi-model cascading, and device capability high-alert warnings.
 
-**Likely areas:** `src/core/parser/models/`, `src/services/messageService.ts`, `src/services/expenseService.ts`, `src/services/transactionOrchestrator.ts`, and transaction tests.
+**Likely areas:** `src/core/parser/ai/`, device capability services, `src/services/messaging/messageService.ts`, `src/services/transactions/`, and transaction tests.
 
-**Exit condition:** one policy is authoritative and decisions are explainable and consistent for equivalent input.
+**Exit condition:** one policy is authoritative, decisions are explainable, and local AI fallback operates with user-driven hybrid model orchestration and device safety guards.
 
 ### Phase 3 — Shared application use cases
+
+**Status: Complete.** The detailed scope, implementation result, constraints, and later-phase handoffs are in [Phase 3: Shared Application Use Cases](./PHASE_3_SHARED_APPLICATION_USE_CASES.md). Phase 2 remains in progress while its local/offline AI requirement is unresolved; it did not block Phase 3 from using the existing decision-policy contract.
 
 Route live ingestion, historical import, manual creation, confirmation, edits, and invalidation/deletion through named use cases. Keep native event handling and batch progress in adapters/presentation, not in duplicated business flows.
 
 This phase also brings historical imports through the shared repayment path. For example, an imported ₹400 repayment from Alex must reduce Alex's oldest outstanding split by ₹400 instead of inserting the credit while leaving the original full debt open. Process batch messages chronologically and keep deduplication idempotent.
 
-**Likely areas:** `src/services/transactionOrchestrator.ts`, `src/services/messageService.ts`, `src/services/expenseService.ts`, `src/presentation/legacy/screens/SettingsScreen.tsx`, `src/hooks/useMessageListener.ts`, and manual/edit UI call sites.
+**Implemented areas:** `src/services/transactions/`, `src/services/messaging/`, `src/presentation/legacy/screens/SettingsScreen.tsx`, `src/hooks/useMessageListener.ts`, and manual/edit adapters. See the Phase 3 implementation log for the file-by-file move.
 
 **Exit condition:** every write-capable entry point uses an application use case; no screen independently reconstructs transaction processing.
 

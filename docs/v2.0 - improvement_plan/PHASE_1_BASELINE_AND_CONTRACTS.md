@@ -78,9 +78,9 @@ For each flow, record (this is a call-path inventory, not a request to change pr
 **Initial files to inspect/update:**
 
 - `src/hooks/useMessageListener.ts`
-- `src/services/transactionOrchestrator.ts`
-- `src/services/messageService.ts`
-- `src/services/expenseService.ts`
+- `src/services/transactions/transactionOrchestrator.ts`
+- `src/services/messaging/messageService.ts`
+- `src/services/transactions/expenseService.ts`
 - `src/core/parser/parseMessage.ts`
 - `src/core/parser/orchestrator/ParserOrchestrator.ts`
 - `src/presentation/legacy/screens/SettingsScreen.tsx`
@@ -205,7 +205,7 @@ The Phase 1 review found the following gaps. The first four were closed while be
 | Live credit could persist before repayment linking failed. | Automatic credit save now plans from all outstanding splits and inserts the repayment credit plus split updates in one SQLite transaction. On failure, the transaction rolls back and the caller receives an explicit persistence failure. | Application use-case ownership remains Phase 3/4 work. |
 | Live parsing dropped parser evidence; correction learning was not connected. | Live and import preview now call `parseAsync()` and send structured parser evidence through one policy. Explicit merchant/category corrections feed `LearningEngine`, whose SQLite repository is also read by parser resolvers. | There is still no default local AI inference runtime; AI fallback remains inactive and must not be claimed active. |
 
-Historical import persistence still uses its own preview/dedup/direct-insert loop and does not apply repayment allocations when the user imports. Phase 3 must move final import writes through shared use cases and process the batch chronologically. Phase 6 still owns unifying the differing live/import duplicate semantics.
+At the Phase 1 audit checkpoint, historical import still used its own preview/dedup/direct-insert loop and did not apply repayment allocations. Phase 3 has since moved final import writes through shared use cases and processes the batch chronologically. Phase 6 still owns unifying the differing live/import duplicate semantics.
 
 ## Workstream D: Bug triage and bounded fixes
 
@@ -245,7 +245,7 @@ This section is a likely map, not a mandate to modify every file:
 
 | Area | Likely files | Phase 1 handling |
 |---|---|---|
-| Live ingestion | `src/hooks/useMessageListener.ts`, `src/services/messageService.ts`, `src/services/transactionOrchestrator.ts` | Trace and document; make a small correction only if required for a verified correctness defect |
+| Live ingestion | `src/hooks/useMessageListener.ts`, `src/services/messaging/messageService.ts`, `src/services/transactions/transactionOrchestrator.ts` | Trace and document; make a small correction only if required for a verified correctness defect |
 | Parser boundary | `src/core/parser/parseMessage.ts`, parser models/orchestrator | Document active sync/async usage; define candidate contract; avoid behavior changes pending policy decision |
 | Import path | `src/presentation/legacy/screens/SettingsScreen.tsx` | Trace direct processing/writes and document differences; no wholesale migration yet |
 | Store and repayment | `src/hooks/useExpenses.ts`, `src/core/transactions/repaymentPlanner.ts`, `src/types/expense.ts` | Added cumulative partial-allocation planning, a backward-compatible `paidAmount` field, and store settlement actions that synchronize paid amounts |

@@ -12,7 +12,7 @@ The current UI is scheduled for replacement. This work therefore changes transac
 |---|---|---|
 | 1. Baseline, contracts, partial repayments, and presentation isolation | Complete (v2) | Partial allocations are persisted and shown; Phase 1 audit gaps in full-ledger repayment lookup and live repayment atomicity were closed while beginning Phase 2. |
 | 2. One transaction decision policy | In progress | Typed policy is wired into live ingestion and import preview; a local offline AI inference runtime remains unimplemented. |
-| 3. Shared application use cases | Approved direction, not started | Live, import, manual, and edit paths still have distinct coordination; historical import must use shared repayment and dedup rules. |
+| 3. Shared application use cases | Complete | Live, historical import, manual creation, review confirmation, edit, invalidation, and delete now enter named application operations; historical imports use chronological shared repayment persistence. |
 | 4. Repository boundary and temporary presentation adapters | Not started | Phase 1 adds a repository port and focused atomic operations; the existing repository is not yet a complete adapter for the port. |
 | 5. Splits and repayment domain boundary | Partially prepared | Pure partial-allocation planning is in place; manual settle/unsettle/toggle and the complete split use case remain in Zustand. |
 | 6. Unified deduplication | Not started | Live and import deduplication still use different rules. |
@@ -95,8 +95,8 @@ The original path uses only expenses currently loaded in Zustand (currently wind
 | Expected files | Planned work |
 |---|---|
 | `src/core/transactions/contracts.ts`, `decisionPolicy.ts` | Replaced the draft mixed outcome contract with a pure, versioned reject/review/auto-save policy plus separate persistence outcomes. |
-| `src/services/messageService.ts`, `src/core/parser/parseMessage.ts` | Collect typed filtering/parse signals and invoke structured async parsing without discarding confidence details. |
-| `src/services/expenseService.ts`, `src/services/transactionOrchestrator.ts` | Map full parser/classifier evidence into one policy call and keep persistence results separate. Accepted credit insertion and repayment updates are atomic. |
+| `src/services/messaging/messageService.ts`, `src/core/parser/parseMessage.ts` | Collect typed filtering/parse signals and invoke structured async parsing without discarding confidence details. |
+| `src/services/transactions/expenseService.ts`, `transactionOrchestrator.ts` | Map full parser/classifier evidence into one policy call and keep persistence results separate. Accepted credit insertion and repayment updates are atomic. |
 | `src/hooks/useMessageListener.ts`, `src/presentation/legacy/screens/SettingsScreen.tsx` | Adapt policy results in live ingestion and import preview; the live async queue preserves message order. Import still owns final batch persistence until Phase 3. |
 | `src/database/expenseRepo.ts`, `src/hooks/useExpenses.ts` | Added an unwindowed split-bearing ledger query; manual repayment and contact-wide settle/unsettle use all matching rows, with atomic writes. |
 | `src/presentation/legacy/components/CategoryPopup.tsx`, `src/hooks/useExpenses.ts` | Record explicit user merchant/category corrections through `LearningEngine`, which persists to the repository read by parser resolvers. |
@@ -117,20 +117,51 @@ Verification at this checkpoint:
 - `git diff --check` — passed.
 - Graphify code AST refresh — completed after final code edits; it skipped unsupported native/build files and reported one Android Gradle syntax limitation during extraction.
 
-## Phase 3 — Shared application use cases (not started)
+### Phase 2 v2 Specification — Local AI Hybrid Orchestration (Proposed)
+
+Added [Phase 2 v2: Local AI Hybrid Orchestration Specification](./PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md). It outlines:
+- User-driven model catalog with comprehensive pros/cons, resource footprints (RAM, disk, latency), and clear explanations.
+- Adaptive multi-model cascading: fast-path micro-models (<40ms, <50MB RAM) for background SMS + deep generative SLMs for complex foreground import.
+- Device capability profiler (`IDeviceProfiler`) evaluating RAM, free storage, and 64-bit ABI.
+- High-Alert Warning system triggering a blocking alert modal if a user selects a model exceeding device capacity.
+- Clean Architecture contracts preserving the pure `TransactionDecisionPolicy` and `IAIResolver` boundaries.
+
+## Phase 3 — Shared application use cases (complete)
+
+Detailed design and original acceptance criteria: [Phase 3: Shared Application Use Cases](./PHASE_3_SHARED_APPLICATION_USE_CASES.md). Phase 2 remains in progress pending its local/offline AI runtime requirement; Phase 3 uses the existing decision policy and does not claim AI fallback is active.
 
 **Goal:** route live messages, historical import, manual creation, pending confirmation, edits, and invalidation/deletion through named application use cases. Input adapters can differ; business policy should be shared.
 
 **Expected file areas and rationale:**
 
-| Expected files | Planned work |
+| File | Change, reason, and behavior |
 |---|---|
-| `src/core/transactions/` | Add `IngestTransaction`, `ImportTransactions`, `CreateManualTransaction`, `ConfirmPendingTransaction`, and edit/invalidation use cases as needed. |
-| `src/hooks/useMessageListener.ts` | Adapt native events and display outcomes; do not own transaction decisions. |
-| `src/presentation/legacy/screens/SettingsScreen.tsx` | Retain its current UI, but replace inline import processing/persistence with the batch use case. |
-| `src/services/messageService.ts`, `src/services/transactionOrchestrator.ts`, `src/services/expenseService.ts` | Migrate existing behavior into cohesive use cases and adapters; remove duplicate orchestration only after call sites move. |
-| `src/presentation/legacy/components/CategoryPopup.tsx`, `src/presentation/legacy/components/EditTransactionModal.tsx`, `src/hooks/useExpenses.ts` | Minimal wiring to use cases only; no visual rewrite. |
-| `src/__tests__/*transaction*`, new import/use-case tests | Verify consistent outcomes from all sources using repository fakes. |
+| `src/core/transactions/applicationUseCases.ts` | Added the shared write gateway, accepted-transaction persistence, chronological stable batch import, and mutation use cases. Repayment planning and persistence are shared; each imported row commits independently and returns an explicit result. |
+| `src/services/transactions/transactionApplication.ts` | Added application adapters for live ingestion, historical preview/import, manual creation, review confirmation, edits, invalidation, and deletion. Kept live and import dedup strategies separate for Phase 6. Correction learning now follows successful writes. |
+| `src/services/transactions/transactionDecisionService.ts` | Extracted candidate construction and the single policy invocation from the persistence service so application orchestration can reuse it without a circular dependency. |
+| `src/services/transactions/expenseService.ts`, `transactionOrchestrator.ts` | Kept compatibility exports while routing accepted persistence through the application operation and preserving the existing policy boundary. |
+| `src/hooks/useMessageListener.ts` | Delegates complete live processing and persistence to the application adapter; preserves serialized event order and updates Zustand only after a successful save. |
+| `src/presentation/legacy/screens/SettingsScreen.tsx` | Delegates preview decisions/dedup and selected-row writes. The existing screen remains visually unchanged; import commits oldest-first and retains failed rows for retry. |
+| `src/hooks/useExpenses.ts` | Delegates manual creation, edit, delete, and invalidation writes; reflects results only after successful persistence. Split settlement controls remain store-owned for Phase 5. |
+| `src/presentation/legacy/components/CategoryPopup.tsx` | Delegates confirmation and correction learning; keeps pending candidates available on persistence failure. |
+| `src/services/transactions/` | Grouped `transactionApplication.ts`, `transactionDecisionService.ts`, `transactionOrchestrator.ts`, and `expenseService.ts` by transaction capability. This keeps application composition, policy adaptation, and compatibility persistence helpers discoverable together. |
+| `src/services/messaging/messageService.ts` | Moved incoming-message normalization/filtering/parsing to a messaging capability folder; transaction services depend on its message contract without making it a generic transaction service. |
+| `src/__tests__/transactionApplicationUseCases.test.ts`, `transactionOrchestrator.test.ts` | Added coverage for stable chronological import, repayment through the shared gateway, partial batch failure, and the extracted decision adapter. |
+| `docs/APP_MESSAGE_LISTENER_FLOW.md`, `docs/ARCHITECTURE.md`, `README.md`, this log, Phase 3 plan | Updated current workflow, limitations, exact file-level history, verification, and remaining phase boundaries. |
+
+### Behavior and remaining boundaries
+
+- Live, manual, confirmed, and imported credits use the same accepted-persistence operation. Credit allocations read the full split-bearing ledger and use the repository's existing atomic credit-plus-split write when a repayment plan exists.
+- Historical imports retain the current import-specific dedup strategy. Rows are sorted by transaction timestamp, stable on ties, and committed one at a time. Failure does not undo earlier successful rows; failed rows remain selectable for retry.
+- Manual entries bypass parser-confidence policy because the user directly supplied the transaction. Parsed messages still use the one Phase 2 decision policy.
+- Existing hard-delete and invalidation semantics remain. Reversing repayment allocations after linked edits/deletes remains deferred to Phase 5 because allocation history is not represented.
+- The full repository-port migration remains Phase 4; split settlement actions in Zustand remain Phase 5; dedup semantic unification remains Phase 6; local/offline AI remains the outstanding Phase 2 requirement.
+
+Verification: `npx tsc --noEmit` passed. `npx jest --runInBand` passed with 30 suites and 639 tests. ESLint on changed TypeScript files passed with 0 errors and 19 existing inline-style warnings in `SettingsScreen.tsx`. `git diff --check` passed. `graphify update .` refreshed the graph to 1,398 nodes and 2,797 edges; it reported one unsupported Gradle syntax file and requested community relabeling after the set changed.
+
+### Phase 3 service folder organization
+
+Moved transaction-specific service adapters into `src/services/transactions/` and message ingestion into `src/services/messaging/`. Updated imports in hooks, screens, services, tests, architecture references, and workflow documentation. The move changes file organization only; core transaction rules remain in `src/core/transactions/`, and service adapters remain responsible for connecting those rules to parser, classifier, learning, and SQLite implementations.
 
 ## Phase 4 — Repository boundary and temporary presentation adapters (not started)
 
@@ -174,7 +205,7 @@ Verification at this checkpoint:
 |---|---|
 | `src/core/dedup/duplicateCheck.ts` | Define the product-level duplicate policy and typed duplicate reason. |
 | `src/database/expenseRepo.ts` | Supply repository query/index data; keep SQL and caches as optimizations rather than alternate policies. |
-| `src/services/expenseService.ts`, transaction use cases | Invoke the same policy from live, import, and confirmation paths. |
+| `src/services/transactions/expenseService.ts`, transaction use cases | Invoke the same policy from live, import, and confirmation paths. |
 | `src/presentation/legacy/screens/SettingsScreen.tsx` | Remove the second import-only definition while retaining progress/preview UI. |
 | `src/__tests__/dedup.test.ts`, `src/__tests__/expenseRepo.test.ts`, import integration tests | Cover reference, raw body, source, timestamp, merchant, repeated purchase, invalidated and cross-source cases. |
 
@@ -233,5 +264,5 @@ Future receipt OCR, notification providers, import formats, or backup should ent
 1. The local/offline AI inference runtime and its operational limits; the product requirement for offline fallback is approved.
 2. Exact deletion versus soft-invalidation semantics.
 3. Which historical database schemas must remain upgradeable (Phase 7).
-4. The 30-day repayment window and live credit-link failure gaps are closed. Phase 3 still needs to route historical-import writes through shared chronological use cases; Phase 5 still owns moving split rules out of Zustand.
+4. The 30-day repayment window, live credit-link failure, and historical-import routing gaps are closed. Phase 5 still owns moving split rules out of Zustand and defining safe reversal for linked repayment edits/deletes.
 

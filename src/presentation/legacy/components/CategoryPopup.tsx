@@ -9,11 +9,9 @@ import {
 } from 'react-native';
 import { Category } from '../../../types/expense';
 import { useExpenseStore } from '../../../hooks/useExpenses';
-import { saveExpense } from '../../../services/expenseService';
-import { setMerchantMapping } from '../../../core/classifier';
+import { confirmReviewedTransaction } from '../../../services/transactions/transactionApplication';
 import { CATEGORIES } from '../../../constants/appOptions';
 import { formatAmount } from '../../../utils/formatHelpers';
-import { defaultLearningEngine } from '../../../core/parser/learning';
 
 export default function CategoryPopup() {
   const pendingExpenses = useExpenseStore(state => state.pendingExpenses);
@@ -49,7 +47,7 @@ export default function CategoryPopup() {
     const updated = { ...pendingExpense, category: selectedCategory };
 
     // Save to SQLite
-    const saved = saveExpense(updated);
+    const saved = confirmReviewedTransaction(updated, pendingExpense.category);
     if (saved.status === 'saved') {
       addExpense(saved.transaction, saved.repaymentUpdates);
     } else if (saved.status === 'failed') {
@@ -57,15 +55,9 @@ export default function CategoryPopup() {
       return;
     }
 
-    // Save mapping to classifier so we learn user preference
-    const effectiveAlias = pendingExpense.alias || pendingExpense.merchant;
-    if (
-      effectiveAlias &&
-      effectiveAlias !== 'Unknown' &&
-      pendingExpense.category !== selectedCategory
-    ) {
-      setMerchantMapping(effectiveAlias, selectedCategory, pendingExpense.merchant);
-      defaultLearningEngine.learn(effectiveAlias, pendingExpense.merchant, selectedCategory);
+    if (saved.status !== 'saved') {
+      popPendingExpense();
+      return;
     }
 
     popPendingExpense();

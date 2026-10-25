@@ -1,6 +1,6 @@
 # App startup and message listener flow
 
-This document follows app startup through the live message listener and records the current Phase 2 decision path.
+This document follows app startup through live ingestion, review, and historical import. The existing UI/store remain temporary adapters to shared Phase 3 application operations.
 
 ## 1. App startup and listener setup
 
@@ -20,17 +20,17 @@ flowchart TD
     Sort --> Queue["Sequential message queue"]
     Listen --> Map["Map event to IncomingMessage"]
     Map --> Queue
-    Queue --> Analyze["orchestrateTransaction"]
+    Queue --> Analyze["ingestLiveMessage use case"]
     Analyze --> Mounted{"Still mounted?"}
     Mounted -- No --> Stop["Stop before side effects"]
-    Mounted -- Yes --> Execute["Apply policy result"]
+    Mounted -- Yes --> Execute["Render typed outcome"]
 ```
 
 ## 3. Analysis and the single decision policy
 
-`orchestrateTransaction()` awaits `processIncomingMessage()`, which normalizes text, collects sender/body/spam rejection signals, and invokes `parseStructuredAsync()`. It returns an analysis object even when input is rejected or parsing fails, so those cases can receive typed reasons instead of disappearing as `null`.
+`ingestLiveMessage()` calls `orchestrateTransaction()`, which awaits `processIncomingMessage()`. The latter normalizes text, collects sender/body/spam rejection signals, and invokes `parseStructuredAsync()`. It returns an analysis object even when input is rejected or parsing fails, so those cases can receive typed reasons instead of disappearing as `null`.
 
-`processTransaction()` maps the full `StructuredExpense`, classifier category evidence, and the established compatibility confidence score into `TransactionDecisionInput`. It invokes `decideTransaction()` exactly once. The policy returns `reject`, `review`, or `auto_save` with stable reason codes and an evidence summary. It does not persist or update Zustand.
+`processTransaction()` in `transactionDecisionService.ts` maps the full `StructuredExpense`, classifier category evidence, and the established compatibility confidence score into `TransactionDecisionInput`. It invokes `decideTransaction()` exactly once. The policy returns `reject`, `review`, or `auto_save` with stable reason codes and an evidence summary. It does not persist or update Zustand.
 
 ```mermaid
 flowchart TD
@@ -54,17 +54,17 @@ The compatibility thresholds are retained: legacy confidence below `0.5` rejects
 |---|---|---|
 | `reject` | Log the stable reason and stop. | No write. |
 | `review` | Queue the candidate and optionally notify in background. | No write before user confirmation. |
-| `auto_save` | Call `saveExpense()`. | Duplicate, saved, and failed are separate results. The store updates only after a successful save. |
+| `auto_save` | The live-ingestion application operation checks live dedup and persists. | Duplicate, saved, and failed are separate results. The store updates only after a successful save. |
 
-For accepted credits, `saveExpense()` reads all split-bearing ledger rows, creates the oldest-first partial allocation plan, and commits the repayment credit and all affected split updates in one SQLite transaction. A transaction failure rolls back the credit and split changes; the listener logs the persistence failure separately from the prior auto-save decision.
+For accepted credits, the shared application persistence operation reads all split-bearing ledger rows, creates the oldest-first partial allocation plan, and commits the repayment credit and all affected split updates in one SQLite transaction. A transaction failure rolls back the credit and split changes; the listener logs the persistence failure separately from the prior auto-save decision. Manual and review-confirmed credits use the same operation.
 
 ## 5. Import preview
 
-Settings historical import now uses the same async parsing and decision policy while preparing its preview. The screen still owns import batch deduplication, preview state, and final direct writes. Imported repayments therefore do not yet apply against prior split balances. Phase 3 moves those writes into the shared use case and processes the batch chronologically.
+Settings historical import uses the same async parser and decision policy during preview, through `previewHistoricalMessage()`. The screen owns only message scanning, preview selection, and progress display. `importHistoricalTransactions()` sorts checked candidates by source timestamp (stable on ties) and imports each through the shared persistence operation. Repayment planning is refreshed per row, so earlier imported credits affect later ones. Each row commits independently; failed rows remain available for retry. Import-specific dedup behavior is intentionally retained until Phase 6.
 
 ## 6. Correction learning and AI fallback status
 
-When a user explicitly changes a transaction's merchant or category, the legacy store/component calls `LearningEngine.learn()`. The learning repository persists to the merchant-category table that parser resolvers consult.
+When a user explicitly changes a transaction's merchant or category, the application operation calls `LearningEngine.learn()` only after persistence succeeds. The learning repository persists to the merchant-category table that parser resolvers consult.
 
 `parseAsync()` is active in live ingestion and import preview, but its extraction stages still execute synchronously. `AIResolver` has no configured inference handler and AI is disabled by default. Local offline AI fallback remains incomplete; the interface/cache alone are not an active model.
 
@@ -72,8 +72,10 @@ When a user explicitly changes a transaction's merchant or category, the legacy 
 
 - [App.tsx](../App.tsx)
 - [useMessageListener.ts](../src/hooks/useMessageListener.ts)
-- [messageService.ts](../src/services/messageService.ts)
-- [transactionOrchestrator.ts](../src/services/transactionOrchestrator.ts)
-- [expenseService.ts](../src/services/expenseService.ts)
+- [messageService.ts](../src/services/messaging/messageService.ts)
+- [transactionOrchestrator.ts](../src/services/transactions/transactionOrchestrator.ts)
+- [expenseService.ts](../src/services/transactions/expenseService.ts)
 - [decisionPolicy.ts](../src/core/transactions/decisionPolicy.ts)
 - [expenseRepo.ts](../src/database/expenseRepo.ts)
+- [applicationUseCases.ts](../src/core/transactions/applicationUseCases.ts)
+- [transactionApplication.ts](../src/services/transactions/transactionApplication.ts)

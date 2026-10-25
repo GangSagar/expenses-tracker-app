@@ -21,7 +21,7 @@ Detailed system specifications, architectural diagrams, engineering plans, and t
 | **Architecture Specification (HLD & LLD)** | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)               | High-Level Design (HLD) & Low-Level Design (LLD) with Mermaid diagrams covering system context, 10-stage parsing pipeline state machine, class hierarchy, and database ERD (v1.6.0).                                                                                                                         |
 | **Interactive Architecture Diagram**       | [`docs/architecture.drawio`](./docs/architecture.drawio)       | Complete diagrams.net (`draw.io`) multi-sheet diagram containing:• **Sheet 1: `HLD`** (System boundaries, native bridge, persistence & Jaeger tracing)• **Sheet 2: `LLD`** (Method signatures, regex pipelines, state machines & SQLite schema). |
 | **Implementation Plan & Roadmap**          | [`docs/IMPLEMENTATION_PLAN.md`](./docs/IMPLEMENTATION_PLAN.md) | Phased engineering execution lifecycle (Phases 1-6), Work Breakdown Structure (WBS), risk analysis, and future milestone roadmap.                                                                                                                                    |
-| **Testing & QA Strategy**                  | [`docs/TESTING_STRATEGY.md`](./docs/TESTING_STRATEGY.md)       | Test pyramid, 22 test suites (599 passing tests), physical device ADB SMS collection harness, headless CLI runner, and release acceptance checklist.                                                                                                                   |
+| **Testing & QA Strategy**                  | [`docs/TESTING_STRATEGY.md`](./docs/TESTING_STRATEGY.md)       | Test pyramid, automated unit/integration suites, physical device ADB SMS collection harness, headless CLI runner, and release acceptance checklist.                                                                                                                   |
 | **Git Revision History & Audit**           | [`docs/REVISION_HISTORY.md`](./docs/REVISION_HISTORY.md)       | Exhaustive chronological audit of every git commit (`e381d05` through to present), release milestones (v1.0.3 to v1.6.0), and architectural deep dives.                                                                                                |
 
 ## 💡 Why Smart Expense Tracker?
@@ -41,7 +41,7 @@ Most expense tracking apps either:
 ## 🌟 Key Features
 
 ### 🧠 Generic, Extensible & Learning-Based Parsing Engine
-- **10-Stage Clean Architecture Pipeline**: Raw SMS/notifications pass through Pre-Filter, Composable Normalizers, Lexical Tokenizer, Targeted Extractors, Declarative Bank Rules, Contextual Resolvers, Weighted Confidence Scoring, On-Device SQLite Learning, and Local AI Fallback.
+- **10-Stage Parsing Pipeline**: Raw SMS/notifications pass through pre-filtering, normalization, tokenization, extraction, bank rules, resolvers, confidence scoring, and on-device learning. The local AI fallback interface exists, but no local inference runtime is currently configured.
 - **Universal Provider Support**: Supports 15+ Indian financial institutions (SBI, HDFC, ICICI, Axis, Kotak, Bank of Baroda, PNB, Canara, IndusInd, IDFC, Yes Bank, AU, Union Bank, etc.), UPI apps (Google Pay, PhonePe, Paytm, BHIM, Cred), credit cards, and digital wallets.
 - **Zero-Code Extensibility**: Adding future banks, new SMS formats, or fintech providers requires updating declarative JSON schemas (`bankRules.json`, `merchantAliases.json`, `categoryRules.json`) with zero code modifications.
 - **On-Device Adaptive Learning**: Learns merchant renames and category updates from user edits directly in SQLite, boosting confidence on repeat transactions.
@@ -216,7 +216,12 @@ src/
 │   ├── confidence/      # Transaction validation & quality scoring
 │   └── dedup/           # Multi-source duplicate transaction detection
 ├── database/            # SQLite schemas, repositories & migrations
-├── services/            # Background SMS & notification listener pipeline
+├── services/
+│   ├── transactions/    # Transaction application adapters and orchestration
+│   ├── messaging/       # Incoming message analysis and parsing adapter
+│   ├── advisorService.ts
+│   ├── securityService.ts
+│   └── telemetryService.ts
 ├── hooks/               # Zustand reactive store (accounts, splits, transactions)
 ├── presentation/
 │   └── legacy/          # Existing screens, components, styles & navigation; UI replacement boundary
@@ -236,10 +241,10 @@ src/
 
 ## 🧪 Testing
 
-The project maintains an exhaustive test suite with **615 passing tests across 25 test suites** (executing in ~1.7s) covering modular normalizers, tokenizers, extractors, resolvers, confidence scoring, learning loops, legacy adapters, biometric security stores, and 432 real-world hardware SMS transactions:
+The project maintains an automated test suite (30 suites and 639 tests at the latest Phase 3 verification) covering modular normalizers, tokenizers, extractors, resolvers, confidence scoring, learning loops, transaction use cases, biometric security stores, and real-world SMS samples:
 
 ```bash
-# Run all 25 test suites (615 tests)
+# Run all test suites
 npm test
 
 # Run core unit test suites excluding real hardware dataset

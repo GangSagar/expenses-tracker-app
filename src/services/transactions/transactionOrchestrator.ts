@@ -1,5 +1,5 @@
-import { processIncomingMessage, IncomingMessage } from './messageService';
-import { processTransaction, ProcessedExpense } from './expenseService';
+import { processIncomingMessage, IncomingMessage } from '../messaging/messageService';
+import { processTransaction, ProcessedExpense } from './transactionDecisionService';
 
 export interface OrchestratorResult {
   processedExpense: ProcessedExpense;

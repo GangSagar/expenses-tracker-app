@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { NativeEventEmitter, NativeModules, AppState } from 'react-native';
-import { IncomingMessage } from '../services/messageService';
-import { saveExpense } from '../services/expenseService';
-import { orchestrateTransaction } from '../services/transactionOrchestrator';
+import { IncomingMessage } from '../services/messaging/messageService';
+import { ingestLiveMessage } from '../services/transactions/transactionApplication';
 import { useExpenseStore } from './useExpenses';
 
 const { MessageModule } = NativeModules;
@@ -21,9 +20,9 @@ export function useMessageListener() {
     const processMessage = async (message: IncomingMessage) => {
       if (!isMounted) return;
       try {
-        const orchestrated = await orchestrateTransaction(message);
+        const orchestrated = await ingestLiveMessage(message);
         if (!isMounted) return;
-        const { candidate, decision } = orchestrated.processedExpense;
+        const { candidate, decision } = orchestrated;
         console.log(`Message from ${message.sender} decision: ${decision.kind} (${decision.reason})`);
 
         const displayMerchant = candidate?.merchant && candidate.merchant !== 'Unknown'
@@ -38,7 +37,8 @@ export function useMessageListener() {
         switch (decision.kind) {
           case 'auto_save': {
             if (!candidate) return;
-            const saved = saveExpense(candidate);
+            const saved = orchestrated.persistence;
+            if (!saved) return;
             if (saved.status === 'saved') {
               notifyBackground('Transaction Auto-Saved', `₹${candidate.amount} at ${displayMerchant} recorded.`);
               console.log(`Auto-saved expense to DB with ID: ${saved.transaction.id}`);

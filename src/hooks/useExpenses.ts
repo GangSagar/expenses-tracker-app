@@ -6,22 +6,19 @@ import {
   insertExpense as insertExpenseDb,
   exportAllExpensesData,
   clearAllExpenses,
-  deleteExpense as deleteExpenseDb,
-  invalidateExpense as invalidateExpenseDb,
   updateTrashReason as updateTrashReasonDb,
   deduplicateDatabase as deduplicateDatabaseDb,
   getWindowedExpenses,
   getExpensesWithSplits,
-  insertExpenseWithRepayment,
   updateSplitExpensesAtomically,
 } from '../database/expenseRepo';
-import { setMerchantMapping } from '../core/classifier/merchantMap';
-import {
-  planAutomaticRepayment,
-  repaymentSplit,
-} from '../core/transactions/repaymentPlanner';
 import { SplitSettlementUpdate } from '../core/transactions/repaymentPlanner';
-import { defaultLearningEngine } from '../core/parser/learning';
+import {
+  createManualTransaction,
+  deleteTransactionUseCase,
+  invalidateTransactionUseCase,
+  updateTransactionUseCase,
+} from '../services/transactions/transactionApplication';
 
 interface ExpenseState {
   expenses: Expense[];
@@ -52,19 +49,6 @@ interface ExpenseState {
   invalidateExpense: (id: number, isInvalid: boolean) => void;
   updateTrashReason: (id: number, reason: string | null) => void;
   runDeduplication: () => number;
-}
-
-function prepareRepayment(
-  expense: Omit<Expense, 'id'> & { id?: number },
-): { expense: Omit<Expense, 'id'> & { id?: number }; updates: SplitSettlementUpdate[] } {
-  if (expense.transactionType !== 'credit') return { expense, updates: [] };
-  const plan = planAutomaticRepayment(expense, getExpensesWithSplits());
-  if (!plan) return { expense, updates: [] };
-
-  return {
-    expense: { ...expense, splits: [repaymentSplit(plan)] },
-    updates: plan.updates,
-  };
 }
 
 function applySplitUpdates(
@@ -107,13 +91,12 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   addManualExpense: (expense: Omit<Expense, 'id'>) => {
     try {
-      const { expense: processed, updates } = prepareRepayment(expense);
-      const id = updates.length > 0
-        ? insertExpenseWithRepayment(processed, updates)
-        : insertExpenseDb(processed);
-      const newExpense: Expense = { ...processed, id };
+      const result = createManualTransaction(expense);
+      if (result.status !== 'saved') {
+        throw new Error(result.status === 'failed' ? result.message : 'Manual transaction was not saved');
+      }
       set(state => ({
-        expenses: [newExpense, ...applySplitUpdates(state.expenses, updates)],
+        expenses: [result.transaction, ...applySplitUpdates(state.expenses, result.repaymentUpdates)],
       }));
     } catch (e) {
       console.error('Failed to add manual expense', e);
@@ -133,7 +116,9 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   ) => {
     try {
       const existing = get().expenses.find(expense => expense.id === id);
-      updateExpenseDb(
+      updateTransactionUseCase(
+        existing,
+        alias,
         id,
         merchant,
         category,
@@ -143,19 +128,6 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         splits,
         transactionType,
       );
-
-      // Smart Remember: Update the memory map and DB map using alias
-      const effectiveAlias = alias || merchant;
-      if (effectiveAlias && effectiveAlias !== 'Unknown') {
-        setMerchantMapping(effectiveAlias, category, merchant);
-        if (existing && (
-          existing.alias !== alias ||
-          existing.merchant !== merchant ||
-          existing.category !== category
-        )) {
-          defaultLearningEngine.learn(effectiveAlias, merchant, category);
-        }
-      }
 
       set(state => ({
         expenses: state.expenses.map(e =>
@@ -307,7 +279,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   deleteExpense: id => {
     try {
-      deleteExpenseDb(id);
+      deleteTransactionUseCase(id);
       set(state => ({
         expenses: state.expenses.filter(e => e.id !== id),
       }));
@@ -318,7 +290,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   invalidateExpense: (id, isInvalid) => {
     try {
-      invalidateExpenseDb(id, isInvalid);
+      invalidateTransactionUseCase(id, isInvalid);
       set(state => ({
         expenses: state.expenses.map(e =>
           e.id === id ? { ...e, isInvalid } : e,

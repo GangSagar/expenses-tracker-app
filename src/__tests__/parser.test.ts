@@ -269,7 +269,7 @@ describe('System Test Suite for Sample Messages', () => {
 });
 
 import { normalizeUnicodeText } from '../utils/formatHelpers';
-import { processIncomingMessage } from '../services/messageService';
+import { processIncomingMessage } from '../services/messaging/messageService';
 
 describe('Unicode Alphanumeric Normalization', () => {
   it('correctly normalizes stylized mathematical sans-serif fonts to standard ASCII', () => {
