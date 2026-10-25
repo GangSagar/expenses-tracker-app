@@ -135,7 +135,7 @@ Detailed design and original acceptance criteria: [Phase 3: Shared Application U
 **Expected file areas and rationale:**
 
 | File | Change, reason, and behavior |
-|---|---|
+|---|---|---|
 | `src/core/transactions/applicationUseCases.ts` | Added the shared write gateway, accepted-transaction persistence, chronological stable batch import, and mutation use cases. Repayment planning and persistence are shared; each imported row commits independently and returns an explicit result. |
 | `src/services/transactions/transactionApplication.ts` | Added application adapters for live ingestion, historical preview/import, manual creation, review confirmation, edits, invalidation, and deletion. Kept live and import dedup strategies separate for Phase 6. Correction learning now follows successful writes. |
 | `src/services/transactions/transactionDecisionService.ts` | Extracted candidate construction and the single policy invocation from the persistence service so application orchestration can reuse it without a circular dependency. |
@@ -253,7 +253,7 @@ Detailed plan and adopted policy: [Phase 6: Unified Transaction Deduplication](.
 ### Files changed and rationale
 
 | File | Change | Why and how |
-|---|---|
+|---|---|---|
 | `src/core/dedup/duplicateCheck.ts`, `src/core/dedup/index.ts` | Added typed definite/possible/no-match decisions, shared five-minute event-time matching, normalized reference/message comparisons, and an indexed candidate cache. | Keeps policy pure and makes reference/time indexes performance-only. |
 | `src/core/transactions/contracts.ts`, `src/database/expenseRepo.ts`, `src/database/SQLiteTransactionRepository.ts` | Replaced boolean SQL/cache decisions with broad candidate retrieval; removed the recent-slice dedup query. Maintenance dedup now invokes the shared policy. | Keeps SQLite from defining its own duplicate semantics and retains atomic maintenance writes plus Phase 5 settlement guards. |
 | `src/core/transactions/applicationUseCases.ts`, `src/services/transactions/transactionApplication.ts` | Routes live, import, review, and maintenance checks through one policy. Selected possible matches can be explicitly accepted; definite matches remain blocked. Notifications run only after successful writes. | Preserves chronological import and separates persistence outcome from duplicate evidence and notification side effects. |
@@ -271,7 +271,7 @@ Detailed plan and adopted policy: [Phase 6: Unified Transaction Deduplication](.
 - Import preview uses a temporary indexed cache; commit rebuilds from persisted rows and only includes earlier successful rows. Selected possible matches can be imported; definite matches are skipped. Maintenance dedup auto-invalidates only definite matches and refuses to touch Phase 5 settlement history.
 - Save notifications cover live, manual, confirmed, imported, and edited transactions. Failed writes, duplicates, and pending reviews do not produce a saved notice. Notification failure is logged and does not undo persistence.
 
-Verification: `npx tsc --noEmit` passed; `npx jest --runInBand` passed (32 suites, 668 tests); focused Phase 6 tests passed (5 suites, 43 tests); changed-file ESLint passed with 0 errors and 19 existing inline-style warnings in `SettingsScreen.tsx`; `git diff --check` passed. Graphify offline update re-extracted 27 changed code files and refreshed the graph to 1,546 nodes and 3,219 edges; its no-LLM mode skipped semantic extraction of nine changed Markdown files. iOS build was unavailable because `xcodebuild` is not installed. Android compile started after downloading Gradle 9.3.1 and compiling the React Native Gradle plugin, but was interrupted after prolonged silence during app dependency/configuration work; the Android app compile result is unverified.
+Verification: `npx tsc --noEmit` passed; `npx jest --runInBand` passed (32 suites, 668 tests); focused Phase 6 tests passed (5 suites, 43 tests); changed-file ESLint passed with 0 errors and 19 existing inline-style warnings in `SettingsScreen.tsx`; `git diff --check` passed. Graphify offline update re-extracted 27 changed code files and refreshed the graph to 1,546 nodes and 3,219 edges; its no-LLM mode skipped semantic extraction of nine changed Markdown files. Android `:app:compileDebugKotlin` completed successfully (Gradle 9.3.1; task reported `UP-TO-DATE`). iOS build remains unavailable because `xcodebuild` is not installed.
 
 ## Phase 7 — Explicit database migrations (not started)
 

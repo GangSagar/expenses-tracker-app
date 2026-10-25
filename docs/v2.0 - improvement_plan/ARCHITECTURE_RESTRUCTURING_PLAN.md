@@ -66,13 +66,13 @@ Originally, live input used `transactionOrchestrator.ts` while historical import
 
 **Proposed fix:** move split and repayment calculations into pure domain services and let an application use case coordinate the required repository operations. Keep Zustand responsible for presentation state and pending-review state.
 
-### 5. Deduplication has multiple implementations and policies
+### 5. Deduplication had multiple implementations and policies (resolved in Phase 6)
 
-The repository has in-memory duplicate checks in `src/core/dedup`, SQL-based checks and an optional cache in `src/database/expenseRepo.ts`, and batch-specific cache use in `SettingsScreen.tsx`.
+At the audit checkpoint, the repository had in-memory duplicate checks in `src/core/dedup`, SQL-based checks and an optional cache in `src/database/expenseRepo.ts`, and batch-specific cache use in `SettingsScreen.tsx`. Phase 6 replaced these decision paths with one shared policy; SQL and caches now return/index candidate rows only.
 
-**Risk:** duplicate results can vary between live input and import. Amount-and-time matching may also suppress legitimate repeated purchases if its conditions are too broad.
+**Resolved risk:** live and import once could disagree, and broad amount/time matching could suppress legitimate repeats. Phase 6 now distinguishes definite from possible matches and keeps weak matches reviewable.
 
-**Proposed fix:** define one deduplication policy with explicit semantics for reference IDs, raw text, amount, merchant, timestamp, source, and invalidated records. Repository queries and caches should optimize access to the needed records, not define different rules.
+**Implemented in Phase 6:** normalized reference IDs match globally; normalized message text requires equal amount/type within five minutes; weaker amount/merchant/type/time matches require confirmation. Invalidated/duplicate rows do not suppress matches. Source metadata is retained, but does not change the approved matching semantics.
 
 ### 6. Parser capabilities and live usage do not fully align
 
@@ -102,7 +102,7 @@ Before Phase 2, live processing used the synchronous compatibility adapter and d
 
 `applyRepaymentIfApplicable()` in `useExpenses.ts` matched incoming credits to pending splits and marked a row paid before confirming the full row fit within the remaining credit. This could over-settle. Phase 1 v2 added an immutable partial-allocation planner; the Phase 1 audit closure now queries all split-bearing ledger rows and atomically inserts live repayment credits with their split/link updates. Contact-wide settle/unsettle also query and update the full ledger transactionally.
 
-**Remaining risks:** Phase 3 now routes historical import through shared chronological repayment persistence. Phase 5 has since moved split rules out of Zustand and added exact allocation history for new repayments; legacy summary-only repayment mutations are guarded. Phase 6 must unify import/live dedup semantics.
+**Remaining risks:** Phase 3 routes historical import through shared chronological repayment persistence. Phase 5 moved split rules out of Zustand and added exact allocation history for new repayments; legacy summary-only repayment mutations are guarded. Phase 6 has since unified import/live dedup semantics.
 
 **Approved follow-up:** preserve partial allocation; move split operations into a dedicated domain/use-case boundary; route import through the shared chronological transaction path. The full-ledger query and live atomic-insert gaps were closed before Phase 2 integration. Keep UI redesign out of scope.
 
