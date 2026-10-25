@@ -107,6 +107,12 @@ Smart Expense Tracker delivers:
 * **FR-7.2**: Users can restore data by pasting a previously exported backup JSON payload.
 * **FR-7.3**: Includes a confirmed **"Danger Zone"** option to wipe transaction data while preserving merchant learning models.
 
+### FR-8: App Security & Screen Lock
+* **FR-8.1 (Personal App PIN)**: Users can configure a 4-digit personal passcode to lock SpendWise. PIN is salted and hashed using SHA-256 before storage in SQLite settings.
+* **FR-8.2 (Biometric & Phone Screen Lock)**: Option to unlock with device credentials (Fingerprint, Face ID, or system PIN/Pattern) using native `androidx.biometric.BiometricPrompt`.
+* **FR-8.3 (Auto-Lock Timeout)**: Configurable auto-lock duration (Immediate, 30 seconds default, 1 minute, 5 minutes) triggered when the application resumes from background.
+* **FR-8.4 (Security Gate & LifeCycle)**: Root application wrapper blocking UI access while locked, while permitting background SMS and notification listeners to process incoming transactions securely.
+
 ---
 
 ## 6. Non-Functional Requirements (NFR)

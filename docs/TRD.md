@@ -126,6 +126,25 @@ Exposes paged querying against `content://sms/inbox`:
   * Filters non-alphabetic senders using regex `.*[a-zA-Z].* || ^\d{3,9}$`.
   * Resolves as a serialized JSON array without exceeding Android Binder IPC buffer limits (1MB).
 
+### 3.5 Native Biometric & Keyguard Security Module (`SecurityModule.kt`)
+
+* **Integration**: `androidx.biometric:biometric:1.1.0`.
+* **Lifecycle & Concurrency Safety**:
+  * Implements `LifecycleEventListener`: automatically cancels any active `BiometricPrompt` on `onHostPause()` and `onHostDestroy()` to prevent `IllegalStateException` crashes across activity lifecycle events.
+  * Mutex protection via `isAuthenticating = AtomicBoolean(false)`: prevents duplicate concurrent `BiometricPrompt` launches.
+* **Authenticators**: Version-adaptive authentication:
+  * API 30+ (Android 11+): `setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)`.
+  * API 24–29 (Android 7–10): `setDeviceCredentialAllowed(true)` with KeyguardManager fallback.
+* **Window Security (`FLAG_SECURE`) & Privacy Shield**:
+  * Enforced on `MainActivity.onCreate` and `MainActivity.onResume` with `window.addFlags(FLAG_SECURE)` to block recent apps task-switcher snapshots and screen captures across OEM launchers.
+  * Dynamically toggled via `setSecureFlag(enable: Boolean, promise: Promise)`.
+  * `SecurityGate.tsx` completely isolates `{children}` with `display: 'none'`, `pointerEvents="none"`, and `accessibilityElementsHidden={true}` when locked, rendering `<LockScreen />` exclusively with hardware `BackHandler` app-minimizing protection.
+* **Methods**:
+  * `isDeviceAuthAvailable(promise)`: Queries system `BiometricManager` and `KeyguardManager.isDeviceSecure` safely across all API versions without throwing `IllegalArgumentException`.
+  * `authenticate(title, subtitle, promise)`: Launches Android `BiometricPrompt` on the UI thread with FragmentManager lifecycle guards, concurrency locks, and single-settle promise resolution.
+  * `cancelAuthentication(promise)`: Cleanly cancels active biometric authentication and cleans up prompt references.
+  * `setSecureFlag(enable, promise)`: Sets or clears `WindowManager.LayoutParams.FLAG_SECURE` on the host Activity window.
+
 ---
 
 ## 4. Modular Parsing Engine Specifications (`src/core/parser/`)
