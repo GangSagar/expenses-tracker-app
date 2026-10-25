@@ -34,15 +34,15 @@ There are parallel paths for historical import in `SettingsScreen.tsx`, and for 
 
 ### 1. Two layers can influence the transaction decision
 
-`ParserOrchestrator` returns parser confidence and `requiresConfirmation`. The active message service calls `parseMessage()`, which adapts the result to `ParsedTransaction`; `expenseService.processTransaction()` then runs a classifier and a separate confidence calculation to decide auto-save, review, or discard. These are two decision systems, and the parser's review signal is not visibly authoritative in the active path.
+This was the pre-Phase-2 flow: `messageService` called `parseMessage()` and discarded parser confidence/`requiresConfirmation`, then `expenseService` independently decided auto-save, review, or discard. **Phase 2 status: closed for live ingestion and import preview.** They now use structured async parsing and one `decideTransaction()` policy that receives parser and classifier evidence and returns a typed result.
 
-**Risk:** different paths can classify the same message differently; a future parser change may appear to have no effect on the user-facing decision.
+**Original risk, now addressed in the policy paths:** different decisions could occur and parser confirmation was ignored. Historical import final writes still use a screen-owned workflow, although its preview uses the shared policy.
 
-**Proposed fix:** define one application-level decision policy. Parser confidence and any useful classifier signals may feed it, but only that policy emits the final outcome. Centralize thresholds and expose a reason for each outcome.
+**Implemented:** `src/core/transactions/decisionPolicy.ts` is the sole reject/review/auto-save policy. It centralizes the current thresholds and returns reason/evidence data. Shared application use cases for final import/manual/edit writes remain Phase 3 work.
 
 ### 2. Processing and persistence are split among entry points
 
-Live input uses `transactionOrchestrator.ts`. Historical processing in `SettingsScreen.tsx` calls message processing and transaction processing directly. Manual creation and edits use store methods, while `CategoryPopup.tsx` calls persistence directly.
+Live input uses `transactionOrchestrator.ts`. Historical import preview now uses the same parser and decision policy, but `SettingsScreen.tsx` still owns batch deduplication, preview, and final direct inserts. Manual creation and edits use store methods; `CategoryPopup.tsx` calls the save service.
 
 **Risk:** validation, confidence, deduplication, and error behavior can differ depending on how the transaction entered the app.
 
@@ -58,7 +58,7 @@ Live input uses `transactionOrchestrator.ts`. Historical processing in `Settings
 
 ### 4. Zustand contains domain behavior
 
-`useExpenses.ts` owns state but also performs repayment matching, mutates split data, and coordinates database updates.
+`useExpenses.ts` owns state and still coordinates manual repayment matching, split settlement changes, and database updates. Matching itself is a pure planner and reads full split-bearing ledger data through the repository.
 
 **Risk:** domain rules are hard to test without state/UI setup, and new transaction sources may not invoke the same rules.
 
@@ -74,11 +74,11 @@ The repository has in-memory duplicate checks in `src/core/dedup`, SQL-based che
 
 ### 6. Parser capabilities and live usage do not fully align
 
-The modular parser exposes `parseAsync()` and learning/AI interfaces, while the traced live flow calls the synchronous compatibility adapter. The docs describe some learning and fallback behavior as part of the active pipeline even though that usage was not found in the live call path.
+Before Phase 2, live processing used the synchronous compatibility adapter and did not record parser correction learning. Live and import-preview paths now invoke `parseAsync()`, and explicit merchant/category corrections call `LearningEngine.learn()`. Extraction still runs synchronously inside `parseAsync()`; AI fallback remains disabled because no local inference handler/model is installed.
 
-**Risk:** developers may extend a capability that production never invokes, or different entry paths may have different parser behavior.
+**Remaining risk:** developers could mistake the AI interface for an active model, or assume parser extraction itself is asynchronous. Final import persistence remains a separate workflow until Phase 3.
 
-**Proposed fix:** decide whether asynchronous learning/fallback is active product behavior. If active, call it consistently and define failure/latency behavior. If not active, mark it as partial/planned and avoid presenting it as live behavior.
+**Approved direction:** async parser invocation, correction learning, and local/offline AI fallback are product requirements. Async invocation and correction recording are now wired to live processing/import preview and explicit edits. Offline AI fallback remains incomplete until an inference runtime is selected and integrated with defined failure behavior; do not describe it as active meanwhile.
 
 ### 7. Domain and storage representations are too close
 
@@ -98,11 +98,11 @@ The modular parser exposes `parseAsync()` and learning/AI interfaces, while the 
 
 ### 9. Split repayment needs a domain-level correctness review
 
-`applyRepaymentIfApplicable()` in `useExpenses.ts` matched incoming credits to pending splits and marked a row paid before confirming the full row fit within the remaining credit. This could over-settle. Phase 1 now uses an immutable oldest-first planner that settles only whole rows covered by the credit and atomically persists linked changes for live and manual entry. Partial payment of an individual split is not represented and remains future work.
+`applyRepaymentIfApplicable()` in `useExpenses.ts` matched incoming credits to pending splits and marked a row paid before confirming the full row fit within the remaining credit. This could over-settle. Phase 1 v2 added an immutable partial-allocation planner; the Phase 1 audit closure now queries all split-bearing ledger rows and atomically inserts live repayment credits with their split/link updates. Contact-wide settle/unsettle also query and update the full ledger transactionally.
 
-**Remaining risk:** partial repayments cannot reduce a split's remaining balance; historical import does not currently use the repayment path; a live credit whose follow-up settlement transaction fails remains saved as an unlinked credit and needs a future retry/reconciliation policy.
+**Remaining risks:** historical import does not apply repayment allocations and still writes through its screen-owned batch path. Phase 3 must move final import writes through a shared chronological use case; Phase 6 must unify its dedup semantics with live ingestion. Split rules remain coordinated by Zustand until Phase 5.
 
-**Proposed follow-up:** move all split operations into a dedicated domain/use-case boundary, then decide whether to add partial allocation and import repayment matching. Keep UI redesign out of scope.
+**Approved follow-up:** preserve partial allocation; move split operations into a dedicated domain/use-case boundary; route import through the shared chronological transaction path. The full-ledger query and live atomic-insert gaps were closed before Phase 2 integration. Keep UI redesign out of scope.
 
 ### 10. Documentation describes intended architecture more than observed runtime
 
@@ -126,13 +126,13 @@ The modular parser exposes `parseAsync()` and learning/AI interfaces, while the 
 
 ### Phase 1 v2 — Baseline, contracts, partial repayments, and presentation isolation
 
-**Status: Complete.** Phase 1 v1 documented the runtime and added contracts/atomic repayment writes. Phase 1 v2 adds partial split allocation, updates outstanding-balance calculation, and relocates the existing UI to `src/presentation/legacy/` without redesign. Details and verification are in [Phase 1: Baseline and Contracts](./PHASE_1_BASELINE_AND_CONTRACTS.md) and [the implementation log](./IMPLEMENTATION_CHANGELOG.md).
+**Status: Complete.** Phase 1 v1 documented runtime and added initial atomic operations. Phase 1 v2 added partial split allocation and relocated the existing UI to `src/presentation/legacy/`; its audit then found and closed the full-ledger lookup and live repayment atomicity gaps while beginning Phase 2. Details and verification are in [Phase 1: Baseline and Contracts](./PHASE_1_BASELINE_AND_CONTRACTS.md), [Phase 2](./PHASE_2_TRANSACTION_DECISION_POLICY.md), and [the implementation log](./IMPLEMENTATION_CHANGELOG.md).
 
 **Exit condition:** current behavior is mapped, key contracts and decisions are recorded, and any in-scope correctness defect has a regression case and a bounded fix.
 
 ### Phase 2 — One transaction decision policy
 
-**Direction approved:** create one policy that consumes parser facts and classifier evidence, then returns reject, review, or accept with a reason. Migrate the active live path to it and preserve established behavior except for explicitly approved changes.
+**Direction approved; implementation in progress:** one policy consumes parser facts and classifier evidence, then returns reject, review, or auto-save with a reason. The live path and import preview now call it. See [Phase 2: One Transaction Decision Policy](./PHASE_2_TRANSACTION_DECISION_POLICY.md) for implementation details, the remaining AI fallback requirement, parity requirements, and exit criteria.
 
 **Likely areas:** `src/core/parser/models/`, `src/services/messageService.ts`, `src/services/expenseService.ts`, `src/services/transactionOrchestrator.ts`, and transaction tests.
 

@@ -3,7 +3,6 @@ import { Expense, Category } from '../types/expense';
 import {
   getAllExpenses,
   updateExpense as updateExpenseDb,
-  saveMerchantCategory,
   insertExpense as insertExpenseDb,
   exportAllExpensesData,
   clearAllExpenses,
@@ -12,8 +11,9 @@ import {
   updateTrashReason as updateTrashReasonDb,
   deduplicateDatabase as deduplicateDatabaseDb,
   getWindowedExpenses,
+  getExpensesWithSplits,
   insertExpenseWithRepayment,
-  updateExpenseWithRepayment,
+  updateSplitExpensesAtomically,
 } from '../database/expenseRepo';
 import { setMerchantMapping } from '../core/classifier/merchantMap';
 import {
@@ -21,13 +21,14 @@ import {
   repaymentSplit,
 } from '../core/transactions/repaymentPlanner';
 import { SplitSettlementUpdate } from '../core/transactions/repaymentPlanner';
+import { defaultLearningEngine } from '../core/parser/learning';
 
 interface ExpenseState {
   expenses: Expense[];
   loading: boolean;
   pendingExpenses: Omit<Expense, 'id'>[];
   loadExpenses: () => void;
-  addExpense: (expense: Expense) => void;
+  addExpense: (expense: Expense, repaymentUpdates?: SplitSettlementUpdate[]) => void;
   addManualExpense: (expense: Omit<Expense, 'id'>) => void;
   updateExpense: (
     id: number,
@@ -55,9 +56,9 @@ interface ExpenseState {
 
 function prepareRepayment(
   expense: Omit<Expense, 'id'> & { id?: number },
-  currentExpenses: Expense[],
 ): { expense: Omit<Expense, 'id'> & { id?: number }; updates: SplitSettlementUpdate[] } {
-  const plan = planAutomaticRepayment(expense, currentExpenses);
+  if (expense.transactionType !== 'credit') return { expense, updates: [] };
+  const plan = planAutomaticRepayment(expense, getExpensesWithSplits());
   if (!plan) return { expense, updates: [] };
 
   return {
@@ -95,37 +96,18 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
   },
 
-  addExpense: (expense: Expense) => {
-    const { expense: processed, updates } = prepareRepayment(expense, get().expenses);
-    let visibleExpense = processed as Expense;
-    let committedUpdates = updates;
-
-    if (updates.length > 0 && processed.id !== undefined) {
-      try {
-        updateExpenseWithRepayment(processed.id, processed.splits, updates);
-      } catch (error) {
-        console.error('Failed to apply automatic repayment', error);
-        // The transaction was already inserted by the caller. Keep it visible
-        // without a repayment link when the atomic settlement write rolls back.
-        visibleExpense = { ...expense };
-        committedUpdates = [];
-      }
-    } else if (updates.length > 0) {
-      visibleExpense = { ...expense } as Expense;
-      committedUpdates = [];
-    }
-
+  addExpense: (expense, updates = []) => {
     set(state => ({
       expenses: [
-        visibleExpense,
-        ...applySplitUpdates(state.expenses, committedUpdates),
+        expense,
+        ...applySplitUpdates(state.expenses, updates),
       ],
     }));
   },
 
   addManualExpense: (expense: Omit<Expense, 'id'>) => {
     try {
-      const { expense: processed, updates } = prepareRepayment(expense, get().expenses);
+      const { expense: processed, updates } = prepareRepayment(expense);
       const id = updates.length > 0
         ? insertExpenseWithRepayment(processed, updates)
         : insertExpenseDb(processed);
@@ -150,6 +132,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     transactionType,
   ) => {
     try {
+      const existing = get().expenses.find(expense => expense.id === id);
       updateExpenseDb(
         id,
         merchant,
@@ -165,7 +148,13 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       const effectiveAlias = alias || merchant;
       if (effectiveAlias && effectiveAlias !== 'Unknown') {
         setMerchantMapping(effectiveAlias, category, merchant);
-        saveMerchantCategory(effectiveAlias, category, merchant);
+        if (existing && (
+          existing.alias !== alias ||
+          existing.merchant !== merchant ||
+          existing.category !== category
+        )) {
+          defaultLearningEngine.learn(effectiveAlias, merchant, category);
+        }
       }
 
       set(state => ({
@@ -243,18 +232,17 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   settleContactSplits: contactName => {
     try {
-      const expenses = get().expenses;
+      const expenses = getExpensesWithSplits();
       const affected = expenses.filter(
         e => e.splits && e.splits.some(s => s.contactName === contactName && !s.isPaid),
       );
-      for (const e of affected) {
-        if (!e.id) continue;
-        const updatedSplits =
-          e.splits?.map(s => s.contactName === contactName
-            ? { ...s, isPaid: true, paidAmount: s.amount }
-            : s) || [];
-        updateExpenseDb(e.id, e.merchant, e.category, e.bank, e.paymentMode, e.amount, updatedSplits);
-      }
+      const updates = affected.flatMap(e => e.id === undefined ? [] : [{
+        expenseId: e.id,
+        splits: e.splits!.map(s => s.contactName === contactName
+          ? { ...s, isPaid: true, paidAmount: s.amount }
+          : s),
+      }]);
+      updateSplitExpensesAtomically(updates);
       set({ expenses: getAllExpenses(2000) });
     } catch (e) {
       console.error('Failed to settle contact splits', e);
@@ -263,20 +251,19 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   unsettleContactSplits: contactName => {
     try {
-      const expenses = get().expenses;
+      const expenses = getExpensesWithSplits();
       const affected = expenses.filter(
         e => e.splits && e.splits.some(s =>
           s.contactName === contactName && (s.isPaid || (Number(s.paidAmount) || 0) > 0),
         ),
       );
-      for (const e of affected) {
-        if (!e.id) continue;
-        const updatedSplits =
-          e.splits?.map(s => s.contactName === contactName
-            ? { ...s, isPaid: false, paidAmount: 0 }
-            : s) || [];
-        updateExpenseDb(e.id, e.merchant, e.category, e.bank, e.paymentMode, e.amount, updatedSplits);
-      }
+      const updates = affected.flatMap(e => e.id === undefined ? [] : [{
+        expenseId: e.id,
+        splits: e.splits!.map(s => s.contactName === contactName
+          ? { ...s, isPaid: false, paidAmount: 0 }
+          : s),
+      }]);
+      updateSplitExpensesAtomically(updates);
       set({ expenses: getAllExpenses(2000) });
     } catch (e) {
       console.error('Failed to unsettle contact splits', e);

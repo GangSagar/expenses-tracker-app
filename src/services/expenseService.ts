@@ -1,77 +1,112 @@
-import { Expense, ParsedTransaction } from '../types/expense';
 import { classify } from '../core/classifier';
 import { calculateConfidence } from '../core/confidence';
 import { isDuplicate } from '../core/dedup';
-import { insertExpense, getRecentExpenses } from '../database/expenseRepo';
-import { RetryQueue } from '../utils/RetryQueue';
-
-const expenseRetryQueue = new RetryQueue<Omit<Expense, 'id'>>();
-
-export type ExpenseDecision = 'auto_save' | 'show_popup' | 'discard';
+import {
+  getExpensesWithSplits,
+  getRecentExpenses,
+  insertExpense,
+  insertExpenseWithRepayment,
+} from '../database/expenseRepo';
+import { IncomingTransactionAnalysis } from './messageService';
+import { toExpenseModel, toParsedTransaction } from '../core/parser/models';
+import {
+  TransactionCandidate,
+  TransactionDecision,
+  TransactionDecisionInput,
+  TransactionProcessingOutcome,
+} from '../core/transactions/contracts';
+import { decideTransaction } from '../core/transactions/decisionPolicy';
+import {
+  planAutomaticRepayment,
+  repaymentSplit,
+  SplitSettlementUpdate,
+} from '../core/transactions/repaymentPlanner';
 
 export interface ProcessedExpense {
-  expense: Omit<Expense, 'id'>;
-  decision: ExpenseDecision;
+  candidate: TransactionCandidate | null;
+  decision: TransactionDecision;
+  repaymentUpdates: SplitSettlementUpdate[];
 }
+
+export type SaveExpenseResult =
+  | (Extract<TransactionProcessingOutcome, { status: 'saved' }> & {
+      repaymentUpdates: SplitSettlementUpdate[];
+    })
+  | Extract<TransactionProcessingOutcome, { status: 'duplicate' }>
+  | Extract<TransactionProcessingOutcome, { status: 'failed' }>;
 
 export function processTransaction(
-  parsed: ParsedTransaction,
-): ProcessedExpense | null {
-  if (parsed.amount === null) {
-    return null;
+  analysis: IncomingTransactionAnalysis,
+): ProcessedExpense {
+  const parsed = analysis.parsed;
+  if (!parsed) {
+    const decision = decideTransaction({
+      candidate: null,
+      parser: null,
+      classifier: null,
+      rejectionSignals: analysis.rejectionSignals,
+    });
+    return { candidate: null, decision, repaymentUpdates: [] };
   }
 
-  // Classify
-  const classification = classify(parsed.alias, parsed.rawMessage);
-
-  // Calculate confidence
-  const confidence = calculateConfidence(parsed, classification);
-
-  // Determine decision
-  let decision: ExpenseDecision;
-  if (confidence < 0.5) {
-    decision = 'discard';
-  } else if (confidence >= 0.8) {
-    decision = 'auto_save';
-  } else {
-    decision = 'show_popup';
-  }
-
-  const expense: Omit<Expense, 'id'> = {
-    amount: parsed.amount,
-    merchant: parsed.merchant || 'Unknown',
-    alias: parsed.alias || undefined,
+  const legacyParsed = toParsedTransaction(parsed);
+  const classification = classify(legacyParsed.alias, legacyParsed.rawMessage);
+  const legacyConfidence = calculateConfidence(legacyParsed, classification);
+  const candidate: TransactionCandidate = {
+    ...toExpenseModel(parsed),
     category: classification.category,
-    confidence,
-    timestamp: parsed.timestamp,
-    source: parsed.source,
-    rawMessage: parsed.rawMessage,
-    transactionType: parsed.transactionType,
-    account: parsed.account || undefined,
-    bank: parsed.bank,
-    paymentMode: parsed.paymentMode,
-    isDuplicate: false,
-    availableBalance: parsed.availableBalance,
-    referenceId: parsed.referenceId || undefined,
+    confidence: legacyConfidence,
+    timestamp: analysis.message.timestamp ?? parsed.timestamp,
+    rawMessage: analysis.normalizedBody,
   };
-
-  return { expense, decision };
+  const input: TransactionDecisionInput = {
+    candidate,
+    parser: {
+      confidence: parsed.confidence,
+      requiresConfirmation: parsed.requiresConfirmation,
+      parserVersion: parsed.parserVersion,
+      confidenceBreakdown: parsed.confidenceBreakdown,
+    },
+    classifier: {
+      category: classification.category,
+      matchedVia: classification.matchedVia,
+      confidence: legacyConfidence,
+    },
+    rejectionSignals: analysis.rejectionSignals,
+  };
+  const decision = decideTransaction(input);
+  return { candidate, decision, repaymentUpdates: [] };
 }
 
-export function saveExpense(expense: Omit<Expense, 'id'>): number | null {
-  // Check for duplicates
-  const recent = getRecentExpenses(5);
-  if (isDuplicate(expense, recent)) {
-    return null;
-  }
-
+/**
+ * Persist an accepted transaction. For credits with repayment allocations,
+ * insert the credit and update all affected debts in one SQLite transaction.
+ */
+export function saveExpense(expense: TransactionCandidate): SaveExpenseResult {
   try {
-    return insertExpense(expense);
-  } catch (e) {
-    console.warn('[saveExpense] DB insert failed — queuing for retry:', e);
-    expenseRetryQueue.enqueue(expense);
-    // Flush asynchronously; callers treat null as "not saved yet"
-    expenseRetryQueue.flush(item => insertExpense(item));
-    return null;
+    const recent = getRecentExpenses(5);
+    if (isDuplicate(expense, recent)) return { status: 'duplicate' };
+
+    const plan = expense.transactionType === 'credit'
+      ? planAutomaticRepayment(expense, getExpensesWithSplits())
+      : null;
+    const transactionCandidate = plan
+      ? { ...expense, splits: [repaymentSplit(plan)] }
+      : expense;
+    const id = plan
+      ? insertExpenseWithRepayment(transactionCandidate, plan.updates)
+      : insertExpense(transactionCandidate);
+
+    return {
+      status: 'saved',
+      transaction: { ...transactionCandidate, id },
+      repaymentUpdates: plan?.updates || [],
+    };
+  } catch (error) {
+    return {
+      status: 'failed',
+      stage: 'persistence',
+      message: error instanceof Error ? error.message : String(error),
+    };
   }
 }

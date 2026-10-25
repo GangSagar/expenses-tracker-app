@@ -244,50 +244,52 @@ export default function SettingsScreen() {
           await new Promise<void>(resolve => setTimeout(resolve, 0));
         }
 
-        const parsed = processIncomingMessage({
+        const analysis = await processIncomingMessage({
           body: msg.body,
           sender: msg.sender,
           source: 'sms',
+          timestamp: msg.timestamp,
         });
 
-        if (parsed) {
-          parsed.timestamp = msg.timestamp;
+        if (analysis.parsed) {
+          analysis.parsed.timestamp = msg.timestamp;
+        }
+        const processed = processTransaction(analysis);
+        const candidate = processed.candidate;
+
+        if (candidate && processed.decision.kind !== 'reject') {
 
           // O(1) in-memory check (0.0001 ms)
           const duplicate = isDuplicateWithCache(
             dedupCache,
-            parsed.amount!,
-            parsed.timestamp,
-            parsed.referenceId || undefined,
-            parsed.rawMessage || undefined,
+            candidate.amount,
+            candidate.timestamp,
+            candidate.referenceId || undefined,
+            candidate.rawMessage || undefined,
           );
 
           if (duplicate) {
             dups++;
             if (i % 5 === 0) {
-              appendLog(`🛡️ Dup: Skip ₹${parsed.amount?.toFixed(2)} at ${parsed.merchant || 'Merchant'}`);
+              appendLog(`🛡️ Dup: Skip ₹${candidate.amount.toFixed(2)} at ${candidate.merchant || 'Merchant'}`);
             }
           } else {
-            const processed = processTransaction(parsed);
-            if (processed && processed.decision !== 'discard') {
-              proposed.push({
-                ...processed.expense,
-                tempId: `temp_${Date.now()}_${tempCounter++}`,
-                checked: true,
-              });
-              found++;
-              // Add to memory dedup cache so later messages in same inbox don't duplicate
-              addToDedupCache(
-                dedupCache,
-                parsed.amount!,
-                parsed.timestamp,
-                parsed.referenceId || undefined,
-                parsed.rawMessage || undefined,
-              );
-              appendLog(`✅ Found: ₹${parsed.amount?.toFixed(2)} spent at ${processed.expense.merchant} (${parsed.bank || 'Bank'})`);
-            } else {
-              junk++;
-            }
+            proposed.push({
+              ...candidate,
+              tempId: `temp_${Date.now()}_${tempCounter++}`,
+              checked: true,
+              decision: processed.decision.kind,
+            });
+            found++;
+            // Add to memory dedup cache so later messages in same inbox don't duplicate
+            addToDedupCache(
+              dedupCache,
+              candidate.amount,
+              candidate.timestamp,
+              candidate.referenceId || undefined,
+              candidate.rawMessage || undefined,
+            );
+            appendLog(`✅ Found: ₹${candidate.amount.toFixed(2)} at ${candidate.merchant} (${candidate.bank || 'Bank'})`);
           }
         } else {
           junk++;

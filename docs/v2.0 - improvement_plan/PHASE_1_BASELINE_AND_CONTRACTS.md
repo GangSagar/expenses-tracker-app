@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Phase 1 prepares the app for safe restructuring. It establishes what the app actually does today, identifies the behavior that must be preserved, defines the small set of contracts later phases will use, and fixes only verified correctness defects that could corrupt ledger data or make the migration unsafe.
+Phase 1 prepared the app for safe restructuring. It established observed behavior, identified preservation requirements, and delivered bounded correctness fixes. Its initial transaction outcome contract proved too broad and was corrected while beginning Phase 2; the generic repository port remains future work.
 
 This phase is not a wholesale refactor. It establishes the baseline, implements the revised partial-repayment behavior, isolates the existing UI as a replaceable adapter, and hands off the approved transaction-policy and parser activation requirements to later phases.
 
@@ -45,7 +45,7 @@ The docs also need to describe observed runtime rather than only the intended de
 - Reorganizing the whole source tree.
 - Replacing all service/store/database code at once.
 - Changing parser heuristics or auto-save thresholds without a documented behavior decision.
-- Activating learning or AI fallback merely because the interfaces exist.
+- Implementing learning or AI fallback before a real correction path and local inference runtime are identified; approved activation is handed off to the parser/use-case phases.
 - Adding a generic plugin framework or introducing architectural layers without a concrete use.
 - Adding future features such as receipt OCR, cloud backup, or multi-currency.
 - Redesigning, restyling, or comprehensively refactoring the existing UI/screens/navigation.
@@ -95,6 +95,8 @@ For each flow, record (this is a call-path inventory, not a request to change pr
 
 ### Observed path matrix
 
+This matrix is the Phase 1 entry-state snapshot, before the Phase 2 work recorded below and in the implementation log. It is retained to show what Phase 1 discovered; use the current flow in [APP_MESSAGE_LISTENER_FLOW.md](../APP_MESSAGE_LISTENER_FLOW.md) and the Phase 2 specification for active behavior.
+
 | Operation | Current path | Current policy / persistence owner | Phase 1 observation |
 |---|---|---|---|
 | Live SMS | `useMessageListener` → `orchestrateTransaction` → `processIncomingMessage` → `parseMessage` → `processTransaction` → `saveExpense` → store `addExpense` → optional `planAutomaticRepayment` and atomic split/link update | Filters/parser adapter in `messageService`; decision in `expenseService`; initial insert/dedup in `saveExpense`; repayment plan in pure planner; repayment persistence in repository; state in Zustand | Parser confidence/review metadata is adapted to the older `ParsedTransaction` shape before the expense service's separate thresholds decide the route. Repayment matching uses currently loaded expenses. |
@@ -109,7 +111,9 @@ For each flow, record (this is a call-path inventory, not a request to change pr
 
 This matrix records current ownership; it does not prescribe a UI rewrite. Existing screen/store call sites remain temporary adapters.
 
-### Current behavior baseline
+### Phase 1 entry behavior baseline
+
+The following table records behavior observed before the Phase 2 implementation. It is historical baseline evidence, not a description of the current live decision path.
 
 These are code-path behaviors, not product recommendations:
 
@@ -181,14 +185,27 @@ Approved: live and imported paths should activate async parsing, correction lear
 
 ### Phase 1 contract artifact
 
-`src/core/transactions/contracts.ts` now defines the presentation-independent transaction boundary types:
+`src/core/transactions/contracts.ts` initially defined presentation-independent transaction types:
 
 - `TransactionCandidate`: a transaction-shaped value without a persisted ID.
-- `TransactionProcessingOutcome`: explicit rejected, duplicate, needs-review, saved, and failed outcomes.
+- `TransactionProcessingOutcome`: persistence outcomes (duplicate, saved, failed), separate from the policy decision.
 - `TransactionRepository`: the minimal insert/update/find-by-ID port for future application use cases.
 - `PersistedTransaction`: an expense with a required numeric database ID.
 
-These contracts are intentionally not wired into the live flow in Phase 1 v2. The SQLite adapter and use cases will adopt them in later phases; this avoids coupling the baseline step to a broader runtime migration. The repository interface is synchronous to match the current SQLite adapter and should be revisited if persistence technology or execution model changes.
+The Phase 1 v2 contract was a draft. Phase 2 replaced the mixed decision/result union with a pure `TransactionDecision`, preserved parser and classifier evidence, and kept persistence outcomes separate. `TransactionRepository` remains a future infrastructure port; SQLite still uses direct repository functions until Phase 4.
+
+## Phase 1 carry-forward audit and closure
+
+The Phase 1 review found the following gaps. The first four were closed while beginning Phase 2, before connecting the policy to the live path:
+
+| Finding | Resolution | Remaining boundary |
+|---|---|---|
+| Draft contract mixed policy decisions with processing outcomes and omitted parser evidence. | Phase 2 now has a typed, pure `TransactionDecision`; full parser confidence/breakdown/confirmation and classifier evidence reach it. Persistence returns saved/duplicate/failed separately. | The generic repository port is still unwired and remains Phase 4 work. |
+| Repayment planning read the 30-day Zustand window. | Added `getExpensesWithSplits()` and routed automatic/manual repayment planning plus contact-wide settle/unsettle through the full split-bearing ledger. | Split domain ownership remains in the store until Phase 5. |
+| Live credit could persist before repayment linking failed. | Automatic credit save now plans from all outstanding splits and inserts the repayment credit plus split updates in one SQLite transaction. On failure, the transaction rolls back and the caller receives an explicit persistence failure. | Application use-case ownership remains Phase 3/4 work. |
+| Live parsing dropped parser evidence; correction learning was not connected. | Live and import preview now call `parseAsync()` and send structured parser evidence through one policy. Explicit merchant/category corrections feed `LearningEngine`, whose SQLite repository is also read by parser resolvers. | There is still no default local AI inference runtime; AI fallback remains inactive and must not be claimed active. |
+
+Historical import persistence still uses its own preview/dedup/direct-insert loop and does not apply repayment allocations when the user imports. Phase 3 must move final import writes through shared use cases and process the batch chronologically. Phase 6 still owns unifying the differing live/import duplicate semantics.
 
 ## Workstream D: Bug triage and bounded fixes
 
@@ -209,7 +226,7 @@ Also verify that multiple split/expense updates are consistent on failure, and t
 
 **Phase 1 v2 disposition:** a split keeps its original `amount` and stores cumulative `paidAmount`. Legacy rows without `paidAmount` start at zero unless `isPaid` is already true. Repayment allocation walks the matched contact's unpaid splits oldest-first, applies up to each remaining amount, and can partially pay the final split reached. `isPaid` becomes true when the outstanding amount reaches zero. Repeated repayments add to `paidAmount` without exceeding the original amount.
 
-`planAutomaticRepayment()` produces an immutable partial-allocation plan. Manual credit insertion plus prior split updates are committed in one SQLite transaction; live credit-link updates plus prior split updates are also atomic. If the live linking transaction fails, the already-inserted credit remains visible without the repayment link and prior split rows remain unchanged. The split ledger displays the remaining balance while retaining the original amount for transaction history.
+`planAutomaticRepayment()` produces an immutable partial-allocation plan. Automatic/manual repayment planning reads all split-bearing, non-duplicate ledger rows rather than the 30-day presentation window. Manual credit insertion and prior split updates commit in one SQLite transaction. Live accepted-credit insertion and its split/link updates also commit in one transaction; failure rolls back both and returns an explicit persistence failure. The split ledger displays the remaining balance while retaining the original amount for transaction history.
 
 ### Fix-in-phase rule
 
@@ -257,7 +274,7 @@ This section is a likely map, not a mandate to modify every file:
 - The over-settlement bug is replaced by a tested partial-allocation rule; related writes are transactionally grouped.
 - No architectural rewrite has been smuggled into a bug fix.
 - Docs do not claim that inactive parser learning/AI behavior is part of the live pipeline.
-- A developer can review Phase 1 results and make the remaining Phase 2 policy choice without needing to rediscover the current flow.
+- A developer can review Phase 1 results and use the approved Phase 2 policy specification without needing to rediscover the current flow.
 
 ## Risks and safeguards
 
@@ -274,8 +291,9 @@ This section is a likely map, not a mandate to modify every file:
 
 Current evidence and recommendations:
 
-- **Combined decision policy:** approved for Phase 2; parser confidence and classifier evidence feed one policy that alone decides reject/review/save.
-- **Learning and AI fallback:** approved as active behavior. Keep fallback local/offline. `AIResolver` has no default inference handler; choosing and integrating a local inference runtime remains implementation work, not an unresolved product goal.
+- **Combined decision policy:** implemented in Phase 2; parser confidence and classifier evidence feed the single policy that decides reject/review/auto-save.
+- **Async parsing and correction learning:** active in live processing and import preview. Explicit merchant/category corrections feed the learning repository used by parser resolvers.
+- **AI fallback:** approved as an active product requirement and restricted to local/offline inference, but not yet active. `AIResolver` has no default inference handler and no local runtime/model is installed.
 - **Partial split repayments:** approved and implemented in Phase 1 v2 using cumulative `paidAmount` with legacy `isPaid` compatibility.
 - **Deletion semantics:** both exist in code: soft invalidation and hard deletion. Product policy for each operation remains to be recorded before centralizing writes.
 - **Supported database upgrade versions:** current migration code uses best-effort sequential `ALTER TABLE` calls and has no explicit schema version. Record this as the migration baseline; versioned migration work is Phase 7.
@@ -284,7 +302,7 @@ Current evidence and recommendations:
 
 ## Phase 1 v2 completion record
 
-Phase 1 v2 implements partial repayment accounting and relocates the existing UI at `src/presentation/legacy/` without visual redesign. Historical import repayment matching, the single decision policy, and active async parser/learning/AI behavior remain approved follow-up work in Phases 2–3. See the [implementation log](./IMPLEMENTATION_CHANGELOG.md) for the file-by-file record and remaining work for every phase.
+Phase 1 v2 implemented partial repayment accounting and relocated the existing UI at `src/presentation/legacy/` without visual redesign. During Phase 2 startup, the audit gaps in parser evidence, full-ledger repayment lookup, and atomic live repayment persistence were closed. The policy, async parser invocation, and correction learning are now active; local AI fallback and shared historical-import writes remain incomplete. See the [Phase 2 specification](./PHASE_2_TRANSACTION_DECISION_POLICY.md) and [implementation log](./IMPLEMENTATION_CHANGELOG.md) for the current status.
 
 Verification performed for this phase:
 
@@ -295,4 +313,4 @@ Verification performed for this phase:
 
 ## Handoff to Phase 2
 
-Phase 2's policy direction is approved: implement one decision policy that combines parser confidence and classifier evidence. Phase 2 should not also move import, all repository, and database migration responsibilities; those remain separate phases in [Architecture Restructuring: Issues and Proposed Plan](./ARCHITECTURE_RESTRUCTURING_PLAN.md).
+Phase 2's policy direction is approved: implement one decision policy that combines parser confidence and classifier evidence. See the [Phase 2 specification](./PHASE_2_TRANSACTION_DECISION_POLICY.md). Phase 2 should not also move import, all repository, and database migration responsibilities; those remain separate phases in [Architecture Restructuring: Issues and Proposed Plan](./ARCHITECTURE_RESTRUCTURING_PLAN.md).

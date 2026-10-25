@@ -7,13 +7,13 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import { Category, Expense } from '../../../types/expense';
+import { Category } from '../../../types/expense';
 import { useExpenseStore } from '../../../hooks/useExpenses';
 import { saveExpense } from '../../../services/expenseService';
 import { setMerchantMapping } from '../../../core/classifier';
-import { saveMerchantCategory } from '../../../database/expenseRepo';
 import { CATEGORIES } from '../../../constants/appOptions';
 import { formatAmount } from '../../../utils/formatHelpers';
+import { defaultLearningEngine } from '../../../core/parser/learning';
 
 export default function CategoryPopup() {
   const pendingExpenses = useExpenseStore(state => state.pendingExpenses);
@@ -49,16 +49,23 @@ export default function CategoryPopup() {
     const updated = { ...pendingExpense, category: selectedCategory };
 
     // Save to SQLite
-    const id = saveExpense(updated);
-    if (id !== null) {
-      addExpense({ ...updated, id } as Expense);
+    const saved = saveExpense(updated);
+    if (saved.status === 'saved') {
+      addExpense(saved.transaction, saved.repaymentUpdates);
+    } else if (saved.status === 'failed') {
+      console.error('Failed to persist reviewed transaction:', saved.message);
+      return;
     }
 
     // Save mapping to classifier so we learn user preference
     const effectiveAlias = pendingExpense.alias || pendingExpense.merchant;
-    if (effectiveAlias && effectiveAlias !== 'Unknown') {
-      saveMerchantCategory(effectiveAlias, selectedCategory, pendingExpense.merchant);
+    if (
+      effectiveAlias &&
+      effectiveAlias !== 'Unknown' &&
+      pendingExpense.category !== selectedCategory
+    ) {
       setMerchantMapping(effectiveAlias, selectedCategory, pendingExpense.merchant);
+      defaultLearningEngine.learn(effectiveAlias, pendingExpense.merchant, selectedCategory);
     }
 
     popPendingExpense();

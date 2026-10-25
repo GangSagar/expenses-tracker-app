@@ -57,6 +57,13 @@ export const GET_WINDOWED_EXPENSES_SQL = `
   SELECT * FROM expenses WHERE is_duplicate = 0 AND timestamp >= ? ORDER BY timestamp DESC
 `;
 
+/** Full ledger slice for repayment planning; independent of UI pagination/windowing. */
+export const GET_EXPENSES_WITH_SPLITS_SQL = `
+  SELECT * FROM expenses
+  WHERE is_duplicate = 0 AND splits IS NOT NULL
+  ORDER BY timestamp ASC
+`;
+
 export const GET_EXPENSES_BY_CATEGORY_SQL = `
   SELECT * FROM expenses WHERE category = ? AND is_duplicate = 0 ORDER BY timestamp DESC
 `;
@@ -233,6 +240,14 @@ export function updateExpenseWithRepayment(
   );
 }
 
+/** Persist a set of split state changes atomically. */
+export function updateSplitExpensesAtomically(updates: SplitSettlementUpdate[]): void {
+  if (updates.length === 0) return;
+  runInDatabaseTransaction(execute => {
+    writeSplitUpdates(execute, updates);
+  });
+}
+
 export function updateExpense(
   id: number,
   merchant: string,
@@ -396,6 +411,14 @@ export function getWindowedExpenses(days: number = 30): Expense[] {
     const db = getDatabase();
     const since = Date.now() - days * 24 * 60 * 60 * 1000;
     const result = db.execute(GET_WINDOWED_EXPENSES_SQL, [since]);
+    return mapRows(result.rows?._array || []);
+  });
+}
+
+export function getExpensesWithSplits(): Expense[] {
+  return telemetry.traceSync('db.getExpensesWithSplits', {}, () => {
+    const db = getDatabase();
+    const result = db.execute(GET_EXPENSES_WITH_SPLITS_SQL);
     return mapRows(result.rows?._array || []);
   });
 }

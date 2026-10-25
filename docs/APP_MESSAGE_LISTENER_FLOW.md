@@ -1,139 +1,79 @@
 # App startup and message listener flow
 
-This is the first low-level flow slice: it starts at `App.tsx`, follows the component tree to `useMessageListener()`, and expands the hook's message handling branches. The diagrams describe the current implementation.
+This document follows app startup through the live message listener and records the current Phase 2 decision path.
 
-## 1. App startup and hook setup
+## 1. App startup and listener setup
 
-```mermaid
-flowchart TD
-    Entry["React renders App()"] --> SafeArea["SafeAreaProvider"]
-    SafeArea --> Status["Render StatusBar<br/>light-content, blue background"]
-    Status --> Content["Render AppContent()"]
-    Content --> Hook["Call useMessageListener()"]
-    Hook --> ReturnTree["Return SecurityGate"]
-    ReturnTree --> Children["SecurityGate children:<br/>AppNavigator + CategoryPopup"]
+`AppContent` calls `useMessageListener()` before returning the security-gated navigation tree. The hook starts fetching native pending messages and registers the live message listener in the same effect. The security gate controls displayed children; it does not disable message ingestion.
 
-    Hook -. "after render commits" .-> Effect["useEffect setup"]
-    Effect --> Mounted["Set isMounted = true"]
-    Mounted --> Define["Define processMessage(message)"]
-    Define --> FetchCall["Call fetchPending()"]
-    FetchCall --> AwaitPending["Await MessageModule.getPendingMessages()"]
-    FetchCall --> Register["Register onMessageReceived listener"]
-    AwaitPending -. "in parallel with listener" .-> Register
-```
+The effect cleanup marks the listener unmounted and removes the native event subscription. An in-progress async parse checks the mounted flag before making UI/store changes.
 
-`useMessageListener()` runs inside `AppContent`, before the returned JSX is wrapped by `SecurityGate`. The gate controls what its children display; it does not conditionally call this hook. The listener therefore starts independently of whether the security gate later shows its lock screen.
+## 2. Pending and live message ordering
 
-The effect has two store selectors in its dependency list: 
-`addExpense` and `queuePendingExpense`. If either dependency changes, React runs the cleanup for the prior effect and then sets up the effect again.
-
-## 2. Pending messages and live messages
-
-Both sources are converted to `IncomingMessage` and sent through the same `processMessage` function.
+Live messages wait for the pending-message request to resolve. Pending messages with timestamps are ordered oldest-first and enqueued first; live messages arriving during startup are buffered behind them. Both sources then use the same sequential promise queue. This prevents asynchronous parser enrichment from letting a later repayment credit run ahead of an earlier one.
 
 ```mermaid
 flowchart TD
-    Setup["Effect setup"] --> PendingStart["Start fetchPending()"]
-    Setup --> LiveReg["Register event: onMessageReceived"]
-    LiveReg --> CleanupReady["Return effect cleanup"]
-    CleanupReady --> Active["Wait for messages"]
-    Active --> Cleanup["Unmount or effect dependencies change"]
-    Cleanup --> MarkUnmounted["Set isMounted = false"]
-    MarkUnmounted --> RemoveListener["Remove listener subscription"]
-
-    subgraph Pending["Messages queued while app was closed"]
-        PendingStart --> GetPending["Await MessageModule.getPendingMessages()"]
-        GetPending --> MountedCheck{"isMounted?"}
-        MountedCheck -- "No" --> IgnoreResult["Ignore result; stop this fetch"]
-        MountedCheck -- "Yes" --> ParsePending["JSON.parse result as IncomingMessage[]"]
-        ParsePending --> HasPending{"pending.length > 0?"}
-        HasPending -- "No" --> NoQueued["Nothing to process"]
-        HasPending -- "Yes" --> ForEach["Process each pending message"]
-        ForEach --> Process["processMessage(message)"]
-        GetPending -. "rejection, or JSON parsing throws" .-> Catch["Catch error"]
-        ParsePending -. "throws" .-> Catch
-        Catch --> StillMounted{"isMounted?"}
-        StillMounted -- "Yes" --> LogFetchError["Log Failed to fetch pending messages"]
-        StillMounted -- "No" --> IgnoreError["Do not log after unmount"]
-    end
-
-    subgraph Live["Message arrives while listener is active"]
-        Active --> Event["Receive event payload:<br/>body, sender, source"]
-        Event --> MapEvent["Build IncomingMessage<br/>from body, sender, source"]
-        MapEvent --> LogLive["Log sender and source"]
-        LogLive --> Process
-    end
+    Setup["Effect setup"] --> Fetch["Fetch native pending messages"]
+    Setup --> Listen["Register live event listener"]
+    Fetch --> Sort["Sort pending by timestamp"]
+    Sort --> Queue["Sequential message queue"]
+    Listen --> Map["Map event to IncomingMessage"]
+    Map --> Queue
+    Queue --> Analyze["orchestrateTransaction"]
+    Analyze --> Mounted{"Still mounted?"}
+    Mounted -- No --> Stop["Stop before side effects"]
+    Mounted -- Yes --> Execute["Apply policy result"]
 ```
 
-`fetchPending()` is called without awaiting it. Its native request pauses at `await`, allowing the live event listener to be registered while the pending request is still in progress. Pending messages are processed only if the effect is still mounted when that request resolves.
+## 3. Analysis and the single decision policy
 
-When the component unmounts or the effect is replaced, cleanup sets `isMounted = false` and removes the event subscription. It does not cancel an already-started native pending-message request; the mounted check prevents that request from processing results after cleanup.
+`orchestrateTransaction()` awaits `processIncomingMessage()`, which normalizes text, collects sender/body/spam rejection signals, and invokes `parseStructuredAsync()`. It returns an analysis object even when input is rejected or parsing fails, so those cases can receive typed reasons instead of disappearing as `null`.
 
-## 3. `processMessage`: orchestrator and decision branches
+`processTransaction()` maps the full `StructuredExpense`, classifier category evidence, and the established compatibility confidence score into `TransactionDecisionInput`. It invokes `decideTransaction()` exactly once. The policy returns `reject`, `review`, or `auto_save` with stable reason codes and an evidence summary. It does not persist or update Zustand.
 
 ```mermaid
 flowchart TD
-    Start["processMessage(message)"] --> Orchestrate["orchestrateTransaction(message)"]
-    Orchestrate --> HasResult{"Did orchestrator return a result?"}
-    HasResult -- "No (null)" --> DropLog["Log message dropped by orchestrator"]
-    DropLog --> StopDrop["Stop processing this message"]
-    HasResult -- "Yes" --> Extract["Read expense and decision"]
-    Extract --> LogParsed["Log parsed message and decision"]
-    LogParsed --> Merchant{"Merchant exists<br/>and is not Unknown?"}
-    Merchant -- "Yes" --> KeepMerchant["displayMerchant = expense.merchant"]
-    Merchant -- "No" --> UnknownMerchant["displayMerchant = Unknown"]
-    KeepMerchant --> Decision{"Which decision?"}
-    UnknownMerchant --> Decision
-
-    Decision -- "auto_save" --> AutoNotify["Maybe notify:<br/>Transaction Auto-Saved"]
-    AutoNotify --> Save["saveExpense(expense)"]
-    Save --> HasId{"Returned id is not null?"}
-    HasId -- "Yes" --> Store["addExpense({...expense, id})"]
-    HasId -- "No" --> SaveFailed["Log not saved yet<br/>(duplicate or failed insert)"]
-    Store --> Done["Finish this message"]
-    SaveFailed --> Done
-
-    Decision -- "show_popup" --> PopupNotify["Maybe notify:<br/>New Pending Transaction"]
-    PopupNotify --> Queue["queuePendingExpense(expense)"]
-    Queue --> Done
-
-    Decision -- "discard" --> DiscardLog["Log low-confidence expense discarded"]
-    DiscardLog --> Done
+    Input["IncomingMessage"] --> Normalize["Normalize body and sender"]
+    Normalize --> Gates["Collect sender, body, spam signals"]
+    Gates --> Parse["parseStructuredAsync"]
+    Parse --> Analysis["IncomingTransactionAnalysis"]
+    Analysis --> Map["Map candidate + parser/classifier evidence"]
+    Map --> Policy["decideTransaction"]
+    Policy --> Result{"Decision"}
+    Result -->|reject + reason| Reject["Return typed rejection"]
+    Result -->|review + reason| Review["Queue candidate"]
+    Result -->|auto_save + reason| Save["Persist candidate"]
 ```
 
-### Notification branch shared by `auto_save` and `show_popup`
+The compatibility thresholds are retained: legacy confidence below `0.5` rejects; `0.5` to below `0.8` reviews; `0.8` and above can auto-save. Parser confidence below `0.5` rejects, and `requiresConfirmation` forces review. Parser confidence, its component breakdown, classifier evidence, parser version, and policy version reach the decision result.
 
-Before either action, `notifyBackground(title, body)` checks
-`AppState.currentState`:
+## 4. Applying decisions and persistence outcomes
 
-```mermaid
-flowchart LR
-    Notify["notifyBackground(title, body)"] --> State{"AppState is background<br/>or inactive?"}
-    State -- "Yes" --> Show["MessageModule.showExpenseNotification(title, body)"]
-    State -- "No (for example, active)" --> Skip["Do not show a notification"]
-```
+| Policy decision | Listener action | Persistence behavior |
+|---|---|---|
+| `reject` | Log the stable reason and stop. | No write. |
+| `review` | Queue the candidate and optionally notify in background. | No write before user confirmation. |
+| `auto_save` | Call `saveExpense()`. | Duplicate, saved, and failed are separate results. The store updates only after a successful save. |
 
-The notification text includes the amount and `displayMerchant`. The `auto_save` title is **Transaction Auto-Saved**; the `show_popup` title is **New Pending Transaction** and asks the user to tap to approve.
+For accepted credits, `saveExpense()` reads all split-bearing ledger rows, creates the oldest-first partial allocation plan, and commits the repayment credit and all affected split updates in one SQLite transaction. A transaction failure rolls back the credit and split changes; the listener logs the persistence failure separately from the prior auto-save decision.
 
-## 4. What the decision labels mean
+## 5. Import preview
 
-The hook receives these labels from `processTransaction()` via
-`orchestrateTransaction()`:
+Settings historical import now uses the same async parsing and decision policy while preparing its preview. The screen still owns import batch deduplication, preview state, and final direct writes. Imported repayments therefore do not yet apply against prior split balances. Phase 3 moves those writes into the shared use case and processes the batch chronologically.
 
-| Decision       | Confidence rule                    | Hook action                                           |
-| -------------- | ---------------------------------- | ----------------------------------------------------- |
-| `discard`    | Below `0.5`                      | Log and stop; no notification, save, or pending queue |
-| `show_popup` | At least `0.5` and below `0.8` | Maybe notify in background, then queue for approval   |
-| `auto_save`  | At least `0.8`                   | Maybe notify in background, then call `saveExpense` |
+## 6. Correction learning and AI fallback status
 
-An orchestrator result can also be `null`; in that case the hook logs that the message was dropped and does not run a decision branch. The orchestrator returns `null` when message processing rejects the input or transaction processing cannot produce an expense (including a missing amount).
+When a user explicitly changes a transaction's merchant or category, the legacy store/component calls `LearningEngine.learn()`. The learning repository persists to the merchant-category table that parser resolvers consult.
 
-For `auto_save`, `saveExpense()` can return `null` for a duplicate or failed insert. Only a non-null ID is added to the Zustand expense store by this hook. The failed-insert path may queue a database retry inside `saveExpense()`, but this hook logs the null result and does not add it to the store at that point.
+`parseAsync()` is active in live ingestion and import preview, but its extraction stages still execute synchronously. `AIResolver` has no configured inference handler and AI is disabled by default. Local offline AI fallback remains incomplete; the interface/cache alone are not an active model.
 
 ## Source files
 
 - [App.tsx](../App.tsx)
 - [useMessageListener.ts](../src/hooks/useMessageListener.ts)
-- [transactionOrchestrator.ts](../src/services/transactionOrchestrator.ts)
 - [messageService.ts](../src/services/messageService.ts)
+- [transactionOrchestrator.ts](../src/services/transactionOrchestrator.ts)
 - [expenseService.ts](../src/services/expenseService.ts)
+- [decisionPolicy.ts](../src/core/transactions/decisionPolicy.ts)
+- [expenseRepo.ts](../src/database/expenseRepo.ts)

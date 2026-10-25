@@ -44,7 +44,9 @@ graph TB
                 Conf["Confidence Engine\n(Quality Scoring)"]
                 Learn["Learning Engine\n(Pattern Feedback & Cache)"]
             end
-            Pipeline["Message Processing Pipeline\n(Filter ➔ Parse ➔ Dedup)"]
+            Pipeline["Message Input Adapter\n(Normalize & Collect Evidence)"]
+            TxnOrchestrator["Transaction Orchestrator\n(Parse ➔ Decide ➔ Execute)"]
+            DecisionPolicy["Transaction Decision Policy\n(Reject / Review / Auto-save)"]
             Store["Zustand State Store\n(useExpenses)"]
             UI["UI Layer (React Navigation 7)\n(Home, History, Accounts, Splits)"]
         end
@@ -71,16 +73,19 @@ graph TB
     NotifListener -->|Direct JSI Call| MessageBridge
     MessageBridge -->|JS Event| Pipeline
 
-    Pipeline --> Orchestrator
+    Pipeline --> TxnOrchestrator
+    TxnOrchestrator --> Orchestrator
     Orchestrator --> Norm
     Norm --> Token
     Token --> Extract
     Extract --> Resolve
     Resolve --> Conf
     Conf --> Learn
-    Learn --> Pipeline
+    Learn --> TxnOrchestrator
+    Orchestrator --> DecisionPolicy
+    DecisionPolicy --> TxnOrchestrator
 
-    Pipeline --> Store
+    TxnOrchestrator --> Store
     Store <-->|Synchronous SQL| QuickSQLite
     QuickSQLite <--> DB
     Store --> UI
@@ -100,10 +105,10 @@ graph TB
    The native receivers (`SmsReceiver` and `NotificationListenerService`) are stateless. They intercept raw OS intents, apply structural allowlist checks, wake the application context, hand off the message payload, and release OS wake locks immediately (<1% battery consumption).
 3. **Data-Driven Modular Parsing (SOLID & Clean Architecture)**:
    Replaces monolithic regex functions with a 10-stage decoupled pipeline. Bank patterns, merchant aliases, token dictionaries, and category rules are managed via declarative JSON schemas (`bankRules.json`, `merchantAliases.json`, `categoryRules.json`), enabling instant onboarding of new financial institutions and UPI apps without source code modifications.
-4. **On-Device Continuous Learning**:
-   The `LearningEngine` captures user corrections (merchant renames, category adjustments) and caches contextual token patterns directly into SQLite. Confidence decay algorithms ensure stale heuristics naturally expire while high-frequency corrections take precedence.
-5. **Zero-Trust Network Isolation**:
-   No external network libraries or remote analytics SDKs exist. All extraction, spam classification, and AI fallback resolution run strictly on-device. Network capabilities are restricted to developer localhost OTLP telemetry (`127.0.0.1:4318`) active solely in `__DEV__` mode.
+4. **On-Device Correction Learning**:
+   Explicit merchant/category corrections are recorded through `LearningEngine` in the local merchant-category repository. Parser resolvers consult those mappings. The current implementation does not include confidence decay or token-pattern frequency learning.
+5. **Offline-First Processing**:
+   Extraction, spam classification, and correction mappings run locally. `AIResolver` is an interface/cache only: AI is disabled by default and no local inference handler/model is installed. Developer telemetry may use localhost in `__DEV__` mode.
 
 ---
 
@@ -114,7 +119,7 @@ graph TB
 ```mermaid
 classDiagram
     class MessageService {
-        +processIncomingMessage(msg: IncomingMessage): ParsedTransaction
+        +processIncomingMessage(msg: IncomingMessage): Promise~IncomingTransactionAnalysis~
     }
 
     class ParserOrchestrator {
@@ -128,7 +133,7 @@ classDiagram
         -learningEngine: LearningEngine
         -aiResolver: AIResolver
         +parse(message: string, sender?: string, source?: string): StructuredExpense
-        +learnFromCorrection(rawMessage: string, correctedMerchant: string, correctedCategory: string): Promise~void~
+        +parseAsync(message: string, sender?: string, source?: string): Promise~StructuredExpense~
     }
 
     class Normalizer {
@@ -292,12 +297,16 @@ The parser follows Clean Architecture principles with complete separation of con
 | **Tokenizer Tier** | `src/core/parser/tokenizer/` | Lexical analyzer classifying character sequences into typed tokens (`AMOUNT`, `ACCOUNT`, `VPA`, `KEYWORD`, `DATE`, `REF_NUMBER`, `MERCHANT_HINT`, `WORD`, `SEPARATOR`). |
 | **Extractor Tier** | `src/core/parser/extractor/` | Targeted extraction units: `AmountExtractor`, `AccountExtractor`, `VpaExtractor`, `ReferenceExtractor`, `BalanceExtractor`, `BankExtractor`, `PaymentModeExtractor`, `RawMerchantExtractor`, unified by `EntityExtractor`. |
 | **Resolver Tier** | `src/core/parser/resolver/` | Business heuristics: `MerchantResolver` (cleans UPI garbage, strips bank headers, matches alias registry), `TransactionResolver` (debit vs credit directionality priorities), and `CategoryResolver` (rule-based and learned category assignment). |
-| **Confidence Tier** | `src/core/parser/confidence/` | Multi-factor weighted scoring engine evaluating signal certainty (amount: 0.35, merchant: 0.20, type: 0.20, account: 0.15, bank: 0.05, reference: 0.05) with penalties for ambiguous tokens. |
-| **Learning Tier** | `src/core/parser/learning/` | On-device adaptive learning system (`LearningEngine`) with repository abstraction (`ILearningRepository`, `SQLiteLearningRepository`). Learns user corrections and adjusts category/merchant mappings over time. |
-| **AI Tier** | `src/core/parser/ai/` | Fallback interface (`AIResolver`) with offline caching (`AICache`) for low-confidence or unmapped provider templates. |
+| **Confidence Tier** | `src/core/parser/confidence/` | Parser confidence uses configurable weights: amount `0.35`, transaction type `0.25`, merchant `0.20`, category `0.10`, account `0.10`. A separate decision policy consumes parser evidence and the legacy classifier score. |
+| **Learning Tier** | `src/core/parser/learning/` | `LearningEngine` stores explicit merchant/category corrections through `ILearningRepository` and the SQLite-backed merchant category table. |
+| **AI Tier** | `src/core/parser/ai/` | `AIResolver` and `AICache` define a local fallback boundary, but no inference handler/model is configured and AI remains disabled. |
 | **Filter Tier** | `src/core/parser/filter/` | Pre-parsing heuristic message filter (`MessageFilter`) rejecting non-financial alerts. |
 | **Orchestrator** | `src/core/parser/orchestrator/` | Coordinates the 10-stage execution pipeline, assembling extracted and resolved entities into `StructuredExpense`. |
-| **Legacy Adapter** | `src/core/parser/parseMessage.ts` | Maintains 100% backward compatibility for legacy `parseMessage()` consumers while exposing modern `parseStructured()`. |
+| **Legacy Adapter** | `src/core/parser/parseMessage.ts` | Keeps `parseMessage()` for legacy callers and exposes structured synchronous and asynchronous parser entry points for ingestion. |
+
+#### Transaction decision boundary
+
+`src/core/transactions/decisionPolicy.ts` is the sole owner of reject/review/auto-save outcomes. It consumes parser confidence/breakdown/confirmation, category-classifier evidence, and typed sender/body/spam/parse signals. The orchestrator executes the result; duplicate detection and persistence remain subsequent processing steps. Accepted credit insertion and its split allocations use one SQLite transaction.
 
 #### 3. Database Layer (`src/database/expenseRepo.ts`)
 * Uses pre-compiled SQL string constants to eliminate SQL injection vulnerabilities.

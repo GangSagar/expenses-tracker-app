@@ -4,6 +4,9 @@ import {
   SELECT_EXPENSE_DEDUP_WINDOW_SQL,
   INSERT_EXPENSE_SQL,
   UPDATE_EXPENSE_SPLITS_SQL,
+  GET_EXPENSES_WITH_SPLITS_SQL,
+  getExpensesWithSplits,
+  updateSplitExpensesAtomically,
   insertExpenseWithRepayment,
   updateExpenseWithRepayment,
 } from '../database/expenseRepo';
@@ -163,6 +166,92 @@ describe('insertExpenseWithRepayment', () => {
       'BEGIN TRANSACTION',
       UPDATE_EXPENSE_SPLITS_SQL,
       INSERT_EXPENSE_SQL,
+      'ROLLBACK',
+    ]);
+  });
+});
+
+describe('getExpensesWithSplits', () => {
+  let mockExecute: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockExecute = getDatabase().execute as jest.Mock;
+  });
+
+  it('queries split-bearing ledger rows without a UI time window or pagination limit', () => {
+    mockExecute.mockReturnValueOnce({
+      rows: {
+        _array: [{
+          id: 9,
+          amount: 100,
+          merchant: 'Old dinner',
+          category: 'Food & Dining',
+          confidence: 1,
+          timestamp: 1,
+          source: 'manual',
+          raw_message: '',
+          transaction_type: 'debit',
+          is_duplicate: 0,
+          is_invalid: 0,
+          splits: JSON.stringify([{ contactName: 'Alex', amount: 100 }]),
+        }],
+      },
+    });
+
+    const results = getExpensesWithSplits();
+
+    expect(results).toHaveLength(1);
+    expect(results[0].timestamp).toBe(1);
+    expect(results[0].splits).toEqual([{ contactName: 'Alex', amount: 100 }]);
+    expect(mockExecute).toHaveBeenCalledWith(GET_EXPENSES_WITH_SPLITS_SQL);
+    expect(GET_EXPENSES_WITH_SPLITS_SQL).not.toMatch(/LIMIT|timestamp\s*>/i);
+  });
+});
+
+describe('updateSplitExpensesAtomically', () => {
+  let mockExecute: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockExecute = getDatabase().execute as jest.Mock;
+  });
+
+  it('wraps contact-wide split changes in one database transaction', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 0 });
+
+    updateSplitExpensesAtomically([
+      { expenseId: 2, splits: [{ contactName: 'Alex', amount: 50, isPaid: true, paidAmount: 50 }] },
+      { expenseId: 8, splits: [{ contactName: 'Alex', amount: 75, isPaid: true, paidAmount: 75 }] },
+    ]);
+
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION',
+      UPDATE_EXPENSE_SPLITS_SQL,
+      UPDATE_EXPENSE_SPLITS_SQL,
+      'COMMIT',
+    ]);
+  });
+
+  it('rolls back all contact-wide updates if one row is missing', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 0 })
+      .mockReturnValueOnce({ rowsAffected: 0 });
+
+    expect(() => updateSplitExpensesAtomically([
+      { expenseId: 2, splits: [{ contactName: 'Alex', amount: 50 }] },
+      { expenseId: 8, splits: [{ contactName: 'Alex', amount: 75 }] },
+    ])).toThrow('Could not update repayment split for expense 8');
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION',
+      UPDATE_EXPENSE_SPLITS_SQL,
+      UPDATE_EXPENSE_SPLITS_SQL,
       'ROLLBACK',
     ]);
   });

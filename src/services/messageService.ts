@@ -1,11 +1,13 @@
-import { ParsedTransaction, TransactionSource } from '../types/expense';
+import { TransactionSource } from '../types/expense';
+import { StructuredExpense } from '../core/parser/models';
+import { parseStructuredAsync } from '../core/parser/parseMessage';
 import {
-  parseMessage,
   isTransactionalSender,
   isTransactionMessage,
 } from '../core/parser';
 import { normalizeUnicodeText } from '../utils/formatHelpers';
 import { isSpam } from '../core/classifier/spamClassifier';
+import { TransactionRejectionReason } from '../core/transactions/contracts';
 import { telemetry } from './telemetryService';
 
 export interface IncomingMessage {
@@ -13,72 +15,61 @@ export interface IncomingMessage {
   sender: string;
   source: TransactionSource;
   packageName?: string;
+  timestamp?: number;
 }
 
-export function processIncomingMessage(
+/** Facts collected at the input boundary; this module does not choose an outcome. */
+export interface IncomingTransactionAnalysis {
+  message: IncomingMessage;
+  normalizedBody: string;
+  normalizedSender: string;
+  parsed: StructuredExpense | null;
+  rejectionSignals: TransactionRejectionReason[];
+}
+
+export async function processIncomingMessage(
   message: IncomingMessage,
-): ParsedTransaction | null {
+): Promise<IncomingTransactionAnalysis> {
   const span = telemetry.startSpan('sms.process_pipeline', {
     source: message.source,
     sender: message.sender,
   });
+  const normalizedSender = normalizeUnicodeText(message.sender || '');
+  const normalizedBody = normalizeUnicodeText(message.body || '');
+  const rejectionSignals: TransactionRejectionReason[] = [];
+  let parsed: StructuredExpense | null = null;
 
-  const cleanSender = normalizeUnicodeText(message.sender || '');
-  const cleanBody = normalizeUnicodeText(message.body || '');
-
-  console.log(`\n=== Processing Message from ${cleanSender} ===`);
-
-  // Step 1: Filter by sender (for SMS)
-  if (message.source === 'sms' && !isTransactionalSender(cleanSender)) {
-    console.log(
-      `❌ Dropped: Sender ${cleanSender} is not recognized as a transactional sender.`,
-    );
-    span.setAttribute('dropped', true);
-    span.setAttribute('drop_reason', 'non_transactional_sender');
-    span.end();
-    return null;
+  if (message.source === 'sms' && !isTransactionalSender(normalizedSender)) {
+    rejectionSignals.push('non_transactional_sender');
+  } else if (!isTransactionMessage(normalizedBody)) {
+    rejectionSignals.push('blocked_message');
+  } else if (isSpam(normalizedBody)) {
+    rejectionSignals.push('spam');
+  } else {
+    parsed = await parseStructuredAsync(normalizedBody, normalizedSender, message.source);
+    if (!parsed || !Number.isFinite(parsed.amount) || parsed.amount <= 0) {
+      rejectionSignals.push('missing_amount');
+      parsed = null;
+    }
   }
 
-  // Step 2: Filter non-transaction messages
-  if (!isTransactionMessage(cleanBody)) {
-    console.log(
-      `❌ Dropped: Message body matched a block filter (like OTP, Login, or pure Promo/Balance).`,
-    );
-    console.log(`Raw Body: ${cleanBody}`);
-    span.setAttribute('dropped', true);
-    span.setAttribute('drop_reason', 'blocked_body_filter');
-    span.end();
-    return null;
+  span.setAttribute('dropped', rejectionSignals.length > 0);
+  if (rejectionSignals.length > 0) {
+    span.setAttribute('drop_reason', rejectionSignals[0]);
   }
-
-  // Step 3: Early spam check — cheaper than regex parsing; model is a no-op until trained
-  if (isSpam(cleanBody)) {
-    console.log(`❌ Dropped: Bayesian spam classifier rejected message early.`);
-    span.setAttribute('dropped', true);
-    span.setAttribute('drop_reason', 'spam_classifier');
-    span.end();
-    return null;
+  if (parsed) {
+    span.setAttribute('amount', parsed.amount);
+    span.setAttribute('bank', parsed.bank || 'unknown');
+    span.setAttribute('type', parsed.transactionType);
+    span.setAttribute('payment_mode', parsed.paymentMode);
   }
-
-  // Step 4: Parse the message
-  const parsed = parseMessage(cleanBody, cleanSender, message.source);
-
-  // Step 5: Must have an amount to be a valid transaction
-  if (parsed.amount === null) {
-    console.log(`❌ Dropped: Could not extract an AMOUNT from the message.`);
-    span.setAttribute('dropped', true);
-    span.setAttribute('drop_reason', 'missing_amount');
-    span.end();
-    return null;
-  }
-
-  console.log(`✅ Message passed filters and amount extracted successfully.`);
-  span.setAttribute('dropped', false);
-  span.setAttribute('amount', parsed.amount);
-  span.setAttribute('bank', parsed.bank || 'unknown');
-  span.setAttribute('type', parsed.transactionType);
-  span.setAttribute('mode', parsed.paymentMode);
   span.end();
-  return parsed;
-}
 
+  return {
+    message,
+    normalizedBody,
+    normalizedSender,
+    parsed,
+    rejectionSignals,
+  };
+}

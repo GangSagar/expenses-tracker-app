@@ -19,7 +19,7 @@
 The system operates across three tightly integrated tiers:
 
 1. **Native Android Subsystem (Kotlin)**: Intercepts low-level OS broadcasts (`SMS_RECEIVED` and `StatusBarNotification`), enforces early structural filtering, and transmits raw event payloads directly to JavaScript via JSI / TurboModules.
-2. **React Native Processing Core (TypeScript / Hermes)**: Implements Unicode normalization, sender allowlists, Bayesian spam classification, and a 10-stage modular parsing pipeline (lexical tokenization, targeted extraction, contextual resolvers, dynamic bank rules, weighted confidence scoring, adaptive learning, and local AI fallback).
+2. **React Native Processing Core (TypeScript / Hermes)**: Implements Unicode normalization, sender allowlists, Bayesian spam classification, structured async parser orchestration, one transaction decision policy, and local merchant/category correction learning. An offline AI fallback interface exists, but no inference runtime/model is currently configured.
 3. **Local Persistence & State Layer (C++ / SQLite / Zustand)**: High-speed synchronous SQLite persistence using `react-native-quick-sqlite` C++ bindings, paired with reactive, memoized Zustand client stores.
 
 ```
@@ -275,36 +275,34 @@ $$
 | Extracted Field            | Weight ($w_i$) | Validation Criteria ($s_i = 1.0$)                             |
 | :------------------------- | :--------------: | :-------------------------------------------------------------- |
 | **Amount**           |     `0.35`     | Valid positive decimal extracted adjacent to currency marker.   |
-| **Transaction Type** |     `0.20`     | Explicit debit/credit keyword detected without ambiguity.       |
+| **Transaction Type** |     `0.25`     | Explicit debit/credit keyword detected without ambiguity.       |
 | **Merchant**         |     `0.20`     | Payee entity identified and resolved via alias registry or VPA. |
-| **Account**          |     `0.15`     | Masked account/card pattern identified.                         |
-| **Bank**             |     `0.05`     | Bank identified via sender prefix or message body.              |
-| **Reference ID**     |     `0.05`     | 12-digit UTR / RRN captured.                                    |
+| **Category**         |     `0.10`     | Category resolver finds a rule or learned mapping.              |
+| **Account**          |     `0.10`     | Masked account/card pattern identified.                         |
 
 * **Penalties**: Subtracted for conflicting directionality (-0.15), low-signal generic merchant strings (-0.10), or unverified account masks (-0.05).
-* **Thresholds**: Messages scoring $\ge 0.65$ commit automatically; messages $< 0.65$ trigger the AI fallback or alert the user.
+* **Active decision policy**: The legacy classifier score below `0.5` rejects; scores from `0.5` to below `0.8` go to review; scores at or above `0.8` can auto-save. Parser confidence below `0.5` rejects and `requiresConfirmation` forces review. AI inference is not currently active.
 
 ### 4.7 Adaptive On-Device Learning Engine (`src/core/parser/learning/`)
 
-Implements continuous self-learning directly within local SQLite:
+Stores explicit merchant/category corrections locally through the repository used by parser resolvers:
 
 ```typescript
 export interface ILearningRepository {
-  getMerchantMapping(rawPattern: string): Promise<LearnedMerchant | null>;
-  saveMerchantMapping(mapping: LearnedMerchant): Promise<void>;
-  getCategoryMapping(merchant: string): Promise<LearnedCategory | null>;
-  saveCategoryMapping(mapping: LearnedCategory): Promise<void>;
-  incrementFrequency(rawPattern: string): Promise<void>;
+  save(mapping: LearnedMapping): void;
+  get(rawMerchant: string): LearnedMapping | null;
+  getAll(): LearnedMapping[];
 }
 ```
 
 * When a user edits a merchant or updates an expense category, `LearningEngine` stores the association.
-* Subsequent occurrences of the same token pattern bypass default heuristics, honoring user intent with confidence reinforcement.
+* Subsequent merchant/category resolutions consult the saved mapping. Token frequency learning and confidence reinforcement are not implemented.
 
 ### 4.8 Offline AI Fallback Resolver (`src/core/parser/ai/`)
 
-* Provides an interface for local on-device LLM or complex NLP inference for edge-case messages where confidence is below `0.65`.
-* Backed by `AICache` storing `SHA256(rawMessage) ➔ StructuredExpense` to guarantee zero redundant inferences and strict offline isolation.
+* `AIResolver` supports an injected inference handler and an in-memory `AICache`.
+* No handler/model is currently configured, and `enableAI` defaults to `false`. Therefore no AI inference runs in production today.
+* Selecting and integrating an on-device/offline inference runtime is approved future implementation work; network inference is out of scope.
 
 ### 4.9 Backward Compatibility Adapter (`src/core/parser/parseMessage.ts`)
 
@@ -322,6 +320,12 @@ export function parseStructured(
   sender = '',
   source: 'sms' | 'notification' | 'manual' = 'sms'
 ): StructuredExpense | null;
+
+export function parseStructuredAsync(
+  message: string,
+  sender?: string,
+  source?: 'sms' | 'notification' | 'manual'
+): Promise<StructuredExpense | null>;
 ```
 
 ---
@@ -400,13 +404,14 @@ CREATE TABLE IF NOT EXISTS settings (
 When an incoming credit transaction is processed, the system executes an automated repayment scan:
 
 ```typescript
-function matchAutoRepayment(creditTx: ParsedTransaction, activeExpenses: Expense[]): SettlementPlan {
+function matchAutoRepayment(creditTx: TransactionCandidate): SettlementPlan {
   // 1. Identify contact name in credit body using word-boundary matching
-  // 2. Locate active splits across all historical expenses where split.contact === matchedContact AND isPaid === false
+  // 2. Query all split-bearing ledger rows (independent of the UI's 30-day window)
+  //    and locate eligible unpaid splits for the matched contact
   // 3. Sort active splits by timestamp ASC (oldest debt first)
   // 4. Iterate oldest-first, applying min(remaining credit, split outstanding)
   //    to each split's paidAmount; set isPaid only when no balance remains
-  // 5. Append corresponding settlement ledger reference to creditTx.splits
+  // 5. Insert the repayment credit and write all affected splits atomically
 }
 ```
 

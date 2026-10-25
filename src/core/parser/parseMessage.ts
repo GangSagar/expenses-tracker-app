@@ -47,4 +47,13 @@ export function parseStructured(
   return defaultParserOrchestrator.parse(message, sender, source);
 }
 
+/** Async structured parser entry point used by transaction ingestion. */
+export function parseStructuredAsync(
+  message: string,
+  sender: string = '',
+  source: TransactionSource = 'sms',
+): Promise<StructuredExpense | null> {
+  return defaultParserOrchestrator.parseAsync(message, sender, source);
+}
+
 export { ParserOrchestrator };
