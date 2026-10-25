@@ -8,14 +8,14 @@ import {
   ScrollView,
   Modal,
 } from 'react-native';
-import { useExpenseStore } from '../hooks/useExpenses';
-import { Expense, Category } from '../types/expense';
-import { CATEGORIES as APP_CATEGORIES } from '../constants/appOptions';
-import { trainSpam } from '../core/classifier/spamClassifier';
+import { useExpenseStore } from '../../../hooks/useExpenses';
+import { Expense, Category } from '../../../types/expense';
+import { CATEGORIES as APP_CATEGORIES } from '../../../constants/appOptions';
+import { trainSpam } from '../../../core/classifier/spamClassifier';
 import EditTransactionModal from '../components/EditTransactionModal';
 import CalendarModal from '../components/CalendarModal';
-import { getGroupedSections } from '../utils/dateHelpers';
-import { formatAmount } from '../utils/formatHelpers';
+import { getGroupedSections } from '../../../utils/dateHelpers';
+import { formatAmount } from '../../../utils/formatHelpers';
 import commonStyles from '../styles/commonStyles';
 import styles from '../styles/HistoryScreenStyles';
 

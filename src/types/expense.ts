@@ -8,7 +8,10 @@ export type Category = typeof CATEGORIES[number];
 
 export interface ExpenseSplit {
   contactName: string;
+  /** Original amount owed; kept unchanged when repayments are applied. */
   amount: number;
+  /** Amount repaid so far. Missing values on older records mean zero. */
+  paidAmount?: number;
   isPaid?: boolean;
   owedByMe?: boolean;
 }

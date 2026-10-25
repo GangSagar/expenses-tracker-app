@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { generateDaysInMonth } from '../utils/dateHelpers';
+import { generateDaysInMonth } from '../../../utils/dateHelpers';
 
 interface CalendarModalProps {
   startDate: number | null;

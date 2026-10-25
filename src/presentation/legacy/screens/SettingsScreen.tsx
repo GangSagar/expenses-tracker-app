@@ -16,27 +16,26 @@ import {
   Switch,
 } from 'react-native';
 import styles from '../styles/SettingsScreenStyles';
-import { useExpenseStore } from '../hooks/useExpenses';
-import { useSecurityStore } from '../hooks/useSecurityStore';
-import { authenticateWithBiometrics } from '../services/securityService';
+import { useExpenseStore } from '../../../hooks/useExpenses';
+import { useSecurityStore } from '../../../hooks/useSecurityStore';
+import { authenticateWithBiometrics } from '../../../services/securityService';
 import PinSetupModal from '../components/PinSetupModal';
 
 import {
   getSetting,
   setSetting,
-  isDuplicateTransaction,
   createDedupCache,
   isDuplicateWithCache,
   addToDedupCache,
   insertExpense,
   clearAllExpenses,
-} from '../database/expenseRepo';
+} from '../../../database/expenseRepo';
 import commonStyles from '../styles/commonStyles';
 import CalendarModal from '../components/CalendarModal';
-import { processIncomingMessage } from '../services/messageService';
-import { processTransaction } from '../services/expenseService';
-import { resetSpamClassifier } from '../core/classifier/spamClassifier';
-import { resetMerchantMap } from '../core/classifier/merchantMap';
+import { processIncomingMessage } from '../../../services/messageService';
+import { processTransaction } from '../../../services/expenseService';
+import { resetSpamClassifier } from '../../../core/classifier/spamClassifier';
+import { resetMerchantMap } from '../../../core/classifier/merchantMap';
 
 const { MessageModule } = NativeModules;
 

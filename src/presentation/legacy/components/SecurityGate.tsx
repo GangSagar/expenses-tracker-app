@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, AppState, AppStateStatus, StyleSheet } from 'react-native';
-import { useSecurityStore } from '../hooks/useSecurityStore';
+import { useSecurityStore } from '../../../hooks/useSecurityStore';
 import LockScreen from './LockScreen';
 
 interface SecurityGateProps {
@@ -9,7 +9,6 @@ interface SecurityGateProps {
 
 export default function SecurityGate({ children }: SecurityGateProps) {
   const {
-    initialized,
     isAppLockEnabled,
     isLocked,
     initSecurity,

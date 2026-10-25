@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Expense } from '../types/expense';
-import { formatAmount } from '../utils/formatHelpers';
+import { Expense } from '../../../types/expense';
+import { formatAmount } from '../../../utils/formatHelpers';
 
 interface ExpenseItemProps {
   item: Expense;

@@ -10,17 +10,17 @@ The current UI is scheduled for replacement. This work therefore changes transac
 
 | Phase | Status | Result |
 |---|---|---|
-| 1. Baseline, contracts, and urgent correctness fixes | Complete | Runtime paths documented, contracts added, automatic repayment over-settlement fixed, related writes grouped atomically, focused tests and typecheck pass. |
-| 2. One transaction decision policy | Not started | Existing parser and expense confidence decisions remain; authoritative policy decision is open. |
-| 3. Shared application use cases | Not started | Live, import, manual, and edit paths still have distinct coordination. |
+| 1. Baseline, contracts, partial repayments, and presentation isolation | Complete (v2) | Partial allocations are persisted and shown; existing UI files are grouped under `src/presentation/legacy/` without visual redesign. |
+| 2. One transaction decision policy | Approved, not started | Parser confidence and classifier evidence feed one policy, which owns reject/review/save. |
+| 3. Shared application use cases | Approved direction, not started | Live, import, manual, and edit paths still have distinct coordination; historical import must use shared repayment and dedup rules. |
 | 4. Repository boundary and temporary presentation adapters | Not started | Phase 1 adds a repository port and focused atomic operations; the existing repository is not yet a complete adapter for the port. |
-| 5. Splits and repayment domain boundary | Partially prepared | Pure repayment planning has been extracted, but the complete split use case and all split operations remain in Zustand. |
+| 5. Splits and repayment domain boundary | Partially prepared | Pure partial-allocation planning is in place; manual settle/unsettle/toggle and the complete split use case remain in Zustand. |
 | 6. Unified deduplication | Not started | Live and import deduplication still use different rules. |
 | 7. Explicit database migrations | Not started | Existing best-effort `ALTER TABLE` migration sequence remains. |
 | 8. Domain organization and dependency guardrails | Not started | Only the new transaction contracts/planner are grouped under `src/core/transactions/`; broader organization and import rules are deferred. |
 | 9. Documentation and future feature readiness | In progress | Restructuring plan, Phase 1 record, and this log document the actual flow; broader docs still need reconciliation as phases land. |
 
-## Phase 1 — Baseline, contracts, and urgent correctness fixes
+## Phase 1 v1 — Baseline, contracts, and urgent correctness fixes
 
 ### Files changed
 
@@ -53,11 +53,38 @@ The original path uses only expenses currently loaded in Zustand (currently wind
 
 ### Remaining Phase 1 decisions / constraints
 
-- The combined parser/classifier decision policy remains a Phase 2 choice.
-- Async parser, AI fallback, and learning are not used by the traced live/import paths; activating them requires an explicit policy decision.
-- Partial settlement of a split is unsupported until the domain and persisted model can represent remaining balances or settlement allocations.
+- Phase 1 v1 assumed whole-split settlement. The user's v2 decision replaces that assumption with partial split allocation.
+- Parser async, learning, and AI fallback activation is approved; the local AI inference implementation remains to be selected and integrated.
 - Hard deletion and soft invalidation both exist; their product semantics remain to be consolidated.
-- No screen redesign or visual refactor was performed.
+- The UI relocation is tracked in Phase 1 v2; no screen redesign or visual refactor is part of it.
+
+## Phase 1 v2 — Partial repayments and presentation isolation (complete)
+
+### Files changed in v2
+
+| File or exact file set | Change | Why and how |
+|---|---|---|
+| `src/types/expense.ts` | Added optional `ExpenseSplit.paidAmount`. | Stores cumulative repayments without overwriting the original split amount. Old JSON rows remain compatible: a missing field is treated as zero, while legacy `isPaid` rows remain fully settled. |
+| `src/core/transactions/repaymentPlanner.ts` | Changed the planner to allocate partial amounts oldest-first; added `remainingSplitAmount()`. | Each allocation is capped by the incoming credit and split's outstanding amount. The final reached split may be partially paid; repeated payments accumulate; `isPaid` is set only when no balance remains. |
+| `src/hooks/useExpenses.ts` | Updated automatic, manual, settle, unsettle, and toggle flows to preserve/synchronize `paidAmount`. | Keeps existing store actions compatible while displaying/persisting the new split state. Related automatic repayment writes still use the atomic repository methods from v1. |
+| `src/presentation/legacy/screens/SplitsScreen.tsx` | Moved from `src/screens/`; balance totals and active split amounts now use remaining amount. | Makes current ledger display reflect partial payments without redesigning the screen. |
+| `src/presentation/legacy/components/EditTransactionModal.tsx` | Moved from `src/components/`; split amount edits preserve and cap paid amount. | Prevents edits from silently erasing or exceeding recorded repayments. |
+| `src/presentation/legacy/components/BankCard.tsx`, `CalendarModal.tsx`, `CategoryPopup.tsx`, `ExpenseItem.tsx`, `LockScreen.tsx`, `PinSetupModal.tsx`, `SecurityGate.tsx` | Relocated unchanged from `src/components/`. | Groups the current component layer as replaceable presentation code. Relative imports were rebased. |
+| `src/presentation/legacy/screens/AccountsScreen.tsx`, `HistoryScreen.tsx`, `HomeScreen.tsx`, `SettingsScreen.tsx` | Relocated unchanged from `src/screens/`. | Groups existing screens under the legacy presentation boundary; no visual or workflow redesign. |
+| `src/presentation/legacy/styles/AccountsScreenStyles.ts`, `HistoryScreenStyles.ts`, `HomeScreenStyles.ts`, `SettingsScreenStyles.ts`, `SplitsScreenStyles.ts`, `commonStyles.ts`, `theme.ts` | Relocated unchanged from `src/styles/`. | Keeps styles/theme beside the legacy screens they serve. |
+| `src/presentation/legacy/navigation/AppNavigator.tsx` | Relocated from `src/navigation/`; screen imports rebased. | Contains navigation inside the legacy presentation boundary. |
+| `src/presentation/legacy/README.md` | Added a boundary note. | Explains that transaction workflows belong outside the legacy UI location. |
+| `App.tsx` and moved presentation modules | Rewrote relative import paths. | Preserves the existing app entry and module graph after relocation. |
+| `src/__tests__/transactionRepayment.test.ts` | Updated planner tests for partial payment, repeated allocation, and legacy split compatibility. | Verifies that original amounts remain, paid amounts accumulate/cap, and outstanding balances calculate correctly. |
+| `README.md`, `docs/ARCHITECTURE.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/TRD.md` | Updated current presentation path and split repayment model. | Keeps setup/architecture/requirements docs aligned with the implementation. |
+| `docs/v2.0 - improvement_plan/PHASE_1_BASELINE_AND_CONTRACTS.md`, `ARCHITECTURE_RESTRUCTURING_PLAN.md`, this log | Recorded user decisions and Phase 1 v2 scope/status. | Separates approved requirements from work that remains in Phases 2–9. |
+
+### Decisions recorded for later phases
+
+- The single reject/review/save policy is approved and belongs to Phase 2.
+- Async parsing, correction learning, and offline AI fallback are approved active behavior. `AIResolver` currently lacks a default inference handler, so a local inference runtime remains an implementation dependency to evaluate.
+- Historical import must use the shared transaction processing path and apply repayment allocations chronologically; this remains Phase 3 work.
+- Current UI is relocated to `src/presentation/legacy/`; no redesign is requested.
 
 ## Phase 2 — One transaction decision policy (not started)
 
@@ -85,9 +112,9 @@ The original path uses only expenses currently loaded in Zustand (currently wind
 |---|---|
 | `src/core/transactions/` | Add `IngestTransaction`, `ImportTransactions`, `CreateManualTransaction`, `ConfirmPendingTransaction`, and edit/invalidation use cases as needed. |
 | `src/hooks/useMessageListener.ts` | Adapt native events and display outcomes; do not own transaction decisions. |
-| `src/screens/SettingsScreen.tsx` | Retain its current UI, but replace inline import processing/persistence with the batch use case. |
+| `src/presentation/legacy/screens/SettingsScreen.tsx` | Retain its current UI, but replace inline import processing/persistence with the batch use case. |
 | `src/services/messageService.ts`, `src/services/transactionOrchestrator.ts`, `src/services/expenseService.ts` | Migrate existing behavior into cohesive use cases and adapters; remove duplicate orchestration only after call sites move. |
-| `src/components/CategoryPopup.tsx`, `src/components/EditTransactionModal.tsx`, `src/hooks/useExpenses.ts` | Minimal wiring to use cases only; no visual rewrite. |
+| `src/presentation/legacy/components/CategoryPopup.tsx`, `src/presentation/legacy/components/EditTransactionModal.tsx`, `src/hooks/useExpenses.ts` | Minimal wiring to use cases only; no visual rewrite. |
 | `src/__tests__/*transaction*`, new import/use-case tests | Verify consistent outcomes from all sources using repository fakes. |
 
 ## Phase 4 — Repository boundary and temporary presentation adapters (not started)
@@ -102,7 +129,7 @@ The original path uses only expenses currently loaded in Zustand (currently wind
 | `src/database/db.ts` | Keep connection and migration setup infrastructure-only. |
 | `src/core/transactions/` | Inject repository ports into use cases and return persisted results. |
 | `src/hooks/useExpenses.ts` | Remove direct database coordination where use cases now own it; retain temporary presentation state actions. |
-| `src/screens/SettingsScreen.tsx`, `src/components/CategoryPopup.tsx`, `src/components/EditTransactionModal.tsx` | Replace direct repository/service writes with use-case calls only; leave layout/navigation unchanged. |
+| `src/presentation/legacy/screens/SettingsScreen.tsx`, `src/presentation/legacy/components/CategoryPopup.tsx`, `src/presentation/legacy/components/EditTransactionModal.tsx` | Replace direct repository/service writes with use-case calls only; leave layout/navigation unchanged. |
 | `src/__tests__/expenseRepo.test.ts`, use-case tests | Validate adapter mapping, success/failure behavior, and state-after-persistence rules. |
 
 ## Phase 5 — Splits and repayment domain boundary (partially prepared)
@@ -119,7 +146,7 @@ The original path uses only expenses currently loaded in Zustand (currently wind
 | `src/core/splits/` or `src/core/transactions/` | Add domain rules/use cases for manual settle, unsettle, toggle, and automatic repayment. |
 | `src/database/expenseRepo.ts` or dedicated split repository | Add atomic multi-expense settlement operations and support residual/allocated amounts if partial payment is adopted. |
 | `src/hooks/useExpenses.ts` | Reduce to invoking use cases and reflecting results. |
-| `src/screens/SplitsScreen.tsx` | Keep UI intact; change only API wiring when use cases move. |
+| `src/presentation/legacy/screens/SplitsScreen.tsx` | Keep UI intact; change only API wiring when use cases move. |
 | split/repayment tests | Cover full, partial (if supported), reversal/unsettle, invalidation, and failure atomicity. |
 
 ## Phase 6 — Unified deduplication (not started)
@@ -133,7 +160,7 @@ The original path uses only expenses currently loaded in Zustand (currently wind
 | `src/core/dedup/duplicateCheck.ts` | Define the product-level duplicate policy and typed duplicate reason. |
 | `src/database/expenseRepo.ts` | Supply repository query/index data; keep SQL and caches as optimizations rather than alternate policies. |
 | `src/services/expenseService.ts`, transaction use cases | Invoke the same policy from live, import, and confirmation paths. |
-| `src/screens/SettingsScreen.tsx` | Remove the second import-only definition while retaining progress/preview UI. |
+| `src/presentation/legacy/screens/SettingsScreen.tsx` | Remove the second import-only definition while retaining progress/preview UI. |
 | `src/__tests__/dedup.test.ts`, `src/__tests__/expenseRepo.test.ts`, import integration tests | Cover reference, raw body, source, timestamp, merchant, repeated purchase, invalidated and cross-source cases. |
 
 ## Phase 7 — Explicit database migrations (not started)

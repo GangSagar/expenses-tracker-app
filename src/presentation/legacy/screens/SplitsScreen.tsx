@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { useExpenseStore } from '../hooks/useExpenses';
+import { useExpenseStore } from '../../../hooks/useExpenses';
 import commonStyles from '../styles/commonStyles';
-import { ExpenseSplit } from '../types/expense';
+import { ExpenseSplit } from '../../../types/expense';
 import styles from '../styles/SplitsScreenStyles';
+import { remainingSplitAmount } from '../../../core/transactions/repaymentPlanner';
 
 
 interface SplitItemDetail {
@@ -60,7 +61,7 @@ export default function SplitsScreen() {
           };
         }
 
-        const amt = Number(sp.amount) || 0;
+        const amt = remainingSplitAmount(sp);
         const detail: SplitItemDetail = {
           expenseId: exp.id,
           merchant: exp.merchant,
@@ -69,7 +70,7 @@ export default function SplitsScreen() {
           split: sp,
         };
 
-        if (sp.isPaid) {
+        if (sp.isPaid || amt <= 0) {
           registry[name].settledSplits.push(detail);
         } else {
           registry[name].activeSplits.push(detail);
@@ -282,7 +283,7 @@ export default function SplitsScreen() {
                           <TouchableOpacity 
                             key={`${item.expenseId}-${idx}`} 
                             style={styles.billItem}
-                            onPress={() => handleToggleSplit(item.expenseId, contact.contactName, false, item.merchant, item.split.amount)}
+                            onPress={() => handleToggleSplit(item.expenseId, contact.contactName, false, item.merchant, remainingSplitAmount(item.split))}
                             activeOpacity={0.7}
                           >
                             <View style={{ flex: 1 }}>
@@ -296,7 +297,7 @@ export default function SplitsScreen() {
                               item.split.owedByMe ? styles.negativeText : styles.positiveText
                             ]}>
                               {item.split.owedByMe ? '-' : '+'}
-                              {formatAmount(item.split.amount)}
+                              {formatAmount(remainingSplitAmount(item.split))}
                             </Text>
                           </TouchableOpacity>
                         ))}

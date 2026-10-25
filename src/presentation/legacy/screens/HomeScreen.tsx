@@ -8,17 +8,17 @@ import {
   StatusBar,
 } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-import { useExpenseStore } from '../hooks/useExpenses';
-import { Expense } from '../types/expense';
+import { useExpenseStore } from '../../../hooks/useExpenses';
+import { Expense } from '../../../types/expense';
 import EditTransactionModal from '../components/EditTransactionModal';
 import ExpenseItem from '../components/ExpenseItem';
-import { formatAmount, getCategoryColor } from '../utils/formatHelpers';
+import { formatAmount, getCategoryColor } from '../../../utils/formatHelpers';
 import BankCard from '../components/BankCard';
-import { getSetting } from '../database/expenseRepo';
-import { generateBudgetInsights } from '../services/advisorService';
+import { getSetting } from '../../../database/expenseRepo';
+import { generateBudgetInsights } from '../../../services/advisorService';
 import commonStyles from '../styles/commonStyles';
 import styles from '../styles/HomeScreenStyles';
-import { computeAccountSummaries } from '../utils/accountHelpers';
+import { computeAccountSummaries } from '../../../utils/accountHelpers';
 
 
 export default function HomeScreen() {

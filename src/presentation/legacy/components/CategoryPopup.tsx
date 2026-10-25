@@ -7,13 +7,13 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import { Category, Expense } from '../types/expense';
-import { useExpenseStore } from '../hooks/useExpenses';
-import { saveExpense } from '../services/expenseService';
-import { setMerchantMapping } from '../core/classifier';
-import { saveMerchantCategory } from '../database/expenseRepo';
-import { CATEGORIES } from '../constants/appOptions';
-import { formatAmount } from '../utils/formatHelpers';
+import { Category, Expense } from '../../../types/expense';
+import { useExpenseStore } from '../../../hooks/useExpenses';
+import { saveExpense } from '../../../services/expenseService';
+import { setMerchantMapping } from '../../../core/classifier';
+import { saveMerchantCategory } from '../../../database/expenseRepo';
+import { CATEGORIES } from '../../../constants/appOptions';
+import { formatAmount } from '../../../utils/formatHelpers';
 
 export default function CategoryPopup() {
   const pendingExpenses = useExpenseStore(state => state.pendingExpenses);

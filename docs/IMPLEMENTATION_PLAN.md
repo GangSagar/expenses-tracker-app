@@ -165,7 +165,7 @@ gantt
 | **Budget Advisor**        | `src/services/ai/budgetAdvisor.ts`                             | Predictive burn rate calculation                                 | Pure TypeScript               |
 | **Persistence Engine**    | `src/services/db/db.ts`, `expenseRepo.ts`, `splitsRepo.ts` | ACID relational storage, migrations, aggregation queries         | `react-native-quick-sqlite`   |
 | **State Layer**           | `src/store/useExpenseStore.ts`, `useSettingsStore.ts`        | In-memory reactive state, cache hydration                        | Zustand                       |
-| **UI Components**         | `src/screens/*.tsx`, `src/components/*.tsx`                  | Glassmorphic dark dashboard, charts, modals                      | React Native Core, SVG        |
+| **Legacy UI Components** | `src/presentation/legacy/{screens,components,styles,navigation}/` | Existing React Native presentation retained as a replaceable adapter | React Native Core |
 | **Telemetry & QA**        | `telemetryService.ts`, `collect-testcases.py`                | Distributed tracing, device message extraction                   | OpenTelemetry, ADB, Python    |
 
 ---

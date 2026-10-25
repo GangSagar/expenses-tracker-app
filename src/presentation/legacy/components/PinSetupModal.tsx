@@ -8,7 +8,7 @@ import {
   Animated,
   Alert,
 } from 'react-native';
-import { useSecurityStore } from '../hooks/useSecurityStore';
+import { useSecurityStore } from '../../../hooks/useSecurityStore';
 
 interface PinSetupModalProps {
   visible: boolean;

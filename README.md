@@ -218,8 +218,8 @@ src/
 ├── database/            # SQLite schemas, repositories & migrations
 ├── services/            # Background SMS & notification listener pipeline
 ├── hooks/               # Zustand reactive store (accounts, splits, transactions)
-├── screens/             # HomeScreen, HistoryScreen, SplitsScreen, AccountsScreen, SettingsScreen
-├── components/          # Cards, modals, lists & custom UI widgets
+├── presentation/
+│   └── legacy/          # Existing screens, components, styles & navigation; UI replacement boundary
 └── types/               # TypeScript data models and interfaces
 ```
 

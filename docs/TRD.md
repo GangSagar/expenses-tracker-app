@@ -404,10 +404,13 @@ function matchAutoRepayment(creditTx: ParsedTransaction, activeExpenses: Expense
   // 1. Identify contact name in credit body using word-boundary matching
   // 2. Locate active splits across all historical expenses where split.contact === matchedContact AND isPaid === false
   // 3. Sort active splits by timestamp ASC (oldest debt first)
-  // 4. Iterate and mark splits as isPaid = true up to creditTx.amount
+  // 4. Iterate oldest-first, applying min(remaining credit, split outstanding)
+  //    to each split's paidAmount; set isPaid only when no balance remains
   // 5. Append corresponding settlement ledger reference to creditTx.splits
 }
 ```
+
+Split rows preserve their original `amount` and may store cumulative `paidAmount`. The outstanding amount is `max(0, amount - paidAmount)` while the row is not fully paid. Older rows without `paidAmount` are treated as unpaid by default; a legacy row with `isPaid = true` is treated as fully paid. Partial allocations are written atomically with the incoming repayment credit and are applied oldest-first.
 
 ---
 

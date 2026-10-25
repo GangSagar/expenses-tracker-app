@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import theme from '../styles/theme';
-import { formatAmount } from '../utils/formatHelpers';
+import { formatAmount } from '../../../utils/formatHelpers';
 
 export interface BankCardProps {
   bank: string;

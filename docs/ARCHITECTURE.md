@@ -359,6 +359,8 @@ erDiagram
     EXPENSES ||--o{ MERCHANT_CATEGORIES : "categorized by"
 ```
 
+The `splits` column stores split rows as JSON. Current rows retain the original `amount` and may include cumulative `paidAmount`, `isPaid`, and `owedByMe`. Outstanding balance is calculated from the original amount less paid amount; legacy rows without `paidAmount` remain compatible.
+
 ---
 
 ### 2.5 Threading & Concurrency Model

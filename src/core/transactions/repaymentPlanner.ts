@@ -7,7 +7,7 @@ export interface SplitSettlementUpdate {
 
 export interface AutomaticRepaymentPlan {
   contactName: string;
-  /** Total amount represented by fully settled split rows. */
+  /** Total amount allocated across full and partial split repayments. */
   settledAmount: number;
   updates: SplitSettlementUpdate[];
 }
@@ -16,8 +16,7 @@ type IncomingExpense = Omit<Expense, 'id'> & { id?: number };
 
 /**
  * Build an oldest-first repayment plan without mutating input expenses.
- * Split rows are indivisible in the current data model, so a row is only
- * marked paid when the incoming credit covers its full remaining amount.
+ * A payment can partially settle the final split row it reaches.
  */
 export function planAutomaticRepayment(
   incoming: IncomingExpense,
@@ -44,6 +43,7 @@ export function planAutomaticRepayment(
       const split = expense.splits[splitIndex];
       const contactName = split.contactName.trim();
       if (!contactName || split.isPaid || split.owedByMe) continue;
+      if (remainingSplitAmount(split) <= 0) continue;
 
       const pending = pendingByContact.get(contactName) || [];
       pending.push({ expense, splitIndex, split });
@@ -81,26 +81,29 @@ export function planAutomaticRepayment(
   const updatedByExpense = new Map<number, ExpenseSplit[]>();
 
   for (const item of matchedSplits) {
-    const splitAmount = Number(item.split.amount);
-    if (!Number.isFinite(splitAmount) || splitAmount <= 0) continue;
-
-    // The current model cannot represent partial payment of a split row.
-    // Preserve FIFO ordering and leave this and newer rows unpaid.
-    if (splitAmount > remaining + 0.000001) break;
+    const outstanding = remainingSplitAmount(item.split);
+    if (outstanding <= 0) continue;
+    const appliedAmount = Math.min(remaining, outstanding);
 
     const expenseId = item.expense.id;
     if (expenseId === undefined) continue;
 
     const updatedSplits = updatedByExpense.get(expenseId) ||
       item.expense.splits!.map(split => ({ ...split }));
+    const paidAmount = Math.min(
+      Number(item.split.amount),
+      (Number(item.split.paidAmount) || 0) + appliedAmount,
+    );
     updatedSplits[item.splitIndex] = {
       ...updatedSplits[item.splitIndex],
-      isPaid: true,
+      paidAmount,
+      isPaid: paidAmount >= Number(item.split.amount) - 0.000001,
     };
     updatedByExpense.set(expenseId, updatedSplits);
 
-    remaining = Math.max(0, remaining - splitAmount);
-    settledAmount += splitAmount;
+    remaining = Math.max(0, remaining - appliedAmount);
+    settledAmount += appliedAmount;
+    if (remaining <= 0.000001) break;
   }
 
   if (settledAmount <= 0) return null;
@@ -122,4 +125,13 @@ export function repaymentSplit(plan: AutomaticRepaymentPlan): ExpenseSplit {
     isPaid: true,
     owedByMe: true,
   };
+}
+
+export function remainingSplitAmount(split: ExpenseSplit): number {
+  const amount = Number(split.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  if (split.isPaid) return 0;
+  const rawPaidAmount = Number(split.paidAmount) || 0;
+  const paidAmount = Math.min(amount, Math.max(0, rawPaidAmount));
+  return Math.max(0, amount - paidAmount);
 }

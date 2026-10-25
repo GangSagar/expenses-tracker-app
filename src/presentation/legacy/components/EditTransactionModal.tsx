@@ -13,9 +13,9 @@ import {
   Platform,
 } from 'react-native';
 import Contacts from 'react-native-contacts';
-import { Category, Expense, PaymentMode, ExpenseSplit } from '../types/expense';
-import { CATEGORIES, PAYMENT_MODES } from '../constants/appOptions';
-import { useExpenseStore } from '../hooks/useExpenses';
+import { Category, Expense, PaymentMode, ExpenseSplit } from '../../../types/expense';
+import { CATEGORIES, PAYMENT_MODES } from '../../../constants/appOptions';
+import { useExpenseStore } from '../../../hooks/useExpenses';
 
 interface Props {
   expense: Expense | null;
@@ -34,6 +34,21 @@ interface Props {
   ) => void;
   onAddManual?: (expense: Omit<Expense, 'id'>) => void;
   isAddMode?: boolean;
+}
+
+function withEditedSplitAmount(split: ExpenseSplit, amount: number): ExpenseSplit {
+  const nextAmount = Math.max(0, Number(amount) || 0);
+  const previouslyPaid = split.isPaid
+    ? Number(split.paidAmount ?? split.amount) || 0
+    : Number(split.paidAmount) || 0;
+  const paidAmount = Math.min(nextAmount, Math.max(0, previouslyPaid));
+
+  return {
+    ...split,
+    amount: nextAmount,
+    paidAmount,
+    isPaid: nextAmount > 0 && paidAmount >= nextAmount - 0.000001,
+  };
 }
 
 export default function EditTransactionModal({
@@ -272,7 +287,11 @@ export default function EditTransactionModal({
 
   const updateSplit = (index: number, key: keyof ExpenseSplit, value: any) => {
     setSplits(
-      splits.map((s, i) => (i === index ? { ...s, [key]: value } : s))
+      splits.map((s, i) => {
+        if (i !== index) return s;
+        if (key === 'amount') return withEditedSplitAmount(s, Number(value));
+        return { ...s, [key]: value };
+      })
     );
   };
 
@@ -283,7 +302,7 @@ export default function EditTransactionModal({
     
     // Assign equal share to everyone, adjustments on the last person or your share will absorb rounding
     setSplits(
-      splits.map(s => ({ ...s, amount: equalShare }))
+      splits.map(s => withEditedSplitAmount(s, equalShare))
     );
   };
 

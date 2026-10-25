@@ -124,15 +124,15 @@ The modular parser exposes `parseAsync()` and learning/AI interfaces, while the 
 
 ## Staged implementation plan
 
-### Phase 1 — Baseline, contracts, and urgent correctness fixes
+### Phase 1 v2 — Baseline, contracts, partial repayments, and presentation isolation
 
-**Status: Complete.** Documented actual input paths and behavior; added transaction candidate, processing outcome, and repository contracts; fixed automatic whole-split over-settlement and grouped repayment writes atomically. Partial settlement remains unsupported by the current split model. Details and verification are in [Phase 1: Baseline and Contracts](./PHASE_1_BASELINE_AND_CONTRACTS.md).
+**Status: Complete.** Phase 1 v1 documented the runtime and added contracts/atomic repayment writes. Phase 1 v2 adds partial split allocation, updates outstanding-balance calculation, and relocates the existing UI to `src/presentation/legacy/` without redesign. Details and verification are in [Phase 1: Baseline and Contracts](./PHASE_1_BASELINE_AND_CONTRACTS.md) and [the implementation log](./IMPLEMENTATION_CHANGELOG.md).
 
 **Exit condition:** current behavior is mapped, key contracts and decisions are recorded, and any in-scope correctness defect has a regression case and a bounded fix.
 
 ### Phase 2 — One transaction decision policy
 
-Create a single policy that consumes parser facts and any classifier signal, then returns reject, review, or accept with a reason. Migrate the active live path to the policy while preserving the established behavior unless a deliberate behavior change is approved.
+**Direction approved:** create one policy that consumes parser facts and classifier evidence, then returns reject, review, or accept with a reason. Migrate the active live path to it and preserve established behavior except for explicitly approved changes.
 
 **Likely areas:** `src/core/parser/models/`, `src/services/messageService.ts`, `src/services/expenseService.ts`, `src/services/transactionOrchestrator.ts`, and transaction tests.
 
@@ -142,7 +142,9 @@ Create a single policy that consumes parser facts and any classifier signal, the
 
 Route live ingestion, historical import, manual creation, confirmation, edits, and invalidation/deletion through named use cases. Keep native event handling and batch progress in adapters/presentation, not in duplicated business flows.
 
-**Likely areas:** `src/services/transactionOrchestrator.ts`, `src/services/messageService.ts`, `src/services/expenseService.ts`, `src/screens/SettingsScreen.tsx`, `src/hooks/useMessageListener.ts`, and manual/edit UI call sites.
+This phase also brings historical imports through the shared repayment path. For example, an imported ₹400 repayment from Alex must reduce Alex's oldest outstanding split by ₹400 instead of inserting the credit while leaving the original full debt open. Process batch messages chronologically and keep deduplication idempotent.
+
+**Likely areas:** `src/services/transactionOrchestrator.ts`, `src/services/messageService.ts`, `src/services/expenseService.ts`, `src/presentation/legacy/screens/SettingsScreen.tsx`, `src/hooks/useMessageListener.ts`, and manual/edit UI call sites.
 
 **Exit condition:** every write-capable entry point uses an application use case; no screen independently reconstructs transaction processing.
 
@@ -150,13 +152,13 @@ Route live ingestion, historical import, manual creation, confirmation, edits, a
 
 Introduce a transaction repository interface and keep SQLite implementation details in the database adapter. Move write coordination into use cases. Do not redesign or comprehensively refactor Zustand/screens; make only the changes needed to call the use cases and reflect their results. Treat the existing UI/store as a temporary presentation adapter that may be replaced later.
 
-**Likely areas:** `src/database/expenseRepo.ts`, `src/database/db.ts`, `src/hooks/useExpenses.ts`, `src/components/CategoryPopup.tsx`, and screen imports of repository writes.
+**Likely areas:** `src/database/expenseRepo.ts`, `src/database/db.ts`, `src/hooks/useExpenses.ts`, `src/presentation/legacy/components/CategoryPopup.tsx`, and screen imports of repository writes.
 
 **Exit condition:** no active UI call site bypasses the application write boundary; existing UI state reflects successful use-case results. Visual and navigation changes are explicitly deferred.
 
 ### Phase 5 — Splits and repayment domain boundary
 
-Specify split settlement semantics, implement calculation independently of Zustand, and coordinate related persistence changes through an application use case. Use a database transaction when several records must change together.
+Move all split settlement behavior out of Zustand into a focused domain/application boundary. Partial repayment of a split is now a supported requirement; preserve original amounts and record allocations against them. Coordinate related persistence changes transactionally.
 
 **Likely areas:** `src/hooks/useExpenses.ts`, split types/UI, and transaction/split repositories.
 
@@ -202,10 +204,10 @@ Keep the architecture diagram synchronized with runtime. For each new input (not
 
 ## Decisions to record before implementation
 
-1. **Decision policy:** Should parser confidence and classifier evidence feed one combined policy? Recommended: yes; only that policy decides accept/review/reject.
-2. **Parser async behavior:** Are learning and AI fallback active production behavior now, or future capability?
+1. **Decision policy:** Approved: parser confidence and classifier evidence feed one policy, which alone decides accept/review/reject.
+2. **Parser async behavior:** Approved active behavior: live/import parsing, user correction learning, and AI fallback. Preserve offline/on-device behavior; the existing AI resolver has no inference handler, so a local model/runtime must be selected and integrated.
 3. **Deletion model:** When should transactions be invalidated/soft-deleted versus physically removed?
-4. **Partial repayments:** Are partial split settlements a supported product behavior?
+4. **Partial repayments:** Approved and implemented in Phase 1 v2 using cumulative split allocations.
 5. **Migration support:** Which installed schema versions must remain upgradeable?
 
-Record answers in the Phase 1 document before the relevant implementation depends on them.
+Record the remaining deletion and supported-schema decisions before their respective implementation phases.

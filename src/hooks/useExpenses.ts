@@ -250,7 +250,9 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       for (const e of affected) {
         if (!e.id) continue;
         const updatedSplits =
-          e.splits?.map(s => (s.contactName === contactName ? { ...s, isPaid: true } : s)) || [];
+          e.splits?.map(s => s.contactName === contactName
+            ? { ...s, isPaid: true, paidAmount: s.amount }
+            : s) || [];
         updateExpenseDb(e.id, e.merchant, e.category, e.bank, e.paymentMode, e.amount, updatedSplits);
       }
       set({ expenses: getAllExpenses(2000) });
@@ -263,12 +265,16 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     try {
       const expenses = get().expenses;
       const affected = expenses.filter(
-        e => e.splits && e.splits.some(s => s.contactName === contactName && s.isPaid),
+        e => e.splits && e.splits.some(s =>
+          s.contactName === contactName && (s.isPaid || (Number(s.paidAmount) || 0) > 0),
+        ),
       );
       for (const e of affected) {
         if (!e.id) continue;
         const updatedSplits =
-          e.splits?.map(s => (s.contactName === contactName ? { ...s, isPaid: false } : s)) || [];
+          e.splits?.map(s => s.contactName === contactName
+            ? { ...s, isPaid: false, paidAmount: 0 }
+            : s) || [];
         updateExpenseDb(e.id, e.merchant, e.category, e.bank, e.paymentMode, e.amount, updatedSplits);
       }
       set({ expenses: getAllExpenses(2000) });
@@ -283,9 +289,15 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       const expense = expenses.find(e => e.id === expenseId);
       if (!expense || !expense.splits) return;
 
-      const updatedSplits = expense.splits.map(s =>
-        s.contactName === contactName ? { ...s, isPaid: !s.isPaid } : s,
-      );
+      const updatedSplits = expense.splits.map(s => {
+        if (s.contactName !== contactName) return s;
+        const markPaid = !s.isPaid;
+        return {
+          ...s,
+          isPaid: markPaid,
+          paidAmount: markPaid ? s.amount : 0,
+        };
+      });
 
       // Save to DB
       updateExpenseDb(

@@ -10,7 +10,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSecurityStore } from '../hooks/useSecurityStore';
+import { useSecurityStore } from '../../../hooks/useSecurityStore';
 
 const PIN_LENGTH = 4;
 
