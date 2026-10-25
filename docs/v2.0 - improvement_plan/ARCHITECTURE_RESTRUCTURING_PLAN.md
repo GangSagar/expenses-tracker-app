@@ -38,9 +38,9 @@ There are parallel paths for historical import in `SettingsScreen.tsx`, and for 
 
 This was the pre-Phase-2 flow: `messageService` called `parseMessage()` and discarded parser confidence/`requiresConfirmation`, then `expenseService` independently decided auto-save, review, or discard. **Phase 2 status: closed for live ingestion and import preview.** They now use structured async parsing and one `decideTransaction()` policy that receives parser and classifier evidence and returns a typed result.
 
-**Original risk, now addressed in the policy paths:** different decisions could occur and parser confirmation was ignored. Historical import final writes still use a screen-owned workflow, although its preview uses the shared policy.
+**Original risk, now addressed in the policy paths:** different decisions could occur and parser confirmation was ignored. Historical import final writes now use the shared chronological application operation; source-specific dedup remains until Phase 6.
 
-**Implemented:** `src/core/transactions/decisionPolicy.ts` is the sole reject/review/auto-save policy. It centralizes the current thresholds and returns reason/evidence data. Shared application use cases for final import/manual/edit writes remain Phase 3 work.
+**Implemented:** `src/core/transactions/decisionPolicy.ts` is the sole reject/review/auto-save policy. It centralizes the current thresholds and returns reason/evidence data. Shared application use cases for final import/manual/edit writes were completed in Phase 3; their SQLite dependencies were routed through the repository port in Phase 4.
 
 ### 2. Processing and persistence are split among entry points
 
@@ -78,7 +78,7 @@ The repository has in-memory duplicate checks in `src/core/dedup`, SQL-based che
 
 Before Phase 2, live processing used the synchronous compatibility adapter and did not record parser correction learning. Live and import-preview paths now invoke `parseAsync()`, and explicit merchant/category corrections call `LearningEngine.learn()`. Extraction still runs synchronously inside `parseAsync()`; AI fallback remains disabled because no local inference handler/model is installed.
 
-**Remaining risk:** developers could mistake the AI interface for an active model, or assume parser extraction itself is asynchronous. Final import persistence remains a separate workflow until Phase 3.
+**Remaining risk:** developers could mistake the AI interface for an active model, or assume parser extraction itself is asynchronous. Final import persistence is now shared with the live/manual application operations; source-specific deduplication remains until Phase 6.
 
 **Approved direction:** async parser invocation, correction learning, and local/offline AI fallback are product requirements. Async invocation and correction recording are now wired to live processing/import preview and explicit edits. Offline AI fallback remains incomplete until an inference runtime is selected and integrated with defined failure behavior; do not describe it as active meanwhile.
 
@@ -154,9 +154,11 @@ This phase also brings historical imports through the shared repayment path. For
 
 ### Phase 4 — Repository boundary and temporary presentation adapters
 
-Introduce a transaction repository interface and keep SQLite implementation details in the database adapter. Move write coordination into use cases. Do not redesign or comprehensively refactor Zustand/screens; make only the changes needed to call the use cases and reflect their results. Treat the existing UI/store as a temporary presentation adapter that may be replaced later.
+**Status: Complete.** Detailed contract scope, backup/reset semantics, implementation record, and later-phase boundaries are in [Phase 4: Repository Boundary](./PHASE_4_REPOSITORY_BOUNDARY.md).
 
-**Likely areas:** `src/database/expenseRepo.ts`, `src/database/db.ts`, `src/hooks/useExpenses.ts`, `src/presentation/legacy/components/CategoryPopup.tsx`, and screen imports of repository writes.
+The transaction repository port and SQLite adapter are implemented. Transaction, backup restore, reset, account deletion, split persistence, and maintenance writes go through repository-backed operations. Zustand still owns split calculation rules until Phase 5; only persistence moved in this phase.
+
+**Implemented areas:** `src/core/transactions/contracts.ts`, `src/core/transactions/applicationUseCases.ts`, `src/database/SQLiteTransactionRepository.ts`, `src/database/expenseRepo.ts`, `src/services/transactions/`, `src/hooks/useExpenses.ts`, and Settings/Accounts persistence wiring.
 
 **Exit condition:** no active UI call site bypasses the application write boundary; existing UI state reflects successful use-case results. Visual and navigation changes are explicitly deferred.
 

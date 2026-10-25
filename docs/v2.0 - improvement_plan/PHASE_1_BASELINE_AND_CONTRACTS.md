@@ -192,7 +192,7 @@ Approved: live and imported paths should activate async parsing, correction lear
 - `TransactionRepository`: the minimal insert/update/find-by-ID port for future application use cases.
 - `PersistedTransaction`: an expense with a required numeric database ID.
 
-The Phase 1 v2 contract was a draft. Phase 2 replaced the mixed decision/result union with a pure `TransactionDecision`, preserved parser and classifier evidence, and kept persistence outcomes separate. `TransactionRepository` remains a future infrastructure port; SQLite still uses direct repository functions until Phase 4.
+The Phase 1 v2 contract was a draft. Phase 2 replaced the mixed decision/result union with a pure `TransactionDecision`, preserved parser and classifier evidence, and kept persistence outcomes separate. `TransactionRepository` was a draft in the Phase 1 checkpoint. Phase 4 has since implemented the port and SQLite adapter; see the Phase 4 plan and implementation changelog for current boundaries.
 
 ## Phase 1 carry-forward audit and closure
 
@@ -200,9 +200,9 @@ The Phase 1 review found the following gaps. The first four were closed while be
 
 | Finding | Resolution | Remaining boundary |
 |---|---|---|
-| Draft contract mixed policy decisions with processing outcomes and omitted parser evidence. | Phase 2 now has a typed, pure `TransactionDecision`; full parser confidence/breakdown/confirmation and classifier evidence reach it. Persistence returns saved/duplicate/failed separately. | The generic repository port is still unwired and remains Phase 4 work. |
+| Draft contract mixed policy decisions with processing outcomes and omitted parser evidence. | Phase 2 now has a typed, pure `TransactionDecision`; full parser confidence/breakdown/confirmation and classifier evidence reach it. Persistence returns saved/duplicate/failed separately. | The generic repository port was completed in Phase 4. |
 | Repayment planning read the 30-day Zustand window. | Added `getExpensesWithSplits()` and routed automatic/manual repayment planning plus contact-wide settle/unsettle through the full split-bearing ledger. | Split domain ownership remains in the store until Phase 5. |
-| Live credit could persist before repayment linking failed. | Automatic credit save now plans from all outstanding splits and inserts the repayment credit plus split updates in one SQLite transaction. On failure, the transaction rolls back and the caller receives an explicit persistence failure. | Application use-case ownership remains Phase 3/4 work. |
+| Live credit could persist before repayment linking failed. | Automatic credit save now plans from all outstanding splits and inserts the repayment credit plus split updates in one SQLite transaction. On failure, the transaction rolls back and the caller receives an explicit persistence failure. | Shared application use-case ownership was completed in Phase 3, and repository injection followed in Phase 4. |
 | Live parsing dropped parser evidence; correction learning was not connected. | Live and import preview now call `parseAsync()` and send structured parser evidence through one policy. Explicit merchant/category corrections feed `LearningEngine`, whose SQLite repository is also read by parser resolvers. | There is still no default local AI inference runtime; AI fallback remains inactive and must not be claimed active. |
 
 At the Phase 1 audit checkpoint, historical import still used its own preview/dedup/direct-insert loop and did not apply repayment allocations. Phase 3 has since moved final import writes through shared use cases and processes the batch chronologically. Phase 6 still owns unifying the differing live/import duplicate semantics.

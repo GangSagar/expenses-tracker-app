@@ -3,6 +3,7 @@ import { QuickSQLiteConnection } from 'react-native-quick-sqlite';
 import { getDatabase } from './db';
 import { telemetry } from '../services/telemetryService';
 import { SplitSettlementUpdate } from '../core/transactions/repaymentPlanner';
+import { TransactionDedupCache } from '../core/transactions/contracts';
 
 // ==========================================
 // Centralized Database SQL Command Constants
@@ -34,6 +35,10 @@ export const UPDATE_EXPENSE_SPLITS_SQL = `
 
 export const GET_RECENT_EXPENSES_SQL = `
   SELECT * FROM expenses WHERE timestamp > ? ORDER BY timestamp DESC
+`;
+
+export const GET_EXPENSE_BY_ID_SQL = `
+  SELECT * FROM expenses WHERE id = ? LIMIT 1
 `;
 
 export const SELECT_EXPENSE_BY_REF_SQL = `
@@ -262,7 +267,7 @@ export function updateExpense(
   const splitsStr = splits ? JSON.stringify(splits) : null;
 
   if (amount !== undefined) {
-    db.execute(UPDATE_EXPENSE_WITH_AMOUNT_SQL, [
+    const result = db.execute(UPDATE_EXPENSE_WITH_AMOUNT_SQL, [
       merchant,
       category,
       bank || null,
@@ -272,8 +277,11 @@ export function updateExpense(
       transactionType || null,
       id,
     ]);
+    if (result.rowsAffected !== undefined && result.rowsAffected !== 1) {
+      throw new Error(`Could not update transaction ${id}`);
+    }
   } else {
-    db.execute(UPDATE_EXPENSE_SQL, [
+    const result = db.execute(UPDATE_EXPENSE_SQL, [
       merchant,
       category,
       bank || null,
@@ -282,7 +290,17 @@ export function updateExpense(
       transactionType || null,
       id,
     ]);
+    if (result.rowsAffected !== undefined && result.rowsAffected !== 1) {
+      throw new Error(`Could not update transaction ${id}`);
+    }
   }
+}
+
+export function getExpenseById(id: number): Expense | null {
+  const db = getDatabase();
+  const result = db.execute(GET_EXPENSE_BY_ID_SQL, [id]);
+  const row = result.rows?._array?.[0];
+  return row ? mapRows([row])[0] : null;
 }
 
 export function getRecentExpenses(minutes: number = 5): Expense[] {
@@ -322,11 +340,7 @@ export function isDuplicateTransaction(
   return !!(result.rows && result.rows.length > 0);
 }
 
-export interface DedupCache {
-  refIds: Set<string>;
-  rawMessages: Set<string>;
-  temporalIndex: Array<{ amount: number; timestamp: number }>;
-}
+export type DedupCache = TransactionDedupCache;
 
 /**
  * Creates an in-memory deduplication index from the local SQLite database.
@@ -477,16 +491,59 @@ export function exportAllExpensesData(): Expense[] {
   return mapRows(result.rows?._array || []);
 }
 
+function clearAllExpenseData(
+  execute: (query: string, params?: any[]) => { rowsAffected: number },
+): void {
+  execute(CLEAR_ALL_EXPENSES_SQL);
+  execute(CLEAR_ALL_MERCHANT_CATEGORIES_SQL);
+  execute(CLEAR_ALL_SETTINGS_SQL);
+}
+
+function mapBackupExpense(item: Expense): Omit<Expense, 'id'> {
+  return {
+    amount: item.amount,
+    merchant: item.merchant,
+    alias: item.alias,
+    category: item.category,
+    confidence: item.confidence || 1,
+    timestamp: item.timestamp,
+    source: item.source || 'manual',
+    rawMessage: item.rawMessage || 'Imported Transaction',
+    transactionType: item.transactionType || 'debit',
+    account: item.account,
+    bank: item.bank,
+    paymentMode: item.paymentMode,
+    isDuplicate: item.isDuplicate,
+    availableBalance: item.availableBalance,
+    splits: item.splits?.map(split => ({ ...split })),
+    referenceId: item.referenceId,
+    isInvalid: item.isInvalid,
+    trashReason: item.trashReason,
+  };
+}
+
+/** Restore exact backup rows in one commit; do not re-run repayment planning. */
+export function restoreExpenseSnapshot(expenses: Expense[], overwrite: boolean): void {
+  runInDatabaseTransaction(execute => {
+    // Replacing a backup replaces the ledger only; app preferences and learned
+    // merchant mappings are not part of the transaction snapshot.
+    if (overwrite) execute(CLEAR_ALL_EXPENSES_SQL);
+    for (const item of expenses) {
+      execute(INSERT_EXPENSE_SQL, getInsertExpenseParams(mapBackupExpense(item)));
+    }
+  });
+}
+
 export function clearAllExpenses(): void {
-  const db = getDatabase();
-  db.execute(CLEAR_ALL_EXPENSES_SQL);
-  db.execute(CLEAR_ALL_MERCHANT_CATEGORIES_SQL);
-  db.execute(CLEAR_ALL_SETTINGS_SQL);
+  runInDatabaseTransaction(execute => clearAllExpenseData(execute));
 }
 
 export function deleteExpense(id: number): void {
   const db = getDatabase();
-  db.execute(DELETE_EXPENSE_SQL, [id]);
+  const result = db.execute(DELETE_EXPENSE_SQL, [id]);
+  if (result.rowsAffected !== undefined && result.rowsAffected !== 1) {
+    throw new Error(`Could not delete transaction ${id}`);
+  }
 }
 
 export function deleteTransactionsForAccount(
@@ -499,26 +556,32 @@ export function deleteTransactionsForAccount(
 
 export function invalidateExpense(id: number, isInvalid: boolean): void {
   const db = getDatabase();
+  let result;
   if (!isInvalid) {
-    db.execute(INVALIDATE_EXPENSE_RESET_SQL, [0, id]);
+    result = db.execute(INVALIDATE_EXPENSE_RESET_SQL, [0, id]);
   } else {
-    db.execute(INVALIDATE_EXPENSE_SQL, [1, id]);
+    result = db.execute(INVALIDATE_EXPENSE_SQL, [1, id]);
+  }
+  if (result.rowsAffected !== undefined && result.rowsAffected !== 1) {
+    throw new Error(`Could not update invalidation state for transaction ${id}`);
   }
 }
 
 export function updateTrashReason(id: number, reason: string | null): void {
   const db = getDatabase();
-  db.execute(UPDATE_TRASH_REASON_SQL, [reason, id]);
+  const result = db.execute(UPDATE_TRASH_REASON_SQL, [reason, id]);
+  if (result.rowsAffected !== undefined && result.rowsAffected !== 1) {
+    throw new Error(`Could not update trash reason for transaction ${id}`);
+  }
 }
 
 export function deduplicateDatabase(): number {
-  const db = getDatabase();
   const expenses = exportAllExpensesData().filter(e => !e.isInvalid);
 
   // Sort by timestamp asc
   expenses.sort((a, b) => a.timestamp - b.timestamp);
 
-  let duplicateCount = 0;
+  const duplicates: Expense[] = [];
   const DEDUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
   // Simple scan
@@ -546,17 +609,26 @@ export function deduplicateDatabase(): number {
         // Mark next as duplicate
         next.isInvalid = true;
         next.trashReason = 'duplicate';
-        duplicateCount++;
-
-        db.execute(
-          'UPDATE expenses SET is_invalid = 1, trash_reason = ? WHERE id = ?',
-          ['duplicate', next.id],
-        );
+        duplicates.push(next);
       }
     }
   }
 
-  return duplicateCount;
+  if (duplicates.length > 0) {
+    runInDatabaseTransaction(execute => {
+      for (const duplicate of duplicates) {
+        const result = execute(
+          'UPDATE expenses SET is_invalid = 1, trash_reason = ? WHERE id = ?',
+          ['duplicate', duplicate.id],
+        );
+        if (result.rowsAffected !== 1) {
+          throw new Error(`Could not mark duplicate transaction ${duplicate.id}`);
+        }
+      }
+    });
+  }
+
+  return duplicates.length;
 }
 
 function normalizeMerchant(merchant: string): string {

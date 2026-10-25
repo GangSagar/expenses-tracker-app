@@ -25,9 +25,9 @@ The audit surfaced gaps that affected Phase 2 and later work. The first five are
 
 | Finding | Resolution | Remaining boundary |
 |---|---|---|
-| The live adapter lost parser evidence and Phase 1 contracts mixed decisions with persistence results. | The live path now uses structured async parsing; the pure `TransactionDecision` receives parser confidence, breakdown, confirmation, and classifier evidence. Persistence outcomes are a separate type. | Generic repository wiring remains Phase 4. |
+| The live adapter lost parser evidence and Phase 1 contracts mixed decisions with persistence results. | The live path now uses structured async parsing; the pure `TransactionDecision` receives parser confidence, breakdown, confirmation, and classifier evidence. Persistence outcomes are a separate type. | Generic repository wiring was completed in Phase 4. |
 | Repayment matching used only the current 30-day Zustand window. | `getExpensesWithSplits()` queries all split-bearing, non-duplicate ledger rows. Automatic/manual repayment and contact-wide settle/unsettle use this full data set. | Split domain ownership remains Phase 5. |
-| A live credit could persist before repayment linking failed. | Credit insert plus split allocations now run through one SQLite transaction. A failed operation returns an explicit persistence failure and leaves no unlinked credit. | Shared application use-case ownership remains Phase 3/4. |
+| A live credit could persist before repayment linking failed. | Credit insert plus split allocations now run through one SQLite transaction. A failed operation returns an explicit persistence failure and leaves no unlinked credit. | Shared application use-case ownership was completed in Phase 3; repository injection was completed in Phase 4. |
 | Filters could drop inputs without a policy outcome. | `processIncomingMessage()` returns typed rejection signals; the same policy produces the reasoned reject decision. | Phase 3 now owns final historical-import persistence through the shared use case. |
 | Correction learning and async parser use were inactive in the production path. | Live ingestion and import preview now call `parseAsync()`; explicit merchant/category corrections call `LearningEngine.learn()`, which parser resolvers read from the same SQLite-backed mapping repository. | Local AI inference has no runtime/handler and remains inactive. |
 
@@ -39,8 +39,8 @@ These closures do not move historical import writes into the decision policy. Ph
 2. `messageService.processIncomingMessage()` normalizes input, collects sender/body/spam/parse rejection signals, and calls `parseStructuredAsync()`.
 3. `expenseService.processTransaction()` maps the full `StructuredExpense`, category classifier evidence, and compatibility score into one `TransactionDecisionInput` and invokes `decideTransaction()` exactly once.
 4. `useMessageListener` executes the policy result: reject is logged with a stable reason, review is queued, and auto-save calls persistence.
-5. For accepted credits, `saveExpense()` queries all split-bearing ledger rows and commits credit insertion and repayment split updates atomically. Duplicate/save failure remains a processing result, not a policy decision.
-6. Settings import preview uses the same parser and decision policy, but its batch persistence and dedup orchestration remain separate until Phase 3.
+5. For accepted credits, the transaction application operation queries all split-bearing ledger rows through `TransactionRepository` and commits credit insertion with repayment updates through the SQLite adapter. Duplicate/save failure remains a processing result, not a policy decision.
+6. Settings import preview uses the same parser and decision policy. Phase 3 now owns its chronological batch persistence through the shared application use case; import and live dedup remain separate until Phase 6.
 
 The legacy thresholds remain `0.5` reject-below and `0.8` auto-save-at-or-above. Parser confidence below `0.5` rejects; `requiresConfirmation` forces review. Classifier category source is evidence, while its compatibility score preserves the established threshold behavior.
 

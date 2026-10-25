@@ -1,23 +1,19 @@
 import { create } from 'zustand';
 import { Expense, Category } from '../types/expense';
-import {
-  getAllExpenses,
-  updateExpense as updateExpenseDb,
-  insertExpense as insertExpenseDb,
-  exportAllExpensesData,
-  clearAllExpenses,
-  updateTrashReason as updateTrashReasonDb,
-  deduplicateDatabase as deduplicateDatabaseDb,
-  getWindowedExpenses,
-  getExpensesWithSplits,
-  updateSplitExpensesAtomically,
-} from '../database/expenseRepo';
 import { SplitSettlementUpdate } from '../core/transactions/repaymentPlanner';
 import {
   createManualTransaction,
   deleteTransactionUseCase,
+  exportTransactionSnapshot,
   invalidateTransactionUseCase,
+  persistSplitUpdates,
+  queryAllTransactions,
+  querySplitLedger,
+  queryWindowedTransactions,
+  restoreTransactionSnapshot,
+  runTransactionDeduplication,
   updateTransactionUseCase,
+  updateTrashReasonUseCase,
 } from '../services/transactions/transactionApplication';
 
 interface ExpenseState {
@@ -72,7 +68,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     set({ loading: true });
     try {
       // Load last 30 days for the windowed view; screens paginate older data on demand
-      const expenses = getWindowedExpenses(30);
+      const expenses = queryWindowedTransactions(30);
       set({ expenses, loading: false });
     } catch (e) {
       console.error('Failed to load expenses', e);
@@ -160,7 +156,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   exportExpenses: () => {
     try {
-      return exportAllExpensesData();
+      return exportTransactionSnapshot();
     } catch (e) {
       console.error('Failed to export expenses', e);
       return [];
@@ -169,32 +165,8 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   importExpenses: (imported, overwrite) => {
     try {
-      if (overwrite) {
-        clearAllExpenses();
-      }
-
-      // Batch insert each imported item
-      for (const item of imported) {
-        insertExpenseDb({
-          amount: item.amount,
-          merchant: item.merchant,
-          alias: item.alias,
-          category: item.category,
-          confidence: item.confidence || 1.0,
-          timestamp: item.timestamp,
-          source: item.source || 'manual',
-          rawMessage: item.rawMessage || 'Imported Transaction',
-          transactionType: item.transactionType || 'debit',
-          account: item.account,
-          bank: item.bank,
-          paymentMode: item.paymentMode,
-          isDuplicate: item.isDuplicate,
-          availableBalance: item.availableBalance,
-          splits: item.splits,
-        });
-      }
-
-      const reloaded = getAllExpenses(2000);
+      restoreTransactionSnapshot(imported, overwrite);
+      const reloaded = queryAllTransactions(2000);
       set({ expenses: reloaded });
     } catch (e) {
       console.error('Failed to import expenses', e);
@@ -204,7 +176,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   settleContactSplits: contactName => {
     try {
-      const expenses = getExpensesWithSplits();
+      const expenses = querySplitLedger();
       const affected = expenses.filter(
         e => e.splits && e.splits.some(s => s.contactName === contactName && !s.isPaid),
       );
@@ -214,8 +186,8 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
           ? { ...s, isPaid: true, paidAmount: s.amount }
           : s),
       }]);
-      updateSplitExpensesAtomically(updates);
-      set({ expenses: getAllExpenses(2000) });
+      persistSplitUpdates(updates);
+      set({ expenses: queryAllTransactions(2000) });
     } catch (e) {
       console.error('Failed to settle contact splits', e);
     }
@@ -223,7 +195,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   unsettleContactSplits: contactName => {
     try {
-      const expenses = getExpensesWithSplits();
+      const expenses = querySplitLedger();
       const affected = expenses.filter(
         e => e.splits && e.splits.some(s =>
           s.contactName === contactName && (s.isPaid || (Number(s.paidAmount) || 0) > 0),
@@ -235,8 +207,8 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
           ? { ...s, isPaid: false, paidAmount: 0 }
           : s),
       }]);
-      updateSplitExpensesAtomically(updates);
-      set({ expenses: getAllExpenses(2000) });
+      persistSplitUpdates(updates);
+      set({ expenses: queryAllTransactions(2000) });
     } catch (e) {
       console.error('Failed to unsettle contact splits', e);
     }
@@ -259,18 +231,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       });
 
       // Save to DB
-      updateExpenseDb(
-        expense.id!,
-        expense.merchant,
-        expense.category,
-        expense.bank,
-        expense.paymentMode,
-        expense.amount,
-        updatedSplits,
-      );
+      persistSplitUpdates([{ expenseId: expense.id!, splits: updatedSplits }]);
 
       // Reload
-      const reloaded = getAllExpenses(2000);
+      const reloaded = queryAllTransactions(2000);
       set({ expenses: reloaded });
     } catch (e) {
       console.error('Failed to toggle split paid status', e);
@@ -303,7 +267,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   updateTrashReason: (id, reason) => {
     try {
-      updateTrashReasonDb(id, reason);
+      updateTrashReasonUseCase(id, reason);
       set(state => ({
         expenses: state.expenses.map(e =>
           e.id === id ? { ...e, trashReason: reason as any } : e,
@@ -316,10 +280,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   runDeduplication: () => {
     try {
-      const count = deduplicateDatabaseDb();
+      const count = runTransactionDeduplication();
       // Reload expenses completely since many items could have been modified
       if (count > 0) {
-        const reloaded = getAllExpenses(2000);
+        const reloaded = queryAllTransactions(2000);
         set({ expenses: reloaded });
       }
       return count;

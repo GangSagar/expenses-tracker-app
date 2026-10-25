@@ -24,12 +24,12 @@ import PinSetupModal from '../components/PinSetupModal';
 import {
   getSetting,
   setSetting,
-  clearAllExpenses,
 } from '../../../database/expenseRepo';
 import commonStyles from '../styles/commonStyles';
 import CalendarModal from '../components/CalendarModal';
 import {
   createDedupCache,
+  clearTransactionData,
   importHistoricalTransactions,
   previewHistoricalMessage,
 } from '../../../services/transactions/transactionApplication';
@@ -544,14 +544,21 @@ export default function SettingsScreen() {
           text: 'Delete Everything',
           style: 'destructive',
           onPress: () => {
-            clearAllExpenses();
-            resetSpamClassifier();
-            resetMerchantMap();
-            loadExpenses(); // Reload to reflect empty state
-            Alert.alert(
-              'Data Deleted',
-              'All transaction data and dynamic AI models have been permanently reset.',
-            );
+            try {
+              clearTransactionData();
+              resetSpamClassifier();
+              resetMerchantMap();
+              loadExpenses();
+              Alert.alert(
+                'Data Deleted',
+                'All transaction data and dynamic AI models have been permanently reset.',
+              );
+            } catch (error) {
+              Alert.alert(
+                'Delete Failed',
+                error instanceof Error ? error.message : 'Could not delete transaction data.',
+              );
+            }
           },
         },
       ],

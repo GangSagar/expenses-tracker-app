@@ -37,7 +37,7 @@ SpendWise operates under strict on-device constraints where financial inaccuraci
 
 ## 3. Core Test Suites Inventory
 
-SpendWise features 22 specialized test suites comprising 599 unit, integration, and hardware verification tests:
+Test suite counts change as features are added; use the current Jest run as the authoritative count. Phase 4 adds repository adapter and backup atomicity coverage.
 
 ### 3.1. Modular Parsing Engine Suites (`src/__tests__/parser/`)
 * **`src/__tests__/parser/normalizer.test.ts`**:
@@ -234,7 +234,7 @@ SpendWise integrates OpenTelemetry distributed tracing to monitor pipeline bottl
 Prior to tagging any production release (`git tag vX.Y.Z`), the following verification criteria must be met:
 
 - [ ] **TypeScript Check**: `npx tsc --noEmit` completes with 0 errors.
-- [ ] **Core Unit Tests**: Full test suite passes with 100% success rate (25 test suites, 615/615 tests passing across full repository).
+- [ ] **Core Unit Tests**: Full Jest suite passes with 100% success rate across the current repository.
 - [ ] **Lint Cleanliness**: `npm run lint` passes with 0 fatal errors.
 - [ ] **Hardware Sanity**: `npm run test:collect` run against physical hardware to catch any unhandled carrier formatting changes.
 - [ ] **Database Migration Integrity**: Tested upgrade path from v1.0.0 database file through latest schema migration without data loss.
@@ -251,7 +251,7 @@ To prevent broken code or failing tests from entering version control, SpendWise
 * **Configuration**: `git config core.hooksPath .githooks` (version-controlled Git hooks)
 * **Execution Flow**:
   1. Triggered automatically on `git commit -m 'Message'`.
-  2. Runs `npm test` across all 25 unit, integration, and parser test suites.
+  2. Runs `npm test` across all current unit, integration, and parser test suites.
   3. If any test fails, prints failure notification and halts the commit with exit code `1`.
   4. If all tests pass, exits with code `0`, allowing Git to finalize the commit.
 

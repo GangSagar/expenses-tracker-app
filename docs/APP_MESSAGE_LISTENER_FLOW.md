@@ -56,7 +56,7 @@ The compatibility thresholds are retained: legacy confidence below `0.5` rejects
 | `review` | Queue the candidate and optionally notify in background. | No write before user confirmation. |
 | `auto_save` | The live-ingestion application operation checks live dedup and persists. | Duplicate, saved, and failed are separate results. The store updates only after a successful save. |
 
-For accepted credits, the shared application persistence operation reads all split-bearing ledger rows, creates the oldest-first partial allocation plan, and commits the repayment credit and all affected split updates in one SQLite transaction. A transaction failure rolls back the credit and split changes; the listener logs the persistence failure separately from the prior auto-save decision. Manual and review-confirmed credits use the same operation.
+For accepted credits, the shared application persistence operation reads all split-bearing ledger rows through `TransactionRepository`, creates the oldest-first partial allocation plan, and commits the repayment credit and all affected split updates in one SQLite transaction via `SQLiteTransactionRepository`. A transaction failure rolls back the credit and split changes; the listener logs the persistence failure separately from the prior auto-save decision. Manual and review-confirmed credits use the same operation. Hooks and screens route transaction persistence, backup/reset, split writes, and account transaction deletion through the repository-backed transaction application facade; split calculation rules remain in Zustand until Phase 5.
 
 ## 5. Import preview
 

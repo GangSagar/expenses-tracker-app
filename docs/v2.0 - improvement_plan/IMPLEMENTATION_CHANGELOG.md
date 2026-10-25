@@ -13,7 +13,7 @@ The current UI is scheduled for replacement. This work therefore changes transac
 | 1. Baseline, contracts, partial repayments, and presentation isolation | Complete (v2) | Partial allocations are persisted and shown; Phase 1 audit gaps in full-ledger repayment lookup and live repayment atomicity were closed while beginning Phase 2. |
 | 2. One transaction decision policy | In progress | Typed policy is wired into live ingestion and import preview; a local offline AI inference runtime remains unimplemented. |
 | 3. Shared application use cases | Complete | Live, historical import, manual creation, review confirmation, edit, invalidation, and delete now enter named application operations; historical imports use chronological shared repayment persistence. |
-| 4. Repository boundary and temporary presentation adapters | Not started | Phase 1 adds a repository port and focused atomic operations; the existing repository is not yet a complete adapter for the port. |
+| 4. Repository boundary and temporary presentation adapters | Complete | Focused repository ports are implemented by SQLite; transaction, backup, reset, split-persistence, account-delete, and maintenance writes now cross the boundary. |
 | 5. Splits and repayment domain boundary | Partially prepared | Pure partial-allocation planning is in place; manual settle/unsettle/toggle and the complete split use case remain in Zustand. |
 | 6. Unified deduplication | Not started | Live and import deduplication still use different rules. |
 | 7. Explicit database migrations | Not started | Existing best-effort `ALTER TABLE` migration sequence remains. |
@@ -97,7 +97,7 @@ The original path uses only expenses currently loaded in Zustand (currently wind
 | `src/core/transactions/contracts.ts`, `decisionPolicy.ts` | Replaced the draft mixed outcome contract with a pure, versioned reject/review/auto-save policy plus separate persistence outcomes. |
 | `src/services/messaging/messageService.ts`, `src/core/parser/parseMessage.ts` | Collect typed filtering/parse signals and invoke structured async parsing without discarding confidence details. |
 | `src/services/transactions/expenseService.ts`, `transactionOrchestrator.ts` | Map full parser/classifier evidence into one policy call and keep persistence results separate. Accepted credit insertion and repayment updates are atomic. |
-| `src/hooks/useMessageListener.ts`, `src/presentation/legacy/screens/SettingsScreen.tsx` | Adapt policy results in live ingestion and import preview; the live async queue preserves message order. Import still owns final batch persistence until Phase 3. |
+| `src/hooks/useMessageListener.ts`, `src/presentation/legacy/screens/SettingsScreen.tsx` | Adapt policy results in live ingestion and import preview; the live async queue preserves message order. Import preview uses the policy; final batch writes moved to shared application operations in Phase 3. |
 | `src/database/expenseRepo.ts`, `src/hooks/useExpenses.ts` | Added an unwindowed split-bearing ledger query; manual repayment and contact-wide settle/unsettle use all matching rows, with atomic writes. |
 | `src/presentation/legacy/components/CategoryPopup.tsx`, `src/hooks/useExpenses.ts` | Record explicit user merchant/category corrections through `LearningEngine`, which persists to the repository read by parser resolvers. |
 | `src/__tests__/decisionPolicy.test.ts`, `decisionParity.test.ts`, `expenseService.test.ts`, `expenseRepo.test.ts`, `transactionOrchestrator.test.ts`, `transactionRepayment.test.ts`, `parser.test.ts` | Cover thresholds, parser evidence, typed rejects, one policy call, full-ledger query, atomic credit allocations, async structured parsing, and legacy decision parity. |
@@ -155,7 +155,8 @@ Detailed design and original acceptance criteria: [Phase 3: Shared Application U
 - Historical imports retain the current import-specific dedup strategy. Rows are sorted by transaction timestamp, stable on ties, and committed one at a time. Failure does not undo earlier successful rows; failed rows remain selectable for retry.
 - Manual entries bypass parser-confidence policy because the user directly supplied the transaction. Parsed messages still use the one Phase 2 decision policy.
 - Existing hard-delete and invalidation semantics remain. Reversing repayment allocations after linked edits/deletes remains deferred to Phase 5 because allocation history is not represented.
-- The full repository-port migration remains Phase 4; split settlement actions in Zustand remain Phase 5; dedup semantic unification remains Phase 6; local/offline AI remains the outstanding Phase 2 requirement.
+- The repository-port migration is complete in Phase 4. Split settlement decisions in Zustand remain Phase 5; dedup semantic unification remains Phase 6; local/offline AI remains the outstanding Phase 2 requirement.
+- Backup restore is a snapshot operation routed through the transaction repository. It preserves snapshot settlement state and does not replay repayment allocation.
 
 Verification: `npx tsc --noEmit` passed. `npx jest --runInBand` passed with 30 suites and 639 tests. ESLint on changed TypeScript files passed with 0 errors and 19 existing inline-style warnings in `SettingsScreen.tsx`. `git diff --check` passed. `graphify update .` refreshed the graph to 1,398 nodes and 2,797 edges; it reported one unsupported Gradle syntax file and requested community relabeling after the set changed.
 
@@ -163,20 +164,45 @@ Verification: `npx tsc --noEmit` passed. `npx jest --runInBand` passed with 30 s
 
 Moved transaction-specific service adapters into `src/services/transactions/` and message ingestion into `src/services/messaging/`. Updated imports in hooks, screens, services, tests, architecture references, and workflow documentation. The move changes file organization only; core transaction rules remain in `src/core/transactions/`, and service adapters remain responsible for connecting those rules to parser, classifier, learning, and SQLite implementations.
 
-## Phase 4 — Repository boundary and temporary presentation adapters (not started)
+## Phase 4 — Repository boundary and temporary presentation adapters (complete)
 
-**Goal:** implement the repository port and make application use cases the only transaction write path. Keep the current store/screens only as compatibility adapters.
+Detailed scope and semantics: [Phase 4: Repository Boundary](./PHASE_4_REPOSITORY_BOUNDARY.md).
 
-**Expected file areas and rationale:**
+**Goal:** make application operations depend on a stable repository port and close transaction-persistence bypasses in hooks and screens while retaining the legacy UI.
 
-| Expected files | Planned work |
-|---|---|
-| `src/database/expenseRepo.ts` | Implement the transaction repository contract, typed mapping, and query/write operations needed by use cases. |
-| `src/database/db.ts` | Keep connection and migration setup infrastructure-only. |
-| `src/core/transactions/` | Inject repository ports into use cases and return persisted results. |
-| `src/hooks/useExpenses.ts` | Remove direct database coordination where use cases now own it; retain temporary presentation state actions. |
-| `src/presentation/legacy/screens/SettingsScreen.tsx`, `src/presentation/legacy/components/CategoryPopup.tsx`, `src/presentation/legacy/components/EditTransactionModal.tsx` | Replace direct repository/service writes with use-case calls only; leave layout/navigation unchanged. |
-| `src/__tests__/expenseRepo.test.ts`, use-case tests | Validate adapter mapping, success/failure behavior, and state-after-persistence rules. |
+### Files changed
+
+| File | Change | Why and how |
+|---|---|---|
+| `src/core/transactions/contracts.ts` | Expanded `TransactionRepository`; added focused query, backup, maintenance ports and the `TransactionStorage` composition type. | Gives core/application operations stable persistence capabilities without exposing SQLite details. |
+| `src/core/transactions/applicationUseCases.ts` | Replaced the temporary write gateway with `TransactionRepository`; return persisted rows from insert operations and use full-ledger reads for repayment planning. | Keeps use cases reusable and lets historical import see prior writes in the same ordered batch. |
+| `src/database/SQLiteTransactionRepository.ts` (new) | Implements transaction, backup, query, and maintenance ports over `expenseRepo`; validates expected row effects and insert IDs. | Contains the concrete SQLite adapter boundary while reusing existing SQL and row mapping. |
+| `src/database/expenseRepo.ts` | Added ID lookup and atomic snapshot restore; made clear-all and dedup maintenance transactional; added affected-row checks for mutations. | Keeps transaction mechanics close to SQLite and makes backup/reset operations all-or-nothing. Overwrite restore replaces expense rows only. |
+| `src/services/transactions/transactionDependencies.ts` (new) | Creates the `SQLiteTransactionRepository` singleton as the composition point. | Keeps concrete adapter construction out of core use cases. |
+| `src/services/transactions/transactionApplication.ts` | Routes application writes, transaction queries, restore/reset, split persistence, trash metadata, account deletion, and dedup maintenance through the repository-backed facade. Validates the complete restore payload before writing. | Consolidates transaction persistence access and prevents partial invalid backups from mutating the ledger. |
+| `src/hooks/useExpenses.ts` | Removed direct `expenseRepo` calls and routes ledger persistence through transaction application operations. | Leaves selectors, refresh, and split calculation in the temporary Zustand adapter; split domain rules remain Phase 5. |
+| `src/presentation/legacy/screens/SettingsScreen.tsx` | Routes clear-all through the application facade and clears dependent in-memory state only after persistence succeeds. | Preserves UI while preventing a failed reset from presenting as successful. |
+| `src/presentation/legacy/screens/AccountsScreen.tsx` | Routes account transaction deletion through the application facade and handles persistence failure. | Removes the remaining screen-level transaction delete bypass. |
+| `src/__tests__/expenseRepo.test.ts` | Added backup append/overwrite transaction and rollback cases plus transactional clear-all coverage. | Verifies atomicity and preservation of backup split values. |
+| `src/__tests__/SQLiteTransactionRepository.test.ts` (new) | Covers persisted insert return, missing-row update failure, and backup snapshot delegation. | Exercises the concrete adapter contract. |
+| `src/__tests__/transactionApplicationUseCases.test.ts` | Updated the fake repository and added chronological historical repayment coverage against a long-standing split. | Closes the Phase 3 handoff gap: imported credits observe earlier writes and accumulate partial `paidAmount`. |
+| `README.md`, `docs/v2.0 - improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md`, this log, `PHASE_4_REPOSITORY_BOUNDARY.md` | Updated architecture tree, phase status, behavior, file-level record, and remaining boundaries. | Keeps the plan and implementation history aligned with the code. |
+
+### Behavior and remaining boundaries
+
+- Transaction and backup/reset writes from hooks/screens pass through repository-backed transaction application operations. Generic app settings and merchant-learning persistence remain their own capability boundaries.
+- Backup payloads are validated before writes. Append and overwrite batches are atomic. Overwrite replaces expense rows only, preserving settings and learned merchant mappings that are not in the backup snapshot.
+- Restore copies split payment values from the snapshot and never reruns parser policy, deduplication, or automatic repayment allocation.
+- Split settlement calculations remain in Zustand until Phase 5. Live and import deduplication remain separate until Phase 6. Schema migration redesign remains Phase 7. The offline AI runtime remains Phase 2 work.
+
+### Boundary audit and carry-forward
+
+- No runtime transaction-mutating `expenseRepo` calls remain outside `SQLiteTransactionRepository`; legacy screens still access generic app/security settings directly, which is outside the transaction-ledger port but remains a presentation dependency to clean up later.
+- `LearningEngine` still constructs `SQLiteLearningRepository` from the parser package. Move that concrete dependency to composition/injection when implementing broader dependency guardrails (Phase 8).
+- Chronological historical repayment and database rollback are covered separately. Add a focused test that forces a later imported repayment's atomic insert/update to fail and verifies no split or credit from that row is left behind.
+- These are architecture/test-hardening carry-forwards, not known Phase 4 transaction persistence bypasses. They do not prevent Phase 5.
+
+Verification: `npx tsc --noEmit` passed; `npm test -- --runInBand` passed (31 suites, 648 tests); focused Phase 4 tests passed (3 suites, 23 tests); changed-file ESLint passed with 0 errors and 19 existing inline-style warnings in `SettingsScreen.tsx`; `git diff --check` passed. Graphify refreshed to 1,478 nodes and 2,988 edges across 104 communities; it reported a pre-existing Android Gradle syntax limitation and requested community relabeling after the community set changed.
 
 ## Phase 5 — Splits and repayment domain boundary (partially prepared)
 

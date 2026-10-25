@@ -308,10 +308,11 @@ The parser follows Clean Architecture principles with complete separation of con
 
 `src/core/transactions/decisionPolicy.ts` is the sole owner of reject/review/auto-save outcomes. It consumes parser confidence/breakdown/confirmation, category-classifier evidence, and typed sender/body/spam/parse signals. The orchestrator executes the result; duplicate detection and persistence remain subsequent processing steps. Accepted credit insertion and its split allocations use one SQLite transaction.
 
-#### 3. Database Layer (`src/database/expenseRepo.ts`)
-* Uses pre-compiled SQL string constants to eliminate SQL injection vulnerabilities.
-* Wraps all multiline batch queries in explicit SQLite `BEGIN TRANSACTION` / `COMMIT` blocks for atomic consistency.
-* Houses learning repository tables for on-device merchant mapping and category frequency tracking.
+#### 3. Database Layer (`src/database/`)
+* `SQLiteTransactionRepository.ts` implements the application-facing transaction, backup, query, and maintenance ports; it owns the concrete SQLite adaptation.
+* `expenseRepo.ts` contains low-level SQL, row mapping, and transaction helpers. Transaction writes from application operations and temporary presentation adapters enter through `transactionApplication.ts` and the composed repository.
+* Backup append/overwrite and clear-all operations run transactionally. Overwrite restore replaces expense rows only, preserving app settings and learned merchant mappings; snapshot split payments are restored as stored without repayment replay.
+* Learning repository tables remain a separate capability for on-device merchant mapping and category frequency tracking.
 
 #### 4. Observability Service (`src/services/telemetryService.ts`)
 * Manages an in-memory queue of `RawSpan` records.

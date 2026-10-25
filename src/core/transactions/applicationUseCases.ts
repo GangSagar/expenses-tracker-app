@@ -1,50 +1,33 @@
-import { Expense } from '../../types/expense';
-import { TransactionCandidate } from './contracts';
+import { PersistedTransaction, TransactionCandidate, TransactionRepository } from './contracts';
 import {
   planAutomaticRepayment,
   repaymentSplit,
   SplitSettlementUpdate,
 } from './repaymentPlanner';
 
-export interface TransactionWriteGateway {
-  getLedgerWithSplits(): Expense[];
-  insert(expense: Omit<Expense, 'id'>): number;
-  insertWithRepayment(
-    expense: Omit<Expense, 'id'>,
-    updates: SplitSettlementUpdate[],
-  ): number;
-  update(
-    id: number, merchant: string, category: Expense['category'], bank?: string,
-    paymentMode?: string, amount?: number, splits?: Expense['splits'],
-    transactionType?: Expense['transactionType'],
-  ): void;
-  invalidate(id: number, invalid: boolean): void;
-  delete(id: number): void;
-}
-
 export type PersistenceResult =
-  | { status: 'saved'; transaction: Expense & { id: number }; repaymentUpdates: SplitSettlementUpdate[] }
+  | { status: 'saved'; transaction: PersistedTransaction; repaymentUpdates: SplitSettlementUpdate[] }
   | { status: 'duplicate' }
   | { status: 'failed'; stage: 'processing' | 'persistence'; message: string };
 
 /** Shared accepted-transaction write path. Deduplication is injected per source. */
 export function persistAcceptedTransaction(
   candidate: TransactionCandidate,
-  gateway: TransactionWriteGateway,
+  repository: TransactionRepository,
   isDuplicate: () => boolean = () => false,
 ): PersistenceResult {
   try {
     if (isDuplicate()) return { status: 'duplicate' };
     const plan = candidate.transactionType === 'credit'
-      ? planAutomaticRepayment(candidate, gateway.getLedgerWithSplits())
+      ? planAutomaticRepayment(candidate, repository.getExpensesWithSplits())
       : null;
     const transaction = plan ? { ...candidate, splits: [repaymentSplit(plan)] } : candidate;
-    const id = plan
-      ? gateway.insertWithRepayment(transaction, plan.updates)
-      : gateway.insert(transaction);
+    const persisted = plan
+      ? repository.insertWithRepayment(transaction, plan.updates)
+      : repository.insert(transaction);
     return {
       status: 'saved',
-      transaction: { ...transaction, id },
+      transaction: persisted,
       repaymentUpdates: plan?.updates || [],
     };
   } catch (error) {
@@ -63,7 +46,7 @@ export type ImportRowResult =
 /** Import one row at a time in stable chronological order; prior successes persist. */
 export async function importTransactions(
   candidates: TransactionCandidate[],
-  gateway: TransactionWriteGateway,
+  repository: TransactionRepository,
   isDuplicate: (candidate: TransactionCandidate) => boolean,
   onProgress?: (result: ImportRowResult, completed: number, total: number) => void,
   onImported?: (candidate: TransactionCandidate) => void,
@@ -74,7 +57,7 @@ export async function importTransactions(
   const results: ImportRowResult[] = [];
   for (let index = 0; index < ordered.length; index += 1) {
     const { candidate } = ordered[index];
-    const result = persistAcceptedTransaction(candidate, gateway, () => isDuplicate(candidate));
+    const result = persistAcceptedTransaction(candidate, repository, () => isDuplicate(candidate));
     const row: ImportRowResult = result.status === 'saved'
       ? { status: 'imported', candidate }
       : result.status === 'duplicate'
@@ -92,14 +75,14 @@ export async function importTransactions(
 }
 
 export function updateTransaction(
-  gateway: TransactionWriteGateway,
-  input: Parameters<TransactionWriteGateway['update']>,
-): void { gateway.update(...input); }
+  repository: TransactionRepository,
+  input: Parameters<TransactionRepository['update']>,
+): void { repository.update(...input); }
 
 export function invalidateTransaction(
-  gateway: TransactionWriteGateway, id: number, invalid: boolean,
-): void { gateway.invalidate(id, invalid); }
+  repository: TransactionRepository, id: number, invalid: boolean,
+): void { repository.invalidate(id, invalid); }
 
-export function deleteTransaction(gateway: TransactionWriteGateway, id: number): void {
-  gateway.delete(id);
+export function deleteTransaction(repository: TransactionRepository, id: number): void {
+  repository.delete(id);
 }

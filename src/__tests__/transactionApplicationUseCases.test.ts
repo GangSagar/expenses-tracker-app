@@ -1,7 +1,8 @@
 import { Expense } from '../types/expense';
 import {
-  importTransactions, persistAcceptedTransaction, TransactionWriteGateway,
+  importTransactions, persistAcceptedTransaction,
 } from '../core/transactions/applicationUseCases';
+import { TransactionRepository } from '../core/transactions/contracts';
 import { createManualTransaction } from '../services/transactions/transactionApplication';
 
 function candidate(overrides: Partial<Expense> = {}): Omit<Expense, 'id'> {
@@ -18,28 +19,33 @@ function candidate(overrides: Partial<Expense> = {}): Omit<Expense, 'id'> {
   };
 }
 
-function gateway(ledger: Expense[] = []): TransactionWriteGateway & { inserted: Expense[] } {
+function repository(ledger: Expense[] = []): TransactionRepository & { inserted: Expense[] } {
   const inserted: Expense[] = [];
   return {
     inserted,
-    getLedgerWithSplits: () => ledger,
+    getExpensesWithSplits: () => ledger,
     insert: expense => {
-      inserted.push({ ...expense, id: inserted.length + 1 });
-      return inserted.length;
+      const persisted = { ...expense, id: inserted.length + 1 };
+      inserted.push(persisted);
+      return persisted;
     },
     insertWithRepayment: expense => {
-      inserted.push({ ...expense, id: inserted.length + 1 });
-      return inserted.length;
+      const persisted = { ...expense, id: inserted.length + 1 };
+      inserted.push(persisted);
+      return persisted;
     },
     update: () => {},
+    findById: id => inserted.find(item => item.id === id) as (Expense & { id: number }) | undefined || null,
+    getRecentExpenses: () => [],
     invalidate: () => {},
     delete: () => {},
+    updateSplitExpensesAtomically: () => {},
   };
 }
 
 describe('transaction application use cases', () => {
   it('imports rows oldest-first while preserving scan order for equal timestamps', async () => {
-    const writes = gateway();
+    const writes = repository();
     const later = candidate({ timestamp: 300, rawMessage: 'later' });
     const sameTimeFirst = candidate({ timestamp: 200, rawMessage: 'same-first' });
     const sameTimeSecond = candidate({ timestamp: 200, rawMessage: 'same-second' });
@@ -60,7 +66,7 @@ describe('transaction application use cases', () => {
       ] }),
       id: 9,
     };
-    const writes = gateway([debt]);
+    const writes = repository([debt]);
     const result = persistAcceptedTransaction(
       candidate({
         amount: 35,
@@ -76,8 +82,47 @@ describe('transaction application use cases', () => {
     }]);
   });
 
+  it('imports credits chronologically and applies each against the updated full ledger', async () => {
+    const debt: Expense = {
+      ...candidate({
+        timestamp: 1,
+        merchant: 'Shared dinner',
+        splits: [{ contactName: 'Alex', amount: 100 }],
+      }),
+      id: 90,
+    };
+    const writes = repository([debt]);
+    const ledger: Expense[] = [debt];
+    let ledgerReads = 0;
+    writes.getExpensesWithSplits = () => {
+      ledgerReads += 1;
+      return ledger;
+    };
+    writes.insertWithRepayment = (expense, updates) => {
+      for (const update of updates) {
+        const row = ledger.find(item => item.id === update.expenseId);
+        if (row) row.splits = update.splits;
+      }
+      const saved = { ...expense, id: ledger.length + 100 };
+      writes.inserted.push(saved);
+      ledger.push(saved);
+      return saved;
+    };
+
+    const results = await importTransactions([
+      candidate({ timestamp: 300, amount: 40, merchant: 'Repayment from Alex', transactionType: 'credit' }),
+      candidate({ timestamp: 200, amount: 30, merchant: 'Repayment from Alex', transactionType: 'credit' }),
+    ], writes, () => false);
+
+    expect(results.map(row => row.status)).toEqual(['imported', 'imported']);
+    expect(writes.inserted.map(row => row.timestamp)).toEqual([200, 300]);
+    expect(ledgerReads).toBe(2);
+    expect(ledger[0].splits?.[0].paidAmount).toBe(70);
+    expect(writes.inserted.map(row => row.splits?.[0].amount)).toEqual([30, 40]);
+  });
+
   it('reports one failed batch row without rolling back earlier successful rows', async () => {
-    const writes = gateway();
+    const writes = repository();
     let calls = 0;
     const insert = writes.insert;
     writes.insert = expense => {

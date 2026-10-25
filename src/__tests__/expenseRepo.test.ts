@@ -9,6 +9,11 @@ import {
   updateSplitExpensesAtomically,
   insertExpenseWithRepayment,
   updateExpenseWithRepayment,
+  restoreExpenseSnapshot,
+  CLEAR_ALL_EXPENSES_SQL,
+  CLEAR_ALL_MERCHANT_CATEGORIES_SQL,
+  CLEAR_ALL_SETTINGS_SQL,
+  clearAllExpenses,
 } from '../database/expenseRepo';
 import { getDatabase } from '../database/db';
 
@@ -252,6 +257,121 @@ describe('updateSplitExpensesAtomically', () => {
       'BEGIN TRANSACTION',
       UPDATE_EXPENSE_SPLITS_SQL,
       UPDATE_EXPENSE_SPLITS_SQL,
+      'ROLLBACK',
+    ]);
+  });
+});
+
+describe('restoreExpenseSnapshot', () => {
+  let mockExecute: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockExecute = getDatabase().execute as jest.Mock;
+  });
+
+  const backupExpense = {
+    id: 800,
+    amount: 120,
+    merchant: 'Shared groceries',
+    category: 'Food & Dining' as const,
+    confidence: 1,
+    timestamp: 100,
+    source: 'manual' as const,
+    rawMessage: 'backup row',
+    transactionType: 'debit' as const,
+    splits: [{ contactName: 'Alex', amount: 60, paidAmount: 25, isPaid: false }],
+  };
+
+  it('replaces the ledger atomically and preserves snapshot split state without replaying repayments', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 }) // BEGIN
+      .mockReturnValueOnce({ rowsAffected: 1 }) // clear ledger
+      .mockReturnValueOnce({ insertId: 1, rowsAffected: 1 }) // imported expense
+      .mockReturnValueOnce({ rowsAffected: 0 }); // COMMIT
+
+    restoreExpenseSnapshot([backupExpense], true);
+
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION',
+      CLEAR_ALL_EXPENSES_SQL,
+      INSERT_EXPENSE_SQL,
+      'COMMIT',
+    ]);
+    expect(mockExecute.mock.calls[2][1][14]).toBe(JSON.stringify(backupExpense.splits));
+    expect(mockExecute).not.toHaveBeenCalledWith(CLEAR_ALL_MERCHANT_CATEGORIES_SQL);
+    expect(mockExecute).not.toHaveBeenCalledWith(CLEAR_ALL_SETTINGS_SQL);
+  });
+
+  it('rolls back an overwrite when any snapshot row fails to insert', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 }) // BEGIN
+      .mockReturnValueOnce({ rowsAffected: 1 }) // clear ledger
+      .mockImplementationOnce(() => { throw new Error('restore insert failed'); })
+      .mockReturnValueOnce({ rowsAffected: 0 }); // ROLLBACK
+
+    expect(() => restoreExpenseSnapshot([backupExpense], true)).toThrow('restore insert failed');
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION',
+      CLEAR_ALL_EXPENSES_SQL,
+      INSERT_EXPENSE_SQL,
+      'ROLLBACK',
+    ]);
+  });
+
+  it('appends a snapshot in one transaction without clearing the current ledger', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 }) // BEGIN
+      .mockReturnValueOnce({ insertId: 2, rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 0 }); // COMMIT
+
+    restoreExpenseSnapshot([backupExpense], false);
+
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION', INSERT_EXPENSE_SQL, 'COMMIT',
+    ]);
+  });
+});
+
+describe('clearAllExpenses', () => {
+  let mockExecute: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockExecute = getDatabase().execute as jest.Mock;
+  });
+
+  it('clears expense, merchant, and app classifier state in one transaction', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockReturnValueOnce({ rowsAffected: 0 });
+
+    clearAllExpenses();
+
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION',
+      CLEAR_ALL_EXPENSES_SQL,
+      CLEAR_ALL_MERCHANT_CATEGORIES_SQL,
+      CLEAR_ALL_SETTINGS_SQL,
+      'COMMIT',
+    ]);
+  });
+
+  it('rolls all reset tables back when a reset statement fails', () => {
+    mockExecute
+      .mockReturnValueOnce({ rowsAffected: 0 })
+      .mockReturnValueOnce({ rowsAffected: 1 })
+      .mockImplementationOnce(() => { throw new Error('reset failed'); })
+      .mockReturnValueOnce({ rowsAffected: 0 });
+
+    expect(() => clearAllExpenses()).toThrow('reset failed');
+    expect(mockExecute.mock.calls.map(([query]) => query)).toEqual([
+      'BEGIN TRANSACTION',
+      CLEAR_ALL_EXPENSES_SQL,
+      CLEAR_ALL_MERCHANT_CATEGORIES_SQL,
       'ROLLBACK',
     ]);
   });

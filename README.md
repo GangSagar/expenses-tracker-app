@@ -21,6 +21,7 @@ Detailed system specifications, architectural diagrams, engineering plans, and t
 | **Architecture Specification (HLD & LLD)** | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)               | High-Level Design (HLD) & Low-Level Design (LLD) with Mermaid diagrams covering system context, 10-stage parsing pipeline state machine, class hierarchy, and database ERD (v1.6.0).                                                                                                                         |
 | **Interactive Architecture Diagram**       | [`docs/architecture.drawio`](./docs/architecture.drawio)       | Complete diagrams.net (`draw.io`) multi-sheet diagram containing:• **Sheet 1: `HLD`** (System boundaries, native bridge, persistence & Jaeger tracing)• **Sheet 2: `LLD`** (Method signatures, regex pipelines, state machines & SQLite schema). |
 | **Implementation Plan & Roadmap**          | [`docs/IMPLEMENTATION_PLAN.md`](./docs/IMPLEMENTATION_PLAN.md) | Phased engineering execution lifecycle (Phases 1-6), Work Breakdown Structure (WBS), risk analysis, and future milestone roadmap.                                                                                                                                    |
+| **Architecture Restructuring Plans**       | [`docs/v2.0 - improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md`](./docs/v2.0%20-%20improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md) | Issue inventory and phase links, including the detailed Phase 3 and Phase 4 implementation plans. |
 | **Testing & QA Strategy**                  | [`docs/TESTING_STRATEGY.md`](./docs/TESTING_STRATEGY.md)       | Test pyramid, automated unit/integration suites, physical device ADB SMS collection harness, headless CLI runner, and release acceptance checklist.                                                                                                                   |
 | **Git Revision History & Audit**           | [`docs/REVISION_HISTORY.md`](./docs/REVISION_HISTORY.md)       | Exhaustive chronological audit of every git commit (`e381d05` through to present), release milestones (v1.0.3 to v1.6.0), and architectural deep dives.                                                                                                |
 
@@ -215,7 +216,7 @@ src/
 │   ├── classifier/      # Spending category rules & merchant mappings
 │   ├── confidence/      # Transaction validation & quality scoring
 │   └── dedup/           # Multi-source duplicate transaction detection
-├── database/            # SQLite schemas, repositories & migrations
+├── database/            # SQLite schemas, transaction repository adapter & migrations
 ├── services/
 │   ├── transactions/    # Transaction application adapters and orchestration
 │   ├── messaging/       # Incoming message analysis and parsing adapter
@@ -241,7 +242,7 @@ src/
 
 ## 🧪 Testing
 
-The project maintains an automated test suite (30 suites and 639 tests at the latest Phase 3 verification) covering modular normalizers, tokenizers, extractors, resolvers, confidence scoring, learning loops, transaction use cases, biometric security stores, and real-world SMS samples:
+The project maintains an automated Jest suite (31 suites and 648 tests at the latest Phase 4 verification) covering modular parser stages, transaction use cases, repository and backup atomicity, biometric security stores, and real-world SMS samples:
 
 ```bash
 # Run all test suites

@@ -6,7 +6,7 @@
 
 All scoped entry paths now enter shared application operations: live ingestion, historical preview/import, manual create, review confirmation, update, invalidation, and delete. Historical rows are persisted oldest-first through the shared repayment operation, with stable ordering for equal timestamps and per-row results. Import-specific and live dedup strategies remain explicit and separate for Phase 6. The existing screens and store were retained as adapters with no visual redesign.
 
-Implementation files, rationale, behavior boundaries, and verification are recorded in the [implementation changelog](./IMPLEMENTATION_CHANGELOG.md#phase-3--shared-application-use-cases-complete). Remaining work is limited to later phase responsibilities: full repository port (Phase 4), split settlement and allocation reversal history (Phase 5), unified dedup semantics (Phase 6), and the independent local AI runtime requirement (Phase 2).
+Implementation files, rationale, behavior boundaries, and verification are recorded in the [implementation changelog](./IMPLEMENTATION_CHANGELOG.md#phase-3--shared-application-use-cases-complete). Phase 4 has since completed the repository port. Remaining related work is split settlement and allocation reversal history (Phase 5), unified dedup semantics (Phase 6), and the independent local AI runtime requirement (Phase 2).
 
 ## Purpose
 
@@ -93,9 +93,9 @@ Move existing invalidation and deletion calls behind named use cases. Preserve t
 
 ## Repository boundary and dependency staging
 
-The `TransactionRepository` in `contracts.ts` remains a minimal draft and is not implemented by SQLite. Phase 4 owns the complete infrastructure port and adapter migration.
+At the Phase 3 planning checkpoint, the `TransactionRepository` in `contracts.ts` was a minimal draft and was not implemented by SQLite. Phase 4 has since completed the infrastructure port and adapter migration; see [Phase 4](./PHASE_4_REPOSITORY_BOUNDARY.md).
 
-Phase 3 may use a narrow application gateway around the current `expenseRepo` functions for the exact commands needed by its use cases. Keep that gateway small and explicit: insert with repayment, update transaction, invalidate/delete, fetch outstanding splits, and duplicate lookup. Do not expand the draft `TransactionRepository` with speculative methods or let use cases import SQL constants. Phase 4 can then formalize and inject the complete port without changing the use-case contract.
+The Phase 3 implementation used a narrow application gateway around `expenseRepo` for the commands needed by its use cases. It was replaced in Phase 4 with the complete injected repository port without changing the shared use-case contract.
 
 ## Expected file areas
 
@@ -107,7 +107,7 @@ Phase 3 may use a narrow application gateway around the current `expenseRepo` fu
 | `src/presentation/legacy/screens/SettingsScreen.tsx` | Keep import scan/preview/progress UI; replace inline parsing, decision/dedup coordination, and final SQL writes with preview/import operations. | No visual or navigation redesign. |
 | `src/hooks/useExpenses.ts` | Retain Zustand state, but delegate manual creation, confirmation-related updates, edits, invalidation, and deletion to use cases as their entry points migrate. | Do not move all split domain behavior here or redesign UI state. |
 | `src/presentation/legacy/components/CategoryPopup.tsx`, `EditTransactionModal.tsx` | Dispatch confirm/update commands and reflect typed results. | No direct database write or learning persistence. |
-| `src/database/expenseRepo.ts` | Add only narrowly required gateway methods if current operations are insufficient; keep all related repayment writes transactional. | Full repository-port cleanup remains Phase 4. |
+| `src/database/expenseRepo.ts` | At the Phase 3 checkpoint, add only narrowly required gateway methods and keep repayment writes transactional. | This planned responsibility was superseded by the Phase 4 SQLite adapter and repository boundary. |
 | `src/__tests__/transactions/` or existing transaction tests | Add use-case tests with fake gateways and integration tests for SQLite transaction behavior, ordered imports, and state-after-success. | Test behavior without React Native screens; preserve database-level atomicity coverage. |
 | `docs/APP_MESSAGE_LISTENER_FLOW.md`, `ARCHITECTURE.md`, Phase 1/2 records, this file, implementation changelog | Record actual call paths and per-file changes after implementation. | Distinguish current dedup differences and incomplete AI fallback honestly. |
 

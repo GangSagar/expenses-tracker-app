@@ -11,7 +11,8 @@ import { useExpenseStore } from '../../../hooks/useExpenses';
 import { Expense } from '../../../types/expense';
 import EditTransactionModal from '../components/EditTransactionModal';
 import { formatAmount } from '../../../utils/formatHelpers';
-import { getSetting, setSetting, deleteTransactionsForAccount } from '../../../database/expenseRepo';
+import { getSetting, setSetting } from '../../../database/expenseRepo';
+import { deleteAccountTransactions } from '../../../services/transactions/transactionApplication';
 import { useFocusEffect } from '@react-navigation/native';
 import { Modal as RNModal } from 'react-native';
 import BankCard from '../components/BankCard';
@@ -196,9 +197,16 @@ export default function AccountsScreen() {
           text: 'Remove', 
           style: 'destructive',
           onPress: () => {
-            deleteTransactionsForAccount(bank, account);
-            loadExpenses();
-            setOptionsModalVisible(false);
+            try {
+              deleteAccountTransactions(bank, account);
+              loadExpenses();
+              setOptionsModalVisible(false);
+            } catch (error) {
+              Alert.alert(
+                'Removal Failed',
+                error instanceof Error ? error.message : 'Could not remove this account data.',
+              );
+            }
           }
         }
       ]
