@@ -14,6 +14,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
 ];
 
 export function runMigrations(database: QuickSQLiteConnection): void {
+  validateMigrationSequence(DATABASE_MIGRATIONS);
   const currentVersion = getDatabaseVersion(database);
   const latestVersion = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]?.version || 0;
   if (currentVersion > latestVersion) {
@@ -24,6 +25,17 @@ export function runMigrations(database: QuickSQLiteConnection): void {
 
   DATABASE_MIGRATIONS.filter(migration => migration.version > currentVersion)
     .forEach(migration => applyMigration(database, migration));
+}
+
+export function validateMigrationSequence(migrations: DatabaseMigration[]): void {
+  migrations.forEach((migration, index) => {
+    const expectedVersion = index + 1;
+    if (migration.version !== expectedVersion || !migration.name.trim()) {
+      throw new Error(
+        `Invalid migration sequence at position ${expectedVersion}; expected version ${expectedVersion} with a name.`,
+      );
+    }
+  });
 }
 
 function getDatabaseVersion(database: QuickSQLiteConnection): number {

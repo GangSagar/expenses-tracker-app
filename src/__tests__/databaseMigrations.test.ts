@@ -1,5 +1,9 @@
 import { QuickSQLiteConnection } from 'react-native-quick-sqlite';
-import { DATABASE_MIGRATIONS, runMigrations } from '../database/migrations';
+import {
+  DATABASE_MIGRATIONS,
+  runMigrations,
+  validateMigrationSequence,
+} from '../database/migrations';
 
 type FakeDatabase = QuickSQLiteConnection & {
   version: number;
@@ -118,5 +122,16 @@ describe('versioned database migrations', () => {
 
     expect(() => runMigrations(database)).toThrow(/newer than this app supports/i);
     expect(database.statements).toEqual(['PRAGMA user_version']);
+  });
+
+  it('rejects skipped or reordered migration versions before database access', () => {
+    const database = fakeDatabase();
+
+    expect(() => validateMigrationSequence([
+      DATABASE_MIGRATIONS[0],
+      { ...DATABASE_MIGRATIONS[1], version: 3 },
+    ])).toThrow(/invalid migration sequence/i);
+    expect(() => validateMigrationSequence([...DATABASE_MIGRATIONS].reverse())).toThrow(/invalid migration sequence/i);
+    expect(database.statements).toEqual([]);
   });
 });

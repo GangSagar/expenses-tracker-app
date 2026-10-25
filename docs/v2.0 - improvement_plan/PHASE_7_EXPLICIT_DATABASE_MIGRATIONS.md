@@ -31,7 +31,8 @@ Each migration runs in its own SQLite transaction. The `user_version` is updated
 ## Verification
 
 - `npx tsc --noEmit` — passed.
-- `npx jest --runInBand` — passed (33 suites, 673 tests), including five migration cases.
+- `npx jest --runInBand` — passed (33 suites, 674 tests), including six migration cases.
 - ESLint on the migration implementation and tests — passed with no errors.
 - `git diff --check` — passed.
-- Graphify code graph refreshed and reclustered (1,562 nodes, 3,255 edges, 108 communities); offline mode skipped semantic extraction for changed Markdown files.
+- A one-off Node SQLite in-memory smoke check migrated a populated legacy database to version 2, preserved its transaction row, and verified all four indexes.
+- Graphify code graph refreshed and reclustered (1,562 nodes, 3,255 edges, 108 communities). Semantic extraction of changed Markdown files failed because the Gemini backend returned a connection error, so Graphify may still surface stale phase-status text.
