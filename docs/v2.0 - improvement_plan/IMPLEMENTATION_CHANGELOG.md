@@ -322,22 +322,40 @@ Detailed plan: [Phase 8: Domain Organization and Dependency Guardrails](./PHASE_
 
 The scanner runs over production source files and excludes test fixtures, because boundary tests intentionally contain invalid imports as input. A narrow `services -> app/composition` exception remains for the current configured singleton access in messaging and transaction application modules; other service-to-app paths are rejected.
 
+Deferred seams recorded for later work: presentation still imports service singletons from app composition, and `services/notifications/transactionSavedNotification.ts` imports React Native APIs directly. The notification provider is localized and best-effort, but Phase 8 does not currently enforce a services-to-native-module rule; Phase 9 will clarify ownership and whether to introduce a provider port/adapter.
+
 Small lint fixes made during Phase 8 verification: `scripts/parse-cli.js` now imports Node's `performance` API explicitly, and unused parameters/imports in the AI test, `BankExtractor`, `MessageFilter`, and currency normalizer were removed or marked intentionally unused. These had been blocking the repository-wide lint command before the new boundary check could be considered verified.
 
 Verification: `npx tsc --noEmit` passed; `npm test -- --runInBand` passed (36 suites, 681 tests); `npm run lint` passed (boundary scan passed, ESLint had 0 errors and 118 existing warnings); `git diff --check` passed. Graphify was refreshed and reclustered to 1,673 nodes, 3,324 edges, and 116 communities. Phase 2 local AI/model work remains independent and is not a Phase 8 blocker.
 
-## Phase 9 — Documentation and future feature readiness (in progress)
+## Phase 9 — Documentation and future feature readiness (complete)
 
-**Goal:** keep runtime docs accurate and make new sources reuse established use cases.
+Detailed plan: [Phase 9: Documentation and Future Feature Readiness](./PHASE_9_DOCUMENTATION_AND_FUTURE_FEATURE_READINESS.md).
+
+**Goal:** keep runtime docs accurate and make new sources reuse established use cases. Completed as a documentation-only phase; Phase 2 AI/model integration and runtime privacy/platform seams remain outside scope.
 
 **Expected file areas and rationale:**
 
-| Expected files | Planned work |
+| File(s) changed | What changed and why |
 |---|---|
-| `docs/ARCHITECTURE.md` | Replace stale runtime claims with implemented flows and active/partial/planned labels. |
-| `docs/APP_MESSAGE_LISTENER_FLOW.md` | Keep the live native flow accurate while UI screens change. |
-| `docs/TRD.md`, `docs/IMPLEMENTATION_PLAN.md`, `README.md` | Reconcile architecture, business rules, setup, and capability claims as implementation lands. |
-| `docs/v2.0 - improvement_plan/*` | Update phase status, file-level changes, and remaining work after each phase. |
+| `README.md` | Updated feature/support claims, current source tree, docs links, setup/verification commands, and privacy/telemetry caveats; removed brittle test totals and absolute offline claims. |
+| `docs/ARCHITECTURE.md` | Replaced stale current-flow descriptions with the active event-to-persistence path, corrected adapter/ownership and migration details, and marked obsolete diagrams historical. |
+| `docs/APP_MESSAGE_LISTENER_FLOW.md` | Aligned native event ordering, parse/decision/persist flow, and best-effort saved-transaction notification behavior with current code. |
+| `docs/TRD.md` | Corrected service, parser, migration, repayment, and telemetry claims; clarified that token dictionary terms are interpreted by the resolver. |
+| `docs/IMPLEMENTATION_PLAN.md` | Marked old phase breakdown as historical and linked the active roadmap; removed stale current-phase/capability statements. |
+| `docs/TESTING_STRATEGY.md` | Updated existing commands, test scope and privacy handling; documented that collected device fixtures retain raw message data. |
+| `docs/REVISION_HISTORY.md` | Labeled dated claims/counts historical and corrected misleading collection-script privacy descriptions. |
+| `docs/FEATURE_EXTENSION_GUIDE.md` (new) | Added source/provider extension routes, reuse constraints, and decisions to settle when each capability is approved. |
+| `docs/v2.0 - improvement_plan/PHASE_8_DOMAIN_ORGANIZATION_AND_DEPENDENCY_GUARDRAILS.md` | Recorded direct UI-to-composition dependencies and the notification native-module seam for later UI/provider boundary work. |
+| `docs/v2.0 - improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md` | Marked Phase 9 complete and linked its completion record. |
+| `docs/v2.0 - improvement_plan/PHASE_9_DOCUMENTATION_AND_FUTURE_FEATURE_READINESS.md` | Recorded completion, actual notification/telemetry seam decisions, scope boundaries, and verification outcome. |
+| `docs/v2.0 - improvement_plan/IMPLEMENTATION_CHANGELOG.md` | Replaced the planned Phase 9 entry with this file-level completion record. |
+
+**How the reconciliation was done:** claims were checked against current source ownership and call paths, package scripts, database migration code, transaction decision/persistence flow, notification provider, telemetry adapter, and device fixture collector. Historical snapshots were labeled rather than presented as current guarantees. The feature guide routes future capabilities through existing use cases and documents what remains undecided.
+
+**Deferred work:** Phase 2 local AI inference; remove/redact sender data in development telemetry; introduce an explicit notification port/native adapter if additional providers or platform boundaries require it; inject composition dependencies through a presentation-facing API during replacement UI work. No runtime code changed.
+
+**Verification:** `git diff --check` passed. Relative Markdown links and referenced npm scripts were checked. Mermaid was inspected in source; no renderer was available for visual validation.
 
 Future receipt OCR, notification providers, import formats, or backup should enter through adapters and existing use cases. Multi-currency needs domain and repository support before presentation work.
 

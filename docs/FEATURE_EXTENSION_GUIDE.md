@@ -1,0 +1,52 @@
+# Feature Extension Guide
+
+This guide describes where future input sources and providers should connect to the current transaction architecture. It is an extension map, not a commitment to implement every capability listed here.
+
+## Current transaction path
+
+```text
+SMS / supported payment notification
+  → native bridge
+  → useMessageListener
+  → messageService (normalize, filter, parse)
+  → transactionDecisionService
+  → core decision policy
+  → transactionApplication
+  → core transaction use case + TransactionRepository
+  → SQLiteTransactionRepository
+  → local SQLite
+```
+
+Manual entry, review confirmation, edits, and historical import should continue to use the transaction application operations. Do not write transaction rows from a new input adapter or UI screen directly.
+
+## Extension points
+
+| Capability | Entry point and contracts | Reuse and constraints |
+|---|---|---|
+| New transaction source | Add a source adapter at the service/application edge; map the input to `IncomingMessage` or a `TransactionCandidate` as appropriate. | Reuse parser evidence collection, `decideTransaction`, shared deduplication, and transaction application writes. Preserve source timestamp and provenance. |
+| New bank or message format | Update parser config/rules where sufficient; add extractor/resolver code when the format needs new behavior. | Add sanitized regression examples. JSON-only changes do not guarantee support for formats needing new extraction logic. |
+| Receipt OCR | Add an image/OCR adapter that produces a candidate and evidence. | Route uncertain results into review; do not make OCR directly persist. Decide image/text retention and privacy policy before implementation. |
+| Historical CSV/import format | Add a format reader and preview mapper. | Reuse chronological import, per-row outcomes, deduplication, and repayment planning. Define malformed-row behavior for each format. |
+| Notification provider | Keep the notification request behind a capability interface and implement platform/provider adapters outside transaction policy. | Trigger only after a successful write. Notification errors remain best-effort and must not roll back a transaction. The current `transactionSavedNotification.ts` is React Native-specific and its ownership remains a documented Phase 9 follow-up. |
+| Backup provider | Add an export/import adapter around the existing snapshot application operations. | Preserve IDs and split-allocation semantics; validate the complete input before destructive overwrite. Decide encryption and destination before implementation. |
+| Multi-currency | Extend transaction amount and currency contracts, calculations, persistence, and migrations. | Define base currency, exchange-rate source and timestamp, historical conversion, and rounding before adding UI labels. |
+| Replacement UI | Use a presentation-facing API/composition boundary for capability services. | Do not import concrete SQLite repositories or `src/app/composition/` singletons directly in screens/hooks. This addresses the Phase 8 deferred UI coupling. |
+
+## Stable ownership map
+
+- `src/core/`: domain policies, parser contracts, and deterministic business logic.
+- `src/services/`: application capabilities and orchestration.
+- `src/database/` and `src/infrastructure/`: concrete storage, native, and telemetry adapters.
+- `src/app/composition/`: current concrete runtime wiring. The existing UI and two services still import its configured singletons; the replacement UI should not copy this coupling.
+- `src/presentation/legacy/` and `src/hooks/`: existing UI/state adapters, scheduled for replacement or reconsideration with the new UI.
+
+## Decisions required when a capability is approved
+
+The extension does not select product-specific behavior in advance. Record the decisions relevant to the feature before implementation:
+
+- OCR source, retention, correction/review, and itemization requirements.
+- Supported import formats, duplicate policy, and malformed-row recovery.
+- Backup destination, encryption, overwrite confirmation, and recovery behavior.
+- Multi-currency base currency, exchange-rate source/time, and rounding.
+- Notification permission and provider behavior on each target platform.
+- Presentation-facing dependency injection shape for the replacement UI.

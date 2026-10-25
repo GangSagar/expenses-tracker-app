@@ -202,6 +202,8 @@ Organize domain/application/infrastructure code only where ownership is clear. K
 
 ### Phase 9 — Documentation and future feature readiness
 
+**Status: Complete (documentation-only).** See the [Phase 9 plan and completion record](./PHASE_9_DOCUMENTATION_AND_FUTURE_FEATURE_READINESS.md). The current-facing docs were reconciled with runtime behavior; deferred UI coupling and the native notification bridge remain documented seams.
+
 Keep the architecture diagram synchronized with runtime. For each new input (notification, receipt OCR, backup import), specify its adapter and route it through existing use cases. For multi-currency, evolve domain calculations and persisted representation before adding UI-only currency labels.
 
 **Exit condition:** docs distinguish current implementation from roadmap, and new features have a known extension point.

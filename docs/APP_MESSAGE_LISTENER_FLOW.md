@@ -64,7 +64,7 @@ Older repayment credits have only contact/amount summaries and cannot be safely 
 
 Settings historical import uses the same parser, transaction decision policy, and dedup policy during preview, through `previewHistoricalMessage()`. The screen owns message scanning, preview selection, and progress display. Definite duplicates are skipped; possible matches appear unchecked for review. `importHistoricalTransactions()` rechecks selected candidates against persisted rows and earlier successful imports, sorts by source timestamp (stable on ties), and imports each through the shared persistence operation. Repayment planning is refreshed per row, so earlier imported credits affect later ones. Each row commits independently; failed rows remain available for retry.
 
-After a successful live, manual, confirmed, imported, or edited transaction write, the application service requests one local notification with the transaction type, amount, and merchant/description. Duplicate, pending, or failed outcomes do not produce a saved notice. Notification failures do not alter persistence results.
+After a successful live, manual, confirmed, imported, or edited transaction write, the application service requests a local notification with the transaction type, amount, and merchant/description. Duplicate, pending, or failed outcomes do not produce a saved notice. Notification failures do not alter persistence results. The current provider is `src/services/notifications/transactionSavedNotification.ts`; it uses React Native native modules directly and is a documented platform-boundary seam. A separate background review/possible-duplicate notice is sent by `useMessageListener` through `MessageModule`.
 
 ## 6. Correction learning and AI fallback status
 
@@ -76,10 +76,15 @@ When a user explicitly changes a transaction's merchant or category, the applica
 
 - [App.tsx](../App.tsx)
 - [useMessageListener.ts](../src/hooks/useMessageListener.ts)
+- [app composition](../src/app/composition/index.ts)
 - [messageService.ts](../src/services/messaging/messageService.ts)
 - [transactionOrchestrator.ts](../src/services/transactions/transactionOrchestrator.ts)
+- [transactionDecisionService.ts](../src/services/transactions/transactionDecisionService.ts)
 - [expenseService.ts](../src/services/transactions/expenseService.ts)
 - [decisionPolicy.ts](../src/core/transactions/decisionPolicy.ts)
+- [transactionApplication.ts](../src/services/transactions/transactionApplication.ts)
+- [SQLiteTransactionRepository.ts](../src/database/SQLiteTransactionRepository.ts)
+- [transaction saved notification](../src/services/notifications/transactionSavedNotification.ts)
+- [native MessageModule](../android/app/src/main/java/com/expensetracker/bridge/MessageModule.kt)
 - [expenseRepo.ts](../src/database/expenseRepo.ts)
 - [applicationUseCases.ts](../src/core/transactions/applicationUseCases.ts)
-- [transactionApplication.ts](../src/services/transactions/transactionApplication.ts)

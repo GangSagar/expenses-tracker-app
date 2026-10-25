@@ -1,5 +1,7 @@
 # SpendWise: Git Revision History & Architectural Audit
 
+> **Historical record:** Commit descriptions, test counts, performance claims, and architecture statements below are snapshots from their recorded dates. They are not current runtime guarantees. Use [current architecture](./ARCHITECTURE.md), [live message flow](./APP_MESSAGE_LISTENER_FLOW.md), and the [active restructuring plan](./v2.0%20-%20improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md) for present-day behavior and status.
+
 ## 1. Executive Summary
 
 This document provides a comprehensive, chronological audit of the SpendWise repository's development lifecycle. Every git commit—from the initial foundation commit (`e381d05`) to the latest production release and observability instrumentation—is cataloged with technical rationales, pull request associations, and architectural impacts.
@@ -20,7 +22,7 @@ This document provides a comprehensive, chronological audit of the SpendWise rep
 | **v1.4.0** | 2026-05-18 | #9 | Mathematical font Unicode normalization, settings danger zone full data wipe. |
 | **v1.5.0** | 2026-05-20 | #10 | Income & cash multi-type transaction support, transaction orchestrator, retry queue. |
 | **v1.6.0** | 2026-10-24 | — | Generic, extensible, learning-based parsing engine: 10-stage pipeline, data-driven JSON rules, lexical tokenizer, confidence engine, on-device SQLite learning, and AI fallback interface. |
-| **Current / Unreleased** | 2026-10-24 | — | OpenTelemetry distributed tracing with Jaeger, headless CLI runner, ADB hardware test harness, and complete 599-test verification suite. |
+| **Unreleased snapshot (historical)** | 2026-10-24 | — | At that snapshot: OpenTelemetry/Jaeger tooling, headless CLI, ADB fixture collector, and a recorded 599-test suite. This is not the current test count or status. |
 
 ---
 
@@ -124,7 +126,7 @@ This document provides a comprehensive, chronological audit of the SpendWise rep
 * **Problem**: Developers lacked real-time visibility into pipeline latency on physical devices and had no automated mechanism to test real SMS without building full APKs.
 * **Architectural Change**:
   - Integrated OpenTelemetry distributed tracing transmitting OTLP spans to a local standalone Jaeger collector.
-  - Built Python ADB test harvester (`collect-testcases.py`) that extracts real SMS from attached handsets, scrubs PII, and automatically outputs executable Jest suites.
+  - Built Python ADB test harvester (`collect-testcases.py`) that copies raw messages from the app database into Jest fixtures. It does not scrub PII; see current [testing data-care notes](./TESTING_STRATEGY.md).
   - Implemented headless CLI runner (`parse-sms.sh`) for sub-second parser testing in the terminal.
 * **Impact**: Instant visibility into pipeline performance and continuous benchmarking against 432 real bank transactions.
 

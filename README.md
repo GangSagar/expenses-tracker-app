@@ -3,10 +3,9 @@
 [![React Native](https://img.shields.io/badge/React_Native-0.85.3-blue.svg?logo=react&logoColor=white)](https://reactnative.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![SQLite](https://img.shields.io/badge/SQLite-Quick--SQLite-green.svg?logo=sqlite&logoColor=white)](https://github.com/margelo/react-native-quick-sqlite)
-[![Privacy First](https://img.shields.io/badge/Privacy-100%25_Offline-success.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-100%25_Passing-brightgreen.svg)]()
+[![Privacy First](https://img.shields.io/badge/Privacy-Offline--first-success.svg)]()
 
-**Smart Expense Tracker** is an automated, 100% offline, privacy-first personal finance application for Android. It eliminates the hassle of manual expense logging by automatically parsing transactional bank SMS messages and payment notifications in real time — keeping your financial records accurate, organized, and strictly on your device.
+**Smart Expense Tracker** is an offline-first personal finance application for Android. It parses supported bank SMS messages and payment notifications locally and stores the ledger on-device. Optional developer telemetry can send traces to a locally configured Jaeger collector. Local AI inference is not configured.
 
 ---
 
@@ -16,14 +15,14 @@ Detailed system specifications, architectural diagrams, engineering plans, and t
 
 | Document                                         | File Link                                                       | Summary & Contents                                                                                                                                                                                                                                                   |
 | :----------------------------------------------- | :-------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Product Requirements Document (PRD)**    | [`docs/PRD.md`](./docs/PRD.md)                                 | Executive summary, user personas, core functional requirements (FR-1 to FR-7), privacy non-negotiables, non-goals, and success KPIs (v1.6.0).                                                                                                                                 |
-| **Technical Requirements Document (TRD)**  | [`docs/TRD.md`](./docs/TRD.md)                                 | System architecture, tech stack justification, native Android subsystems, 10-stage modular parsing pipeline, SQLite schemas, and performance criteria (v1.6.0).                                                                                                                    |
-| **Architecture Specification (HLD & LLD)** | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)               | High-Level Design (HLD) & Low-Level Design (LLD) with Mermaid diagrams covering system context, 10-stage parsing pipeline state machine, class hierarchy, and database ERD (v1.6.0).                                                                                                                         |
-| **Interactive Architecture Diagram**       | [`docs/architecture.drawio`](./docs/architecture.drawio)       | Complete diagrams.net (`draw.io`) multi-sheet diagram containing:• **Sheet 1: `HLD`** (System boundaries, native bridge, persistence & Jaeger tracing)• **Sheet 2: `LLD`** (Method signatures, regex pipelines, state machines & SQLite schema). |
-| **Implementation Plan & Roadmap**          | [`docs/IMPLEMENTATION_PLAN.md`](./docs/IMPLEMENTATION_PLAN.md) | Phased engineering execution lifecycle (Phases 1-6), Work Breakdown Structure (WBS), risk analysis, and future milestone roadmap.                                                                                                                                    |
-| **Architecture Restructuring Plans**       | [`docs/v2.0 - improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md`](./docs/v2.0%20-%20improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md) | Issue inventory and phase links, including the detailed Phase 3, Phase 4, and Phase 5 plans. |
-| **Testing & QA Strategy**                  | [`docs/TESTING_STRATEGY.md`](./docs/TESTING_STRATEGY.md)       | Test pyramid, automated unit/integration suites, physical device ADB SMS collection harness, headless CLI runner, and release acceptance checklist.                                                                                                                   |
-| **Git Revision History & Audit**           | [`docs/REVISION_HISTORY.md`](./docs/REVISION_HISTORY.md)       | Exhaustive chronological audit of every git commit (`e381d05` through to present), release milestones (v1.0.3 to v1.6.0), and architectural deep dives.                                                                                                |
+| **Product Requirements** | [`docs/PRD.md`](./docs/PRD.md) | Product goals and requirements; implementation status is tracked separately. |
+| **Technical Requirements** | [`docs/TRD.md`](./docs/TRD.md) | Current technical contracts, native integrations, persistence, and known partial capabilities. |
+| **Runtime Architecture** | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Current architecture and runtime data flow. |
+| **Live Message Flow** | [`docs/APP_MESSAGE_LISTENER_FLOW.md`](./docs/APP_MESSAGE_LISTENER_FLOW.md) | Active SMS/notification ingestion through decision and persistence. |
+| **Implementation Roadmap** | [`docs/v2.0 - improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md`](./docs/v2.0%20-%20improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md) | Authoritative phased restructuring plan and status. |
+| **Feature Extension Guide** | [`docs/FEATURE_EXTENSION_GUIDE.md`](./docs/FEATURE_EXTENSION_GUIDE.md) | Where proposed sources and providers should enter and which use cases to reuse. |
+| **Testing Strategy** | [`docs/TESTING_STRATEGY.md`](./docs/TESTING_STRATEGY.md) | Available verification commands and release checklist. |
+| **Historical architecture diagram** | [`docs/architecture.drawio`](./docs/architecture.drawio) | Original v1 diagram; not authoritative for current runtime structure. |
 
 ## 💡 Why Smart Expense Tracker?
 
@@ -35,18 +34,17 @@ Most expense tracking apps either:
 **Smart Expense Tracker solves both problems:**
 
 * **Zero Manual Effort**: Incoming bank SMS messages and UPI notifications are automatically extracted, categorized, and reconciled.
-* **100% Offline & Private**: No analytics, no cloud backend, and no external network calls. All data processing and database operations happen strictly on your device using an ultra-fast local SQLite engine.
+* **Offline-first & private**: Transaction parsing and SQLite ledger storage run on-device. Optional developer telemetry targets a local Jaeger collector; no cloud AI inference is configured.
 
 ---
 
 ## 🌟 Key Features
 
 ### 🧠 Generic, Extensible & Learning-Based Parsing Engine
-- **10-Stage Parsing Pipeline**: Raw SMS/notifications pass through pre-filtering, normalization, tokenization, extraction, bank rules, resolvers, confidence scoring, and on-device learning. The local AI fallback interface exists, but no local inference runtime is currently configured.
-- **Universal Provider Support**: Supports 15+ Indian financial institutions (SBI, HDFC, ICICI, Axis, Kotak, Bank of Baroda, PNB, Canara, IndusInd, IDFC, Yes Bank, AU, Union Bank, etc.), UPI apps (Google Pay, PhonePe, Paytm, BHIM, Cred), credit cards, and digital wallets.
-- **Zero-Code Extensibility**: Adding future banks, new SMS formats, or fintech providers requires updating declarative JSON schemas (`bankRules.json`, `merchantAliases.json`, `categoryRules.json`) with zero code modifications.
-- **On-Device Adaptive Learning**: Learns merchant renames and category updates from user edits directly in SQLite, boosting confidence on repeat transactions.
-- **Mathematical Confidence Scoring**: Evaluates signal certainty across 6 weighted dimensions to prevent low-certainty data corruption.
+- **Structured parsing**: SMS and supported app notifications pass through filtering, normalization, tokenization, extraction, rules, resolvers, and confidence scoring. The parser may consult learned merchant/category mappings. `AIResolver` and its in-memory cache exist, but no inference handler/model is configured.
+- **Declarative provider rules**: Bank and merchant configuration is data-driven. A new format may still require extractor/resolver code and regression examples; support is not guaranteed by editing JSON alone.
+- **Correction learning**: Explicit merchant/category corrections are stored locally and can influence later parsing. Token-frequency learning and confidence reinforcement are not implemented.
+- **One transaction decision policy**: Parser and classifier evidence feed the shared reject/review/auto-save policy before a transaction is persisted.
 
 ### 📩 Automatic SMS & Notification Tracking
 
@@ -200,6 +198,8 @@ npm run android
 
 ```
 src/
+├── app/
+│   └── composition/    # Selects concrete persistence/native adapters for runtime services
 ├── core/
 │   ├── parser/          # Modular 10-stage learning-based parsing engine
 │   │   ├── config/      # Declarative bank, merchant & category JSON rules
@@ -209,20 +209,25 @@ src/
 │   │   ├── extractor/   # Targeted extractors (Amount, Account, Bank, VPA, Ref, Balance)
 │   │   ├── resolver/    # Business heuristics (Merchant alias, directionality, category)
 │   │   ├── confidence/  # Multi-factor mathematical quality scoring engine
-│   │   ├── learning/    # Adaptive on-device SQLite continuous learning engine
-│   │   ├── ai/          # Local AI fallback interface & SHA-256 cache
+│   │   ├── learning/    # Learning policies and repository contracts
+│   │   ├── ai/          # Optional inference interface; no runtime is configured
 │   │   ├── filter/      # Pre-parsing non-financial & OTP message filter
 │   │   └── orchestrator/# Pipeline coordinator & backward-compatible adapter
 │   ├── classifier/      # Spending category rules & merchant mappings
 │   ├── confidence/      # Transaction validation & quality scoring
 │   └── dedup/           # Multi-source duplicate transaction detection
-├── database/            # SQLite schemas, transaction repository adapter & migrations
+├── database/            # SQLite queries, schemas, transaction adapter & migrations
+├── infrastructure/
+│   ├── native/          # React Native device-auth adapter
+│   ├── observability/   # Telemetry implementation
+│   └── persistence/sqlite/ # SQLite settings, learning and spam adapters
 ├── services/
-│   ├── transactions/    # Transaction application adapters and orchestration
-│   ├── messaging/       # Incoming message analysis and parsing adapter
-│   ├── advisorService.ts
-│   ├── securityService.ts
-│   └── telemetryService.ts
+│   ├── transactions/    # Transaction application operations and orchestration
+│   ├── messaging/       # Incoming message analysis and parser adapter
+│   ├── notifications/   # Saved-transaction notification capability
+│   ├── advisor/         # Budget advisor
+│   ├── security/        # Security service
+│   └── settings/        # Focused settings capability API
 ├── hooks/               # Zustand reactive store (accounts, splits, transactions)
 ├── presentation/
 │   └── legacy/          # Existing screens, components, styles & navigation; UI replacement boundary
@@ -242,7 +247,7 @@ src/
 
 ## 🧪 Testing
 
-The project maintains an automated Jest suite (32 suites and 666 tests at the latest Phase 5 verification) covering modular parser stages, transaction use cases, split/repayment reversal, repository and backup atomicity, biometric security stores, and real-world SMS samples:
+Run the current Jest suite to verify the checked-out revision; test counts are intentionally not hard-coded here because they change as tests are added:
 
 ```bash
 # Run all test suites
@@ -254,13 +259,22 @@ npm test -- --testPathIgnorePatterns="collected-real"
 # Run tests in watch mode
 npm test -- --watch
 
-# Run headless CLI SMS diagnostic runner (test SMS parsing without building APK)
-npm run parse -- --sender "HDFCBK" --msg "Dear Customer, A/c XX1234 debited for Rs 450.00 at SWIGGY"
+# Run ESLint and the import-boundary check
+npm run lint
+
+# Check TypeScript types
+npx tsc --noEmit
+
+# Run parser diagnostic CLI (see scripts/parse-sms.sh for supported arguments)
+npm run parse
+
+# Run parser throughput benchmark
+npm run benchmark
 ```
 
 ### 📱 Collecting Real Test Cases from Your Phone
 
-You can automatically extract real bank messages from your phone and turn them into local test scenarios:
+You can extract real bank messages from your phone and turn them into local test scenarios. **The collector copies raw `raw_message` text and does not redact account numbers, names, phone numbers, or other PII.** Treat the generated fixture as sensitive; inspect and sanitize it before sharing or committing.
 
 1. Connect your phone via USB with USB Debugging enabled.
 2. In the app on your phone, go to **Settings → Backfill Ledger** to import your messages.
@@ -269,9 +283,7 @@ You can automatically extract real bank messages from your phone and turn them i
    npm run test:collect
    ```
 
-   This will:- Extract raw transaction messages from your phone's local SQLite database.
-   - Save unique scenarios into `src/__tests__/__fixtures__/collected-real-samples.json`.
-   - Auto-generate `src/__tests__/collected-real.test.ts`.
+   The collector extracts raw transaction messages from the app's local database, saves unique samples into `src/__tests__/__fixtures__/collected-real-samples.json`, and generates `src/__tests__/collected-real.test.ts`.
 4. Run tests against your real phone's scenarios:
    ```bash
    npm test src/__tests__/collected-real.test.ts
@@ -281,7 +293,7 @@ You can automatically extract real bank messages from your phone and turn them i
 
 ## 🔍 Local OpenTelemetry & Jaeger Monitoring
 
-The app includes built-in OpenTelemetry tracing to monitor SMS parsing performance, SQLite queries, and message pipelines in real time with zero external cloud dependencies.
+The app includes optional OpenTelemetry tracing for message processing and selected SQLite repository calls. It is disabled outside `__DEV__` and tests, and sends to the configured local Jaeger collector. The current span includes a sender attribute; phone-number redaction is not implemented, so keep the collector local and treat traces as sensitive.
 
 ### 1. Start Local Jaeger
 
