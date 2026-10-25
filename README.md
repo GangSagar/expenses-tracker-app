@@ -236,10 +236,10 @@ src/
 
 ## 🧪 Testing
 
-The project maintains an exhaustive test suite with **599 passing tests across 22 test suites** (executing in ~1.6s) covering modular normalizers, tokenizers, extractors, resolvers, confidence scoring, learning loops, legacy adapters, and 432 real-world hardware SMS transactions:
+The project maintains an exhaustive test suite with **615 passing tests across 25 test suites** (executing in ~1.7s) covering modular normalizers, tokenizers, extractors, resolvers, confidence scoring, learning loops, legacy adapters, biometric security stores, and 432 real-world hardware SMS transactions:
 
 ```bash
-# Run all 22 test suites (599 tests)
+# Run all 25 test suites (615 tests)
 npm test
 
 # Run core unit test suites excluding real hardware dataset

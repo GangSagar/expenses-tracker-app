@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# SpendWise Pre-Commit Verification Gate
+# Runs all unit & system test cases automatically when committing.
+# If test cases fail, the commit is aborted.
+# ==============================================================================
+
+set -e
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+echo "Running pre-commit test suites (npm test)..."
+if ! npm test; then
+  echo ""
+  echo "❌ Tests failed! Commit aborted."
+  exit 1
+fi
+
+echo "✔ All tests passed. Proceeding with commit."
+exit 0
