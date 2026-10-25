@@ -124,4 +124,6 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    implementation("androidx.biometric:biometric:1.1.0")
 }

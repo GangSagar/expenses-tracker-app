@@ -1,11 +1,25 @@
 package com.expensetracker
 
+import android.os.Bundle
+import android.view.WindowManager
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 
 class MainActivity : ReactActivity() {
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    // Hide preview in recent apps and prevent screen capture for privacy
+    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+  }
+
+  override fun onResume() {
+    super.onResume()
+    // Re-affirm FLAG_SECURE on resume to guarantee recents preview protection across OEM launchers
+    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+  }
 
   /**
    * Returns the name of the main component registered from JavaScript. This is used to schedule

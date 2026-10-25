@@ -23,6 +23,7 @@ graph TB
         SMS["Telephony Subsystem\n(SMS_RECEIVED)"]
         NOTIF["Notification Center\n(StatusBarNotification)"]
         CONTACTS["Android Contacts Provider"]
+        BIOMETRIC["Android Biometric & Keyguard\n(BiometricPrompt / Screen Lock)"]
     end
 
     subgraph AppContainer["SpendWise Application Sandbox"]
@@ -30,6 +31,7 @@ graph TB
             SmsReceiver["SmsReceiver.kt"]
             NotifListener["NotificationListener.kt"]
             MessageBridge["MessageModule.kt\n(TurboModule JSI)"]
+            SecurityBridge["SecurityModule.kt\n(BiometricPrompt JSI)"]
         end
 
         subgraph CoreEngine["React Native / Hermes JS Engine"]
@@ -306,6 +308,13 @@ The parser follows Clean Architecture principles with complete separation of con
 * Manages an in-memory queue of `RawSpan` records.
 * Dispatches traces asynchronously every 2000ms using native `fetch` to local Jaeger OTLP endpoint (`http://127.0.0.1:4318/v1/traces`).
 * Safely falls back to Android emulator host alias (`http://10.0.2.2:4318`) if localhost is unreachable.
+
+#### 5. Security & App Lock Subsystem (`src/services/securityService.ts`, `src/hooks/useSecurityStore.ts`)
+* **Cryptographic PIN Storage**: Hashes user PIN with high-entropy cryptographic salt using SHA-256 (`$spendwise$<salt>$<pin>$`), persisting only salt and hash in the SQLite `settings` table.
+* **Native Biometric & Screen Lock Bridge (`SecurityModule.kt`)**: Leverages `androidx.biometric.BiometricPrompt` with version-adaptive authenticators (supporting `BIOMETRIC_STRONG | DEVICE_CREDENTIAL` across API 24–36), React Native `LifecycleEventListener` pause/destroy cleanup, and an atomic concurrency lock preventing duplicate prompt collisions.
+* **Recent Apps Preview Obscuration (`FLAG_SECURE` & Privacy Shield)**: Configures `WindowManager.LayoutParams.FLAG_SECURE` in `MainActivity.kt` (`onCreate` and `onResume`) and renders an instant privacy veil in `SecurityGate.tsx` during `AppState` transitions. When locked, the underlying app content is isolated with `display: 'none'`, preventing view leakage or task switcher snapshots across OEM launchers.
+* **App Lifecycle Gate (`SecurityGate.tsx`)**: Listens to React Native `AppState` transitions with synchronous initial store hydration from SQLite. Auto-locks upon cold start and when backgrounded beyond the configurable auto-lock timeout (Immediately, 30s, 1m, 5m), with hardware `BackHandler` app-minimizing protection.
+* **PIN Management UI (`LockScreen.tsx`, `PinSetupModal.tsx`)**: High-performance interactive numpad, animated dot feedback, error shake animations, biometric concurrency guards, and single-touch device authentication.
 
 ---
 

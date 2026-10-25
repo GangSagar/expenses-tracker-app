@@ -75,6 +75,14 @@ Most expense tracking apps either:
 - Visual breakdown of monthly spending trends, burn rate, and top expenditure categories.
 - Full chronological transaction history with multi-filter search (by date range, category, payment mode, or account).
 
+### 🔒 App Security & Privacy Lock
+- **4-Digit Personal Passcode**: Protect your financial ledger with an app-specific PIN. Passcodes are salted and hashed using SHA-256 for maximum security.
+- **Biometric & Device Screen Lock**: Authenticate seamlessly using your phone's Fingerprint, Face ID, or system PIN/Pattern via lifecycle-hardened `androidx.biometric.BiometricPrompt`.
+- **Recent Apps & Task Switcher Privacy**: Enforces native Android `FLAG_SECURE` (`onCreate` and `onResume`) alongside an instant JS privacy veil to completely hide sensitive transaction previews and account balances in the recent apps switcher.
+- **View Subtree Isolation**: Completely isolates app content (`display: 'none'`) during locked states, with hardware `BackHandler` app-minimizing protection to prevent accidental navigation leaks.
+- **Configurable Auto-Lock**: Choose when the app locks upon entering the background (Immediately, 30s, 1m, or 5m).
+- **Background Ingestion Guard**: While the UI remains safely locked, background SMS and notification listeners continue safely capturing incoming transactions.
+
 ### ⚡ Ultra-Low Battery & Resource Footprint
 
 - Built with event-driven native Android broadcast receivers (`SmsReceiver` and `NotificationListenerService`).
@@ -228,10 +236,10 @@ src/
 
 ## 🧪 Testing
 
-The project maintains an exhaustive test suite with **599 passing tests across 22 test suites** (executing in ~1.6s) covering modular normalizers, tokenizers, extractors, resolvers, confidence scoring, learning loops, legacy adapters, and 432 real-world hardware SMS transactions:
+The project maintains an exhaustive test suite with **615 passing tests across 25 test suites** (executing in ~1.7s) covering modular normalizers, tokenizers, extractors, resolvers, confidence scoring, learning loops, legacy adapters, biometric security stores, and 432 real-world hardware SMS transactions:
 
 ```bash
-# Run all 22 test suites (599 tests)
+# Run all 25 test suites (615 tests)
 npm test
 
 # Run core unit test suites excluding real hardware dataset

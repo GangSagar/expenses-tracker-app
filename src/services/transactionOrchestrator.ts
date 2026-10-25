@@ -8,10 +8,7 @@ export interface OrchestratorResult {
 /**
  * TransactionOrchestrator — single entry point for the full processing pipeline.
  *
- * Sequences:  messageService.processIncomingMessage()
- *          →  expenseService.processTransaction()
- *
- * Replaces the ad-hoc dual-call pattern that previously lived in useMessageListener.
+ * Sequences:  messageService.processIncomingMessage()  →  expenseService.processTransaction()
  */
 export function orchestrateTransaction(
   message: IncomingMessage,

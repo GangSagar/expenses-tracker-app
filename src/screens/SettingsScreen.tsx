@@ -13,9 +13,13 @@ import {
   KeyboardAvoidingView,
   NativeModules,
   Keyboard,
+  Switch,
 } from 'react-native';
 import styles from '../styles/SettingsScreenStyles';
 import { useExpenseStore } from '../hooks/useExpenses';
+import { useSecurityStore } from '../hooks/useSecurityStore';
+import { authenticateWithBiometrics } from '../services/securityService';
+import PinSetupModal from '../components/PinSetupModal';
 
 import {
   getSetting,
@@ -41,6 +45,50 @@ export default function SettingsScreen() {
     useExpenseStore();
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [jsonInput, setJsonInput] = useState('');
+
+  // Security & App Lock State
+  const {
+    isAppLockEnabled,
+    hasPinSet,
+    isBiometricEnabled,
+    lockTimeout,
+    deviceAuthStatus,
+    toggleBiometric,
+    setLockTimeout,
+    enableAppLock,
+  } = useSecurityStore();
+  const [pinModalVisible, setPinModalVisible] = useState(false);
+  const [pinModalMode, setPinModalMode] = useState<'setup' | 'change' | 'disable'>('setup');
+
+  const handleToggleAppLock = (enable: boolean) => {
+    if (enable) {
+      if (!hasPinSet) {
+        setPinModalMode('setup');
+        setPinModalVisible(true);
+      } else {
+        enableAppLock();
+      }
+    } else {
+      setPinModalMode('disable');
+      setPinModalVisible(true);
+    }
+  };
+
+  const handleToggleBiometric = async (enable: boolean) => {
+    if (enable) {
+      const verified = await authenticateWithBiometrics(
+        'Verify Identity',
+        'Confirm fingerprint, face, or phone lock to enable',
+      );
+      if (verified) {
+        toggleBiometric(true);
+      } else {
+        Alert.alert('Verification Failed', 'Could not verify biometric credentials.');
+      }
+    } else {
+      toggleBiometric(false);
+    }
+  };
 
   // SMS History Sync State
   const [syncing, setSyncing] = useState(false);
@@ -683,6 +731,102 @@ export default function SettingsScreen() {
             </View>
           </View>
 
+          {/* Security & App Lock Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Security & App Lock</Text>
+
+            <View style={styles.item}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={styles.itemTitle}>App Lock (PIN)</Text>
+                <Text style={styles.itemDescription}>
+                  {hasPinSet && isAppLockEnabled
+                    ? '4-digit personal passcode is active'
+                    : 'Require a PIN to access SpendWise'}
+                </Text>
+              </View>
+              <Switch
+                value={isAppLockEnabled}
+                onValueChange={handleToggleAppLock}
+                trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                thumbColor={isAppLockEnabled ? '#1a73e8' : '#f4f3f4'}
+              />
+            </View>
+
+            {isAppLockEnabled && (
+              <>
+                <TouchableOpacity
+                  style={styles.item}
+                  onPress={() => {
+                    setPinModalMode('change');
+                    setPinModalVisible(true);
+                  }}
+                >
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={styles.itemTitle}>Change App PIN</Text>
+                    <Text style={styles.itemDescription}>
+                      Update your 4-digit personal passcode
+                    </Text>
+                  </View>
+                  <Text style={styles.actionIcon}>🔑</Text>
+                </TouchableOpacity>
+
+                <View style={styles.item}>
+                  <View style={{ flex: 1, marginRight: 12 }}>
+                    <Text style={styles.itemTitle}>Biometrics & Phone Screen Lock</Text>
+                    <Text style={styles.itemDescription}>
+                      {deviceAuthStatus.isAvailable
+                        ? 'Unlock with Fingerprint, Face ID, or Phone Screen Lock'
+                        : 'Biometric / Screen Lock is not enrolled on this device'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={isBiometricEnabled}
+                    disabled={!deviceAuthStatus.isAvailable}
+                    onValueChange={handleToggleBiometric}
+                    trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                    thumbColor={isBiometricEnabled ? '#1a73e8' : '#f4f3f4'}
+                  />
+                </View>
+
+                <View style={[styles.item, { flexDirection: 'column', alignItems: 'flex-start' }]}>
+                  <Text style={styles.itemTitle}>Auto-Lock Timeout</Text>
+                  <Text style={[styles.itemDescription, { marginBottom: 12 }]}>
+                    Lock app when backgrounded or inactive
+                  </Text>
+                  <View style={styles.timeoutRow}>
+                    {[
+                      { label: 'Immediate', value: 0 },
+                      { label: '30s', value: 30000 },
+                      { label: '1m', value: 60000 },
+                      { label: '5m', value: 300000 },
+                    ].map((option) => {
+                      const isSelected = lockTimeout === option.value;
+                      return (
+                        <TouchableOpacity
+                          key={option.value}
+                          style={[
+                            styles.timeoutChip,
+                            isSelected && styles.timeoutChipActive,
+                          ]}
+                          onPress={() => setLockTimeout(option.value)}
+                        >
+                          <Text
+                            style={[
+                              styles.timeoutChipText,
+                              isSelected && styles.timeoutChipTextActive,
+                            ]}
+                          >
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </>
+            )}
+          </View>
+
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Data Management</Text>
 
@@ -1101,6 +1245,13 @@ export default function SettingsScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* PIN Setup / Change / Disable Modal */}
+        <PinSetupModal
+          visible={pinModalVisible}
+          mode={pinModalMode}
+          onClose={() => setPinModalVisible(false)}
+        />
       </KeyboardAvoidingView>
     </View>
   );
