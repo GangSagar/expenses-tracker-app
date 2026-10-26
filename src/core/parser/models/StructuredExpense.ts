@@ -1,4 +1,5 @@
 import { Category, PaymentMode, TransactionSource, TransactionType, Expense, ParsedTransaction } from '../../../types/expense';
+import { AIExtractionProposal, FieldEvidence, ProposalField } from '../ai/AIExtractionProposal';
 
 export type ExtendedTransactionType =
   | 'debit'
@@ -48,10 +49,13 @@ export interface StructuredExpense {
   source: TransactionSource;
   rawMessage: string;
   parserVersion: string;
+  /** Ephemeral inference evidence for the decision boundary; never persisted. */
+  aiProposal?: AIExtractionProposal;
+  fieldEvidence?: Partial<Record<ProposalField, FieldEvidence<unknown>>>;
 }
 
 export function toBaseTransactionType(type: ExtendedTransactionType): TransactionType {
-  if (type === 'credit' || type === 'refund' || type === 'reversal') {
+  if (type === 'credit' || type === 'refund' || type === 'reversal' || type === 'chargeback') {
     return 'credit';
   }
   return 'debit';

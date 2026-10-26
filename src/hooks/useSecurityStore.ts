@@ -1,17 +1,7 @@
 import { create } from 'zustand';
-import {
-  loadPersistedSecuritySettings,
-  savePin,
-  clearPin,
-  verifyPinHash,
-  setBiometricSetting,
-  setLockTimeoutSetting,
-  setAppLockEnabledSetting,
-  checkDeviceAuthAvailable,
-  authenticateWithBiometrics,
-  DeviceAuthStatus,
-  DEFAULT_LOCK_TIMEOUT_MS,
-} from '../services/securityService';
+import { securityService } from '../app/composition';
+import { DEFAULT_LOCK_TIMEOUT_MS, verifyPinHash } from '../services/security/securityService';
+import { DeviceAuthStatus } from '../core/security/securityPorts';
 
 interface SecurityState {
   isLocked: boolean;
@@ -40,7 +30,7 @@ interface SecurityState {
 
 const getInitialSettings = () => {
   try {
-    return loadPersistedSecuritySettings();
+    return securityService.loadPersistedSecuritySettings();
   } catch {
     return {
       isAppLockEnabled: false,
@@ -70,8 +60,8 @@ export const useSecurityStore = create<SecurityState>((set, get) => ({
   initialized: true,
 
   initSecurity: async () => {
-    const settings = loadPersistedSecuritySettings();
-    const deviceAuth = await checkDeviceAuthAvailable();
+    const settings = securityService.loadPersistedSecuritySettings();
+    const deviceAuth = await securityService.checkDeviceAuthAvailable();
 
     set((state) => ({
       isAppLockEnabled: settings.isAppLockEnabled,
@@ -86,7 +76,7 @@ export const useSecurityStore = create<SecurityState>((set, get) => ({
   },
 
   unlockWithPin: (pin: string) => {
-    const settings = loadPersistedSecuritySettings();
+    const settings = securityService.loadPersistedSecuritySettings();
     if (!settings.hasPinSet) {
       set({ isLocked: false });
       return true;
@@ -106,7 +96,7 @@ export const useSecurityStore = create<SecurityState>((set, get) => ({
       return false;
     }
 
-    const success = await authenticateWithBiometrics(
+    const success = await securityService.authenticateWithBiometrics(
       'Unlock SpendWise',
       'Use fingerprint, face, or phone screen lock',
     );
@@ -119,7 +109,7 @@ export const useSecurityStore = create<SecurityState>((set, get) => ({
   },
 
   setNewPin: (pin: string) => {
-    savePin(pin);
+    securityService.savePin(pin);
     set({
       hasPinSet: true,
       isAppLockEnabled: true,
@@ -128,18 +118,18 @@ export const useSecurityStore = create<SecurityState>((set, get) => ({
   },
 
   enableAppLock: () => {
-    setAppLockEnabledSetting(true);
+    securityService.setAppLockEnabledSetting(true);
     set({ isAppLockEnabled: true });
   },
 
   changePin: (currentPin: string, newPin: string) => {
-    const settings = loadPersistedSecuritySettings();
+    const settings = securityService.loadPersistedSecuritySettings();
     if (!settings.hasPinSet) return false;
 
     const isValid = verifyPinHash(currentPin, settings.pinSalt, settings.pinHash);
     if (!isValid) return false;
 
-    savePin(newPin);
+    securityService.savePin(newPin);
     set({
       hasPinSet: true,
       isAppLockEnabled: true,
@@ -148,9 +138,9 @@ export const useSecurityStore = create<SecurityState>((set, get) => ({
   },
 
   disableAppLock: (currentPin: string) => {
-    const settings = loadPersistedSecuritySettings();
+    const settings = securityService.loadPersistedSecuritySettings();
     if (!settings.hasPinSet) {
-      clearPin();
+      securityService.clearPin();
       set({
         isAppLockEnabled: false,
         hasPinSet: false,
@@ -163,7 +153,7 @@ export const useSecurityStore = create<SecurityState>((set, get) => ({
     const isValid = verifyPinHash(currentPin, settings.pinSalt, settings.pinHash);
     if (!isValid) return false;
 
-    clearPin();
+    securityService.clearPin();
     set({
       isAppLockEnabled: false,
       hasPinSet: false,
@@ -174,12 +164,12 @@ export const useSecurityStore = create<SecurityState>((set, get) => ({
   },
 
   toggleBiometric: (enabled: boolean) => {
-    setBiometricSetting(enabled);
+    securityService.setBiometricSetting(enabled);
     set({ isBiometricEnabled: enabled });
   },
 
   setLockTimeout: (timeoutMs: number) => {
-    setLockTimeoutSetting(timeoutMs);
+    securityService.setLockTimeoutSetting(timeoutMs);
     set({ lockTimeout: timeoutMs });
   },
 

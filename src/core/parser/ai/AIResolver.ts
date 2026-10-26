@@ -38,7 +38,7 @@ export class AIResolver implements IAIResolver {
     rawMessage: string,
     merchantCandidate: string
   ): Promise<AIResolutionResult | null> {
-    const cacheKey = `${merchantCandidate}:${rawMessage.slice(0, 40)}`;
+    const cacheKey = this.createCacheKey(merchantCandidate, rawMessage);
     const cached = this.cache.get(cacheKey);
     if (cached) {
       return cached;
@@ -57,6 +57,16 @@ export class AIResolver implements IAIResolver {
     }
 
     return null;
+  }
+
+  /** In-memory cache identity without retaining source message text. */
+  private createCacheKey(merchantCandidate: string, rawMessage: string): string {
+    const input = `${merchantCandidate.toLowerCase().trim()}\u0000${rawMessage.toLowerCase().trim()}`;
+    let hash = 5381;
+    for (let index = 0; index < input.length; index += 1) {
+      hash = (hash * 33 + input.charCodeAt(index)) % 0xffffffff;
+    }
+    return `djb2:${Math.floor(hash).toString(16)}`;
   }
 
   public setInferenceHandler(handler: AIInferenceHandler): void {

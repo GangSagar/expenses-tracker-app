@@ -1,147 +1,75 @@
 import { tokenize } from './bayesClassifier';
-import { getSetting, setSetting } from '../../database/expenseRepo';
 
-// The key used to store the spam classifier state in the settings table
-const SETTING_KEY = 'spam_classifier_state';
-
-interface SpamState {
+export interface SpamClassifierState {
   spamCount: number;
   hamCount: number;
   wordFrequencies: Record<string, { spam: number; ham: number }>;
 }
 
-let state: SpamState | null = null;
+export interface SpamClassifierRepository {
+  load(): SpamClassifierState | null;
+  save(state: SpamClassifierState): void;
+}
 
-// Default initial state
-const defaultState: SpamState = {
+const emptyState = (): SpamClassifierState => ({
   spamCount: 0,
   hamCount: 0,
   wordFrequencies: {},
-};
+});
 
-function loadState(): SpamState {
-  if (state) return state;
-  const raw = getSetting(SETTING_KEY, '');
-  if (!raw) {
-    state = JSON.parse(JSON.stringify(defaultState));
-  } else {
-    try {
-      state = JSON.parse(raw);
-    } catch (e) {
-      console.error('Failed to parse spam classifier state', e);
-      state = JSON.parse(JSON.stringify(defaultState));
+/** Pure model behavior with persisted state supplied by an outer adapter. */
+export class SpamClassifier {
+  private state: SpamClassifierState | null = null;
+
+  constructor(private readonly repository: SpamClassifierRepository) {}
+
+  train(text: string, isSpam: boolean): void {
+    const state = this.getState();
+    const tokens = tokenize(text);
+    if (tokens.length === 0) return;
+
+    if (isSpam) state.spamCount += 1;
+    else state.hamCount += 1;
+
+    tokens.forEach(token => {
+      state.wordFrequencies[token] ||= { spam: 0, ham: 0 };
+      state.wordFrequencies[token][isSpam ? 'spam' : 'ham'] += 1;
+    });
+    this.repository.save(state);
+  }
+
+  isSpam(text: string): boolean {
+    const state = this.getState();
+    if (state.spamCount === 0) return false;
+    const tokens = tokenize(text);
+    if (tokens.length === 0) return false;
+
+    const totalDocs = state.spamCount + state.hamCount;
+    let logPSpam = Math.log((state.spamCount + 1) / (totalDocs + 2));
+    let logPHam = Math.log((state.hamCount + 1) / (totalDocs + 2));
+    tokens.forEach(token => {
+      const stats = state.wordFrequencies[token];
+      if (!stats) return;
+      logPSpam += Math.log((stats.spam + 1) / (state.spamCount + 2));
+      logPHam += Math.log((stats.ham + 1) / (state.hamCount + 2));
+    });
+    return logPSpam > logPHam;
+  }
+
+  reset(): void {
+    this.state = emptyState();
+    this.repository.save(this.state);
+  }
+
+  private getState(): SpamClassifierState {
+    if (!this.state) {
+      const stored = this.repository.load();
+      this.state = stored ? {
+        spamCount: stored.spamCount,
+        hamCount: stored.hamCount,
+        wordFrequencies: { ...stored.wordFrequencies },
+      } : emptyState();
     }
+    return this.state;
   }
-  return state!;
-}
-
-function saveState() {
-  if (state) {
-    setSetting(SETTING_KEY, JSON.stringify(state));
-  }
-}
-
-/**
- * Trains the dynamic on-device spam classifier.
- * @param text The raw message body
- * @param isSpam True if the user marked it as spam, false if restored to active (ham)
- */
-export function trainSpam(text: string, isSpam: boolean) {
-  const currentState = loadState();
-  const tokens = tokenize(text);
-
-  // Prevent empty training
-  if (tokens.length === 0) return;
-
-  if (isSpam) {
-    currentState.spamCount++;
-  } else {
-    currentState.hamCount++;
-  }
-
-  for (const token of tokens) {
-    if (!currentState.wordFrequencies[token]) {
-      currentState.wordFrequencies[token] = { spam: 0, ham: 0 };
-    }
-
-    if (isSpam) {
-      currentState.wordFrequencies[token].spam++;
-    } else {
-      currentState.wordFrequencies[token].ham++;
-    }
-  }
-
-  saveState();
-  console.log(
-    `[SpamClassifier] Trained. Now tracking ${
-      Object.keys(currentState.wordFrequencies).length
-    } words.`,
-  );
-}
-
-/**
- * Classifies an SMS text as spam or not using Naive Bayes probability.
- * @param text The raw SMS message body
- * @returns boolean indicating if the message is highly likely to be spam
- */
-export function isSpam(text: string): boolean {
-  const currentState = loadState();
-
-  // If we haven't been trained at all, we don't classify anything as spam
-  if (currentState.spamCount === 0) {
-    return false;
-  }
-
-  const tokens = tokenize(text);
-  if (tokens.length === 0) return false;
-
-  const totalDocs = currentState.spamCount + currentState.hamCount;
-
-  // Prior probabilities with Laplace smoothing to prevent underflow log(0) -> -Infinity
-  const pSpam = (currentState.spamCount + 1) / (totalDocs + 2);
-  const pHam = (currentState.hamCount + 1) / (totalDocs + 2);
-
-  // We use log probabilities to avoid underflow with very small numbers
-  let logPSpam = Math.log(pSpam);
-  let logPHam = Math.log(pHam);
-
-  for (const token of tokens) {
-    const stats = currentState.wordFrequencies[token];
-    if (!stats) continue; // Skip completely unknown tokens to avoid bias and underflow!
-
-    // Laplace smoothing (add 1)
-    const countSpam = stats.spam;
-    const countHam = stats.ham;
-
-    // Total words of that class in the training set
-    // For simplicity, we just use the document counts as the denominator (Bernoulli-ish model)
-    const probTokenGivenSpam = (countSpam + 1) / (currentState.spamCount + 2);
-    const probTokenGivenHam = (countHam + 1) / (currentState.hamCount + 2);
-
-    logPSpam += Math.log(probTokenGivenSpam);
-    logPHam += Math.log(probTokenGivenHam);
-  }
-
-  // If the log probability of spam is greater than ham, it's spam
-  const isSpamResult = logPSpam > logPHam;
-
-  console.log(
-    `[SpamClassifier] Evaluated "${text.substring(
-      0,
-      20,
-    )}..." -> isSpam: ${isSpamResult} (Spam Score: ${logPSpam.toFixed(
-      2,
-    )}, Ham Score: ${logPHam.toFixed(2)})`,
-  );
-
-  return isSpamResult;
-}
-
-/**
- * Resets the Bayesian spam classifier model entirely back to its default starting counts.
- */
-export function resetSpamClassifier() {
-  state = JSON.parse(JSON.stringify(defaultState));
-  saveState();
-  console.log('[SpamClassifier] Dynamic Naive Bayes model has been completely reset.');
 }

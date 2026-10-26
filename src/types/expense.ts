@@ -6,11 +6,28 @@ export type PaymentMode = typeof PAYMENT_MODES[number];
 
 export type Category = typeof CATEGORIES[number];
 
-export interface ExpenseSplit {
-  contactName: string;
+export interface RepaymentAllocation {
+  expenseId: number;
+  splitId: string;
   amount: number;
+}
+
+export interface ExpenseSplit {
+  /** Stable identity used to tie repayment allocation history to this split. */
+  splitId?: string;
+  contactName: string;
+  /** Original amount owed; kept unchanged when repayments are applied. */
+  amount: number;
+  /** Amount repaid so far. Missing values on older records mean zero. */
+  paidAmount?: number;
   isPaid?: boolean;
   owedByMe?: boolean;
+  /** Amount explicitly settled through the split controls, separate from repayments. */
+  manualPaidAmount?: number;
+  /** Total paid by active, exactly-linked repayment transactions. */
+  repaymentPaidAmount?: number;
+  /** Present on repayment transactions; points to the exact debt splits paid. */
+  repaymentAllocations?: RepaymentAllocation[];
 }
 
 export interface Expense {

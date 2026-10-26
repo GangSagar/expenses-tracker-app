@@ -3,16 +3,35 @@
 // Mock react-native-quick-sqlite
 jest.mock('react-native-quick-sqlite', () => {
   return {
-    open: jest.fn(() => ({
-      execute: jest.fn(() => ({
-        rows: {
-          _array: [],
-          length: 0,
-          item: () => null,
-        },
-      })),
-      close: jest.fn(),
-    })),
+    open: jest.fn(() => {
+      let userVersion = 0;
+      const tables = new Map();
+      const rows = items => ({ _array: items, length: items.length, item: index => items[index] || null });
+      return {
+        execute: jest.fn(sql => {
+          if (sql === 'PRAGMA user_version') {
+            return { rows: rows([{ user_version: userVersion }]) };
+          }
+          const versionMatch = sql.match(/^PRAGMA user_version = (\d+)$/);
+          if (versionMatch) userVersion = Number(versionMatch[1]);
+          const createMatch = sql.match(/CREATE TABLE IF NOT EXISTS (\w+)/i);
+          if (createMatch && !tables.has(createMatch[1])) {
+            const body = sql.slice(sql.indexOf('(') + 1, sql.lastIndexOf(')'));
+            const columns = body.split('\n').map(line => line.trim().replace(/,$/, '').split(/\s+/)[0])
+              .filter(name => /^[a-z_]+$/i.test(name));
+            tables.set(createMatch[1], new Set(columns));
+          }
+          const tableMatch = sql.match(/^PRAGMA table_info\((\w+)\)$/);
+          if (tableMatch) {
+            return { rows: rows(Array.from(tables.get(tableMatch[1]) || [], name => ({ name }))) };
+          }
+          const alterMatch = sql.match(/^ALTER TABLE (\w+) ADD COLUMN (\w+)/);
+          if (alterMatch) tables.get(alterMatch[1])?.add(alterMatch[2]);
+          return { rows: rows([]), rowsAffected: 0 };
+        }),
+        close: jest.fn(),
+      };
+    }),
   };
 });
 

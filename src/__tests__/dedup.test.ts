@@ -1,103 +1,88 @@
-import { isDuplicate } from '../core/dedup/duplicateCheck';
+import { addDedupCandidate, createDedupCache, DEDUP_WINDOW_MS, findDuplicate } from '../core/dedup';
+import { DedupRecord } from '../core/dedup/duplicateCheck';
 import { Expense } from '../types/expense';
 
-function makeExpense(overrides: Partial<Expense> = {}): Expense {
+const timestamp = 1_700_000_000_000;
+
+function makeExpense(overrides: Partial<Expense> = {}): DedupRecord {
   return {
     id: 1,
     amount: 200,
     merchant: 'Swiggy',
-    category: 'Food & Dining',
-    confidence: 0.9,
-    timestamp: Date.now() - 60000, // 1 minute ago
+    timestamp,
     source: 'sms',
-    rawMessage: 'Rs.200 paid to Swiggy',
+    rawMessage: 'Rs. 200 paid to Swiggy',
     transactionType: 'debit',
-    paymentMode: 'upi',
+    isInvalid: false,
     isDuplicate: false,
     ...overrides,
   };
 }
 
-describe('isDuplicate', () => {
-  it('detects duplicate within 5-minute window', () => {
-    const recent = [makeExpense()];
-    const result = isDuplicate(
-      { amount: 200, merchant: 'Swiggy', transactionType: 'debit' },
-      recent,
+function candidate(overrides: Partial<Expense> = {}) {
+  return {
+    amount: 200,
+    merchant: 'Swiggy',
+    timestamp,
+    source: 'notification' as const,
+    rawMessage: 'Rs. 200 paid to Swiggy',
+    transactionType: 'debit' as const,
+    ...overrides,
+  };
+}
+
+describe('shared duplicate policy', () => {
+  it('matches a normalized reference ID across all history and sources', () => {
+    const result = findDuplicate(
+      candidate({ referenceId: '  UPI-999  ', merchant: 'Different', timestamp: timestamp + 20 * DEDUP_WINDOW_MS }),
+      [makeExpense({ referenceId: 'upi-999' })],
     );
-    expect(result).toBe(true);
+    expect(result).toMatchObject({ kind: 'definite', reason: 'reference_id', existingTransactionId: 1 });
   });
 
-  it('does not flag different amounts as duplicate', () => {
-    const recent = [makeExpense({ amount: 300 })];
-    const result = isDuplicate(
-      { amount: 200, merchant: 'Swiggy', transactionType: 'debit' },
-      recent,
-    );
-    expect(result).toBe(false);
+  it('matches an exact normalized message only when amount, type, and shared time window agree', () => {
+    expect(findDuplicate(
+      candidate({ rawMessage: '  RS. 200  PAID TO SWIGGY  ', timestamp: timestamp + DEDUP_WINDOW_MS }),
+      [makeExpense()],
+    )).toMatchObject({ kind: 'definite', reason: 'exact_message' });
+    expect(findDuplicate(
+      candidate({ timestamp: timestamp + DEDUP_WINDOW_MS + 1 }), [makeExpense()],
+    )).toBeNull();
+    expect(findDuplicate(
+      candidate({ transactionType: 'credit' }), [makeExpense()],
+    )).toBeNull();
   });
 
-  it('does not flag different merchants as duplicate', () => {
-    const recent = [makeExpense({ merchant: 'Zomato' })];
-    const result = isDuplicate(
-      { amount: 200, merchant: 'Swiggy', transactionType: 'debit' },
-      recent,
-    );
-    expect(result).toBe(false);
+  it('returns weak merchant/amount/time similarity for confirmation instead of blocking', () => {
+    expect(findDuplicate(
+      candidate({ rawMessage: 'New notification body' }), [makeExpense()],
+    )).toMatchObject({ kind: 'possible', reason: 'amount_merchant_time' });
+    expect(findDuplicate(
+      candidate({ amount: 201, rawMessage: 'New notification body' }), [makeExpense()],
+    )).toBeNull();
+    expect(findDuplicate(
+      candidate({ merchant: 'Another shop', rawMessage: 'New notification body' }), [makeExpense()],
+    )).toBeNull();
   });
 
-  it('does not flag old transactions as duplicate', () => {
-    const recent = [makeExpense({ timestamp: Date.now() - 10 * 60 * 1000 })]; // 10 min ago
-    const result = isDuplicate(
-      { amount: 200, merchant: 'Swiggy', transactionType: 'debit' },
-      recent,
-    );
-    expect(result).toBe(false);
+  it('does not confuse legitimate same-merchant purchases outside the window', () => {
+    expect(findDuplicate(
+      candidate({ timestamp: timestamp + DEDUP_WINDOW_MS + 1 }), [makeExpense()],
+    )).toBeNull();
   });
 
-  it('does not flag credit vs debit as duplicate', () => {
-    const recent = [makeExpense({ transactionType: 'credit' })];
-    const result = isDuplicate(
-      { amount: 200, merchant: 'Swiggy', transactionType: 'debit' },
-      recent,
-    );
-    expect(result).toBe(false);
+  it('ignores invalidated and already-duplicate rows', () => {
+    expect(findDuplicate(candidate(), [
+      makeExpense({ isInvalid: true }),
+      makeExpense({ id: 2, isDuplicate: true }),
+    ])).toBeNull();
   });
 
-  it('detects duplicate via direct reference ID match', () => {
-    const recent = [makeExpense({ referenceId: 'UPI999888' })];
-    const result = isDuplicate(
-      { amount: 200, merchant: 'Different Merchant', transactionType: 'debit', referenceId: 'UPI999888' },
-      recent,
-    );
-    expect(result).toBe(true);
-  });
+  it('indexes references and timestamps consistently as rows are added', () => {
+    const cache = createDedupCache([makeExpense({ rawMessage: 'old' })]);
+    addDedupCandidate(cache, candidate({ referenceId: 'NEW-REF', rawMessage: 'different' }));
 
-  it('detects duplicate via reference ID cross-message search', () => {
-    const recent = [makeExpense({ referenceId: 'UPI111222' })];
-    const result = isDuplicate(
-      { amount: 200, merchant: 'SBI', transactionType: 'debit', rawMessage: 'UPI111222 paid to friend' },
-      recent,
-    );
-    expect(result).toBe(true);
-  });
-
-  it('detects cross-bank duplicate via shared 6-to-12 digit numeric transaction token', () => {
-    const recent = [makeExpense({ 
-      bank: 'BOB', 
-      amount: 500, 
-      transactionType: 'credit', 
-      rawMessage: 'Your BOB A/C XX1234 credited with INR 500.00. UPI Ref: 213456789012' 
-    })];
-    const result = isDuplicate(
-      { 
-        amount: 500, 
-        merchant: 'SBI', 
-        transactionType: 'credit', 
-        rawMessage: 'SBI A/C XX5678 debited/transferred INR 500.00. Ref: 213456789012' 
-      },
-      recent,
-    );
-    expect(result).toBe(true);
+    expect(findDuplicate(candidate({ referenceId: ' new-ref ', timestamp: timestamp + 100 }), cache))
+      .toMatchObject({ kind: 'definite', reason: 'reference_id' });
   });
 });

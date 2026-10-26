@@ -1,19 +1,18 @@
-import { orchestrateTransaction } from '../services/transactionOrchestrator';
-import { IncomingMessage } from '../services/messageService';
+import { orchestrateTransaction } from '../services/transactions/transactionOrchestrator';
+import { IncomingMessage } from '../services/messaging/messageService';
 
-// Mock the two pipeline stages so the orchestrator test stays unit-level
-jest.mock('../services/messageService', () => ({
+jest.mock('../services/messaging/messageService', () => ({
   processIncomingMessage: jest.fn(),
 }));
 
-jest.mock('../services/expenseService', () => ({
+jest.mock('../services/transactions/transactionDecisionService', () => ({
   processTransaction: jest.fn(),
 }));
 
-const { processIncomingMessage } = require('../services/messageService') as {
+const { processIncomingMessage } = require('../services/messaging/messageService') as {
   processIncomingMessage: jest.Mock;
 };
-const { processTransaction } = require('../services/expenseService') as {
+const { processTransaction } = require('../services/transactions/transactionDecisionService') as {
   processTransaction: jest.Mock;
 };
 
@@ -23,17 +22,14 @@ const fakeMessage: IncomingMessage = {
   source: 'sms',
 };
 
-const fakeParsed = {
-  amount: 500,
-  bank: 'HDFC',
-  account: 'XX1234',
-  rawMessage: fakeMessage.body,
-  source: 'sms' as const,
-};
-
+const fakeAnalysis = { parsed: null, rejectionSignals: ['blocked_message'] };
 const fakeProcessedExpense = {
-  expense: { amount: 500, rawMessage: fakeMessage.body } as any,
-  decision: 'auto_save' as const,
+  candidate: null,
+  decision: {
+    kind: 'reject', reason: 'blocked_message',
+    evidence: { policyVersion: '1.0.0' },
+  },
+  repaymentUpdates: [],
 };
 
 beforeEach(() => {
@@ -41,33 +37,28 @@ beforeEach(() => {
 });
 
 describe('orchestrateTransaction', () => {
-  it('returns a result containing processedExpense when pipeline succeeds', () => {
-    processIncomingMessage.mockReturnValue(fakeParsed);
+  it('collects input evidence then invokes the decision service once', async () => {
+    processIncomingMessage.mockResolvedValue(fakeAnalysis);
     processTransaction.mockReturnValue(fakeProcessedExpense);
 
-    const result = orchestrateTransaction(fakeMessage);
+    const result = await orchestrateTransaction(fakeMessage);
 
     expect(processIncomingMessage).toHaveBeenCalledWith(fakeMessage);
-    expect(processTransaction).toHaveBeenCalledWith(fakeParsed);
-    expect(result).not.toBeNull();
-    expect(result?.processedExpense).toBe(fakeProcessedExpense);
+    expect(processTransaction).toHaveBeenCalledWith(fakeAnalysis);
+    expect(processTransaction).toHaveBeenCalledTimes(1);
+    expect(result.processedExpense).toBe(fakeProcessedExpense);
   });
 
-  it('returns null when messageService drops the message (non-transactional or spam)', () => {
-    processIncomingMessage.mockReturnValue(null);
+  it('returns a typed policy rejection rather than dropping rejected input', async () => {
+    processIncomingMessage.mockResolvedValue(fakeAnalysis);
+    processTransaction.mockReturnValue(fakeProcessedExpense);
 
-    const result = orchestrateTransaction(fakeMessage);
+    const result = await orchestrateTransaction(fakeMessage);
 
-    expect(result).toBeNull();
-    expect(processTransaction).not.toHaveBeenCalled();
-  });
-
-  it('returns null when expenseService cannot process the parsed transaction', () => {
-    processIncomingMessage.mockReturnValue(fakeParsed);
-    processTransaction.mockReturnValue(null);
-
-    const result = orchestrateTransaction(fakeMessage);
-
-    expect(result).toBeNull();
+    expect(result.processedExpense.decision).toMatchObject({
+      kind: 'reject',
+      reason: 'blocked_message',
+    });
+    expect(result.processedExpense.decision.evidence.policyVersion).toBeTruthy();
   });
 });

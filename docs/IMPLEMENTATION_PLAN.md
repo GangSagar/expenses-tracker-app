@@ -1,12 +1,14 @@
-# SpendWise: Implementation Plan & Engineering Roadmap
+# SpendWise: Historical v1 Implementation Record and Roadmap
+
+> **Document status:** The dated v1 phase breakdown below is a historical implementation record, not the current development status or authoritative runtime description. Current phase status is tracked in the [v2 architecture restructuring plan](./v2.0%20-%20improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md); current behavior is documented in [Architecture](./ARCHITECTURE.md) and [Live Message Flow](./APP_MESSAGE_LISTENER_FLOW.md). Historical verification counts and paths describe the revision at that time.
 
 ## 1. Executive Overview & Methodology
 
-The SpendWise architecture was executed via a **progressive hardening lifecycle**, transitioning from a pure regex-based SMS scraper into an intelligent, zero-network, on-device financial operating system.
+The original v1 implementation followed a progressive hardening lifecycle, transitioning from a regex-based SMS parser to a local transaction ledger. This section records those milestones; it does not imply that every planned or historical claim remains active in the current code.
 
 The implementation strategy adheres to four core engineering tenets:
 
-1. **Zero Cloud Egress**: Zero external server dependencies for transaction parsing, storage, or AI intelligence.
+1. **Local Core Processing**: Transaction parsing and storage run on-device. Optional developer telemetry can target a local Jaeger collector; no AI inference runtime is currently configured.
 2. **Native Asynchronous Offloading**: High-throughput Android Telephony ContentResolver querying decoupled from the React Native JS thread.
 3. **Data Integrity & Determinism**: ACID-compliant local relational persistence with schema migration safeguards and idempotent deduplication.
 4. **Developer Operability**: Automated test-case collection from physical hardware, headless CLI diagnostics, and distributed OpenTelemetry tracing.
@@ -119,17 +121,15 @@ gantt
 
 ---
 
-### Phase 5: Observability, Diagnostics & Real Hardware Testing (Current)
+### Phase 5: Observability, Diagnostics & Real Hardware Testing (Historical milestone)
 
 * **Goal**: Provide enterprise-grade telemetry, automated physical device testing harnesses, and headless debugging scripts.
 * **Key Deliverables**:
-  - `src/services/telemetryService.ts`: OpenTelemetry instrumented tracer sending OTLP spans over HTTP (port 4318) to a local standalone Jaeger collector. Captures span attributes: `sms.count`, `sms.parsed_count`, `sms.duplicates`, `sms.duration_ms`.
+  - `src/infrastructure/observability/telemetryService.ts`: Development-only OpenTelemetry adapter sending OTLP spans to a local Jaeger collector. Current spans include message processing and selected `db.*` repository calls; see `docs/ARCHITECTURE.md` for the current attributes and privacy limitation.
   - `scripts/jaeger/`: Standalone Jaeger binary deployment with npm management scripts (`npm run jaeger:start`, `npm run jaeger:stop`).
   - `scripts/collect-testcases.py`: Python ADB automation harness that queries physical Android devices (`adb shell content query --uri content://sms`), strips personal phone numbers for privacy, and generates executable Jest test suites (`src/__tests__/collected-real.test.ts`).
-  - `scripts/parse-sms.sh` & `npm run parse`: Headless CLI runner executing TypeScript parser logic against arbitrary SMS strings in the terminal.
-* **Verification Criteria**:
-  - Complete execution of real device test suite with 432 collected SMS validating parser regressions.
-  - End-to-end trace visualization in Jaeger UI at `http://localhost:16686`.
+  - `scripts/parse-sms.sh` & `npm run parse`: Headless parser diagnostic runner.
+* **Historical verification target**: This milestone's original device-sample and Jaeger checks are retained as historical targets; use current commands in `docs/TESTING_STRATEGY.md` for the checked-out revision.
 
 ---
 
@@ -143,14 +143,11 @@ gantt
   - `src/core/parser/extractor/`: Targeted extractors (`AmountExtractor`, `AccountExtractor`, `BankExtractor`, `VpaExtractor`, `ReferenceExtractor`, `BalanceExtractor`, `PaymentModeExtractor`, `RawMerchantExtractor`) coordinated via `EntityExtractor`.
   - `src/core/parser/resolver/`: Contextual business resolvers (`MerchantResolver`, `TransactionResolver`, `CategoryResolver`).
   - `src/core/parser/confidence/`: Weighted multi-factor confidence scoring engine.
-  - `src/core/parser/learning/`: Adaptive on-device learning engine (`LearningEngine`) with repository abstraction (`ILearningRepository`, `InMemoryLearningRepository`, `SQLiteLearningRepository`).
-  - `src/core/parser/ai/`: Offline AI fallback interface (`AIResolver`) with persistent local caching (`AICache`).
+  - `src/core/parser/learning/`: Adaptive on-device learning engine (`LearningEngine`) with repository abstraction (`ILearningRepository`, `InMemoryLearningRepository`); its SQLite adapter lives in `src/infrastructure/persistence/sqlite/`.
+  - `src/core/parser/ai/`: Optional inference interface (`AIResolver`) with a bounded in-memory `AICache`; this historical interface has no configured production handler/model.
   - `src/core/parser/orchestrator/`: 10-stage pipeline coordinator (`ParserOrchestrator`).
   - `src/core/parser/parseMessage.ts`: Backward compatibility adapter returning typed `ParsedTransaction`.
-* **Verification Criteria**:
-  - 100% test pass rate across 599 tests across 22 test suites with 0 regressions.
-  - 64 unit tests covering every parser stage in `src/__tests__/parser/`.
-  - Seamless support for 15+ Indian financial institutions (SBI, HDFC, ICICI, Axis, Kotak, BOB, PNB, Canara, etc.).
+* **Historical verification snapshot**: The 599-test/22-suite figure and institution list describe the v1.6.0 milestone, not the current test count or a guarantee of provider coverage. Run the current test suite and inspect configured rules before claiming support.
 
 ---
 
@@ -160,13 +157,13 @@ gantt
 | :------------------------------ | :--------------------------------------------------------------- | :--------------------------------------------------------------- | :---------------------------- |
 | **Android Native Bridge** | `android/.../MessageModule.kt`, `MessagePackage.kt`          | Cursor pagination, contact lookup, SMS listener                  | Android SDK 34, Kotlin        |
 | **Modular Parsing Engine**| `src/core/parser/*` (`config`, `normalizer`, `tokenizer`, etc.) | 10-stage pipeline, tokenization, entity extraction, resolvers    | Pure TypeScript               |
-| **Confidence & Learning** | `src/core/parser/confidence/`, `learning/`, `ai/`                | Multi-factor scoring, on-device SQLite learning, AI fallback    | `react-native-quick-sqlite`   |
-| **AI Classifier**         | `src/services/ai/spamClassifier.ts`                            | On-device Naive Bayes spam scoring                               | Pure TypeScript               |
-| **Budget Advisor**        | `src/services/ai/budgetAdvisor.ts`                             | Predictive burn rate calculation                                 | Pure TypeScript               |
-| **Persistence Engine**    | `src/services/db/db.ts`, `expenseRepo.ts`, `splitsRepo.ts` | ACID relational storage, migrations, aggregation queries         | `react-native-quick-sqlite`   |
-| **State Layer**           | `src/store/useExpenseStore.ts`, `useSettingsStore.ts`        | In-memory reactive state, cache hydration                        | Zustand                       |
-| **UI Components**         | `src/screens/*.tsx`, `src/components/*.tsx`                  | Glassmorphic dark dashboard, charts, modals                      | React Native Core, SVG        |
-| **Telemetry & QA**        | `telemetryService.ts`, `collect-testcases.py`                | Distributed tracing, device message extraction                   | OpenTelemetry, ADB, Python    |
+| **Confidence & Learning** | `src/core/parser/confidence/`, `learning/`, `ai/` | Confidence, repository-backed correction learning, optional inference interface | TypeScript; persistence adapter selected in app composition |
+| **Spam Classifier** | `src/core/classifier/spamClassifier.ts` | Naive Bayes scoring/training behind a state repository | Pure model logic plus SQLite adapter |
+| **Budget Advisor** | `src/services/advisor/advisorService.ts` | Deterministic budget insights | TypeScript |
+| **Persistence Engine** | `src/database/`, `src/infrastructure/persistence/sqlite/` | SQLite queries, transaction repository, settings/learning adapters, migrations | `react-native-quick-sqlite` |
+| **State Layer** | `src/hooks/` | Temporary Zustand stores and UI-facing state actions | Zustand |
+| **Legacy UI Components** | `src/presentation/legacy/{screens,components,styles,navigation}/` | Existing React Native presentation retained as a replaceable adapter | React Native Core |
+| **Telemetry & QA**        | `src/infrastructure/observability/telemetryService.ts`, `scripts/collect-testcases.py` | Local development traces and optional device fixture extraction | OpenTelemetry, ADB, Python |
 
 ---
 
@@ -182,33 +179,6 @@ gantt
 
 ---
 
-## 6. Future Architectural Roadmap
+## 6. Future Capability Candidates (Unscheduled)
 
-```mermaid
-graph LR
-    subgraph Upcoming Milestones
-        M1[Milestone 6: Cloud Encrypted Backup] --> M2[Milestone 7: UPI Notification Listener]
-        M2 --> M3[Milestone 8: On-Device Receipt OCR]
-        M3 --> M4[Milestone 9: Multi-Currency & FX Engine]
-    end
-```
-
-### Milestone 6: End-to-End Encrypted Cloud Backup
-
-- Client-side AES-GCM-256 encryption using user password via PBKDF2 key derivation.
-- Optional Google Drive / WebDAV export without storing keys on any intermediary server.
-
-### Milestone 7: UPI Push Notification Real-Time Listener
-
-- Android `NotificationListenerService` integration to intercept instant UPI payment notifications from GPay, PhonePe, Paytm, and BHIM before SMS arrives.
-- Unified deduplication between notification and SMS payloads.
-
-### Milestone 8: On-Device Receipt OCR
-
-- Integration with Google ML Kit Text Recognition for offline scanning and parsing of printed physical store receipts and restaurant bills.
-- Automatic itemization and split assignment.
-
-### Milestone 9: Multi-Currency & Cross-Border Ledger
-
-- Offline historical foreign exchange rate tables.
-- Automatic conversion of international transactions (USD, EUR, GBP, AED) to default base currency (INR).
+Receipt OCR, additional historical import formats, backup providers, notification providers, multi-currency, and the replacement UI are candidate capabilities, not approved delivery milestones. Their extension points, reuse requirements, and decisions that need product input are documented in the [Feature Extension Guide](./FEATURE_EXTENSION_GUIDE.md). The implementation roadmap and phase statuses live in the v2 restructuring plan linked above.

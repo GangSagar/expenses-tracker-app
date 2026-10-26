@@ -1,4 +1,4 @@
-import { configManager, BankRule } from '../config';
+import { configManager } from '../config';
 import { NormalizedMessage } from '../normalizer';
 
 export class BankExtractor {

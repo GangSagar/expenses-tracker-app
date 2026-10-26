@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { NativeEventEmitter, NativeModules, AppState } from 'react-native';
-import { IncomingMessage } from '../services/messageService';
-import { saveExpense } from '../services/expenseService';
-import { orchestrateTransaction } from '../services/transactionOrchestrator';
+import { IncomingMessage } from '../services/messaging/messageService';
+import { ingestLiveMessage } from '../services/transactions/transactionApplication';
 import { useExpenseStore } from './useExpenses';
 
 const { MessageModule } = NativeModules;
@@ -18,50 +17,65 @@ export function useMessageListener() {
   useEffect(() => {
     let isMounted = true;
 
-    const processMessage = (message: IncomingMessage) => {
-      const orchestrated = orchestrateTransaction(message);
-      if (!orchestrated) {
-        console.log(`Message from ${message.sender} dropped by orchestrator`);
-        return;
-      }
+    const processMessage = async (message: IncomingMessage) => {
+      if (!isMounted) return;
+      try {
+        const orchestrated = await ingestLiveMessage(message);
+        if (!isMounted) return;
+        const { candidate, decision } = orchestrated;
+        console.log(`Message from ${message.sender} decision: ${decision.kind} (${decision.reason})`);
 
-      const { expense, decision } = orchestrated.processedExpense;
-      console.log(
-        `Message from ${message.sender} parsed! Decision: ${decision}`,
-      );
-
-      const displayMerchant =
-        expense.merchant && expense.merchant !== 'Unknown' ? expense.merchant : 'Unknown';
-      const notifyBackground = (title: string, body: string) => {
-        if (AppState.currentState === 'background' || AppState.currentState === 'inactive') {
-          MessageModule.showExpenseNotification(title, body);
-        }
-      };
-
-      switch (decision) {
-        case 'auto_save': {
-          notifyBackground('Transaction Auto-Saved', `₹${expense.amount} at ${displayMerchant} recorded.`);
-          const id = saveExpense(expense);
-          if (id !== null) {
-            console.log(`Auto-saved expense to DB with ID: ${id}`);
-            addExpense({ ...expense, id } as any);
-          } else {
-            console.log(
-              'Expense was not saved (possibly duplicate or failed insert).',
-            );
+        const displayMerchant = candidate?.merchant && candidate.merchant !== 'Unknown'
+          ? candidate.merchant
+          : 'Unknown';
+        const notifyBackground = (title: string, body: string) => {
+          if (AppState.currentState === 'background' || AppState.currentState === 'inactive') {
+            MessageModule.showExpenseNotification(title, body);
           }
-          break;
+        };
+
+        switch (decision.kind) {
+          case 'auto_save': {
+            if (!candidate) return;
+            const saved = orchestrated.persistence;
+            if (!saved) return;
+            if (saved.status === 'saved') {
+              console.log(`Auto-saved expense to DB with ID: ${saved.transaction.id}`);
+              addExpense(saved.transaction, saved.repaymentUpdates);
+            } else if (saved.status === 'possible_duplicate') {
+              notifyBackground('Possible Duplicate Transaction', `₹${candidate.amount} at ${displayMerchant}. Tap to review.`);
+              queuePendingExpense(candidate);
+            } else if (saved.status === 'duplicate') {
+              console.log('Expense was not saved because it matched an existing transaction.');
+            } else {
+              console.error('Transaction decision was auto-save, but persistence failed:', saved.message);
+            }
+            break;
+          }
+          case 'review': {
+            if (!candidate) return;
+            notifyBackground('New Pending Transaction', `₹${candidate.amount} at ${displayMerchant}. Tap to approve.`);
+            queuePendingExpense(candidate);
+            break;
+          }
+          case 'reject':
+            console.log(`Rejected transaction: ${decision.reason}`);
+            break;
         }
-        case 'show_popup': {
-          notifyBackground('New Pending Transaction', `₹${expense.amount} at ${displayMerchant}. Tap to approve.`);
-          queuePendingExpense(expense);
-          break;
-        }
-        case 'discard':
-          console.log('Discarding low confidence expense.');
-          break;
+      } catch (error) {
+        console.error(`Failed to process message from ${message.sender}:`, error);
       }
     };
+
+    // Async parser enrichment must not reorder incoming repayment credits.
+    let processingQueue = Promise.resolve();
+    const enqueueMessage = (message: IncomingMessage) => {
+      processingQueue = processingQueue.then(() => processMessage(message));
+    };
+    let releasePendingQueue: () => void = () => {};
+    const pendingQueueReady = new Promise<void>(resolve => {
+      releasePendingQueue = resolve;
+    });
 
     // 1. Fetch any pending messages queued while the app was closed
     const fetchPending = async () => {
@@ -73,12 +87,16 @@ export function useMessageListener() {
           console.log(
             `Processing ${pending.length} pending offline messages...`,
           );
-          pending.forEach(msg => processMessage(msg));
+          pending
+            .sort((left, right) => (left.timestamp || 0) - (right.timestamp || 0))
+            .forEach(enqueueMessage);
         }
       } catch (e) {
         if (isMounted) {
           console.error('Failed to fetch pending messages:', e);
         }
+      } finally {
+        releasePendingQueue();
       }
     };
     fetchPending();
@@ -99,7 +117,9 @@ export function useMessageListener() {
         console.log(
           `Live message received from ${message.sender} via ${message.source}`,
         );
-        processMessage(message);
+        pendingQueueReady.then(() => enqueueMessage(message)).catch(error => {
+          console.error('Failed to enqueue live message:', error);
+        });
       },
     );
 

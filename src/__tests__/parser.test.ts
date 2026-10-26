@@ -269,7 +269,7 @@ describe('System Test Suite for Sample Messages', () => {
 });
 
 import { normalizeUnicodeText } from '../utils/formatHelpers';
-import { processIncomingMessage } from '../services/messageService';
+import { processIncomingMessage } from '../services/messaging/messageService';
 
 describe('Unicode Alphanumeric Normalization', () => {
   it('correctly normalizes stylized mathematical sans-serif fonts to standard ASCII', () => {
@@ -278,19 +278,20 @@ describe('Unicode Alphanumeric Normalization', () => {
     expect(normalizeUnicodeText(stylized)).toBe(expected);
   });
 
-  it('successfully processes fully stylized Mathematical Sans-Serif bank alerts', () => {
+  it('successfully processes fully stylized Mathematical Sans-Serif bank alerts', async () => {
     const rawAlert = '𝖣𝖾𝖺𝗋 𝖡𝖮𝖡 𝖴𝖯𝖨 𝖴𝗌𝖾𝗋: 𝖸𝗈𝗎𝗋 𝖺𝖼𝖼𝗈𝗎𝗇𝗍 𝗂𝗌 𝖼𝗋𝖾𝖽𝗂𝗍𝖾𝖽 𝗐𝗂𝗍𝗁 𝖨𝖭𝖱 589.00 𝗈𝗇 2026-05-18 12:40:35 PM by UPI Ref No 650422642065; AvlBal: Rs2248.58 - 𝖡𝖮𝖡';
-    const parsed = processIncomingMessage({
+    const analysis = await processIncomingMessage({
       body: rawAlert,
       sender: 'JX-BOBSMS',
       source: 'sms',
     });
 
-    expect(parsed).not.toBeNull();
-    expect(parsed!.amount).toBe(589.00);
-    expect(parsed!.transactionType).toBe('credit');
-    expect(parsed!.bank).toBe('Bank of Baroda');
-    expect(parsed!.paymentMode).toBe('upi');
-    expect(parsed!.availableBalance).toBe(2248.58);
+    expect(analysis.parsed).not.toBeNull();
+    expect(analysis.parsed!.amount).toBe(589.00);
+    expect(analysis.parsed!.transactionType).toBe('credit');
+    expect(analysis.parsed!.bank).toBe('Bank of Baroda');
+    expect(analysis.parsed!.paymentMode).toBe('upi');
+    expect(analysis.parsed!.availableBalance).toBe(2248.58);
+    expect(analysis.rejectionSignals).toEqual([]);
   });
 });

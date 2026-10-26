@@ -1,0 +1,513 @@
+# Architecture Restructuring Implementation Log
+
+## Purpose and update rule
+
+This log records what has actually changed, why it changed, how it works in the current architecture, and what remains. It is the implementation record for the roadmap in [Architecture Restructuring: Issues and Proposed Plan](./ARCHITECTURE_RESTRUCTURING_PLAN.md). Update it after each phase; distinguish completed work from planned work and do not list a planned file as changed.
+
+The current UI is scheduled for replacement. This work therefore changes transaction contracts, domain behavior, and persistence boundaries while leaving screen design and visual structure alone. Existing screens and Zustand are temporary adapters.
+
+## Status summary
+
+| Phase | Status | Result |
+|---|---|---|
+| 1. Baseline, contracts, partial repayments, and presentation isolation | Complete (v2) | Partial allocations are persisted and shown; Phase 1 audit gaps in full-ledger repayment lookup and live repayment atomicity were closed while beginning Phase 2. |
+| 2. One transaction decision policy | In progress | Typed policy, async parser invocation, and correction learning are active; local AI inference remains unintegrated in the app. Developer-host base checkpoint smoke tests do not close that requirement. |
+| 3. Shared application use cases | Complete | Live, historical import, manual creation, review confirmation, edit, invalidation, and delete now enter named application operations; historical imports use chronological shared repayment persistence. |
+| 4. Repository boundary and temporary presentation adapters | Complete | Focused repository ports are implemented by SQLite; transaction, backup, reset, split-persistence, account-delete, and maintenance writes now cross the boundary. |
+| 5. Splits and repayment domain boundary | Complete | Split decisions moved out of Zustand; new repayments store exact allocation links, linked mutations reverse atomically, and unsafe legacy repayment mutations are blocked. |
+| 6. Unified deduplication | Complete | Live, import, review, and maintenance use the shared policy; successful saves and edits request local notifications. |
+| 7. Explicit database migrations | Complete | Existing unversioned installs migrate through a transactional legacy baseline; new databases use the same versioned schema path. |
+| 8. Domain organization and dependency guardrails | Complete | Observed dependency inversions were addressed and the import-boundary check is active. |
+| 9. Documentation and future feature readiness | Complete (documentation-only) | Current-facing architecture, runtime status, and extension guidance were reconciled. |
+
+## Phase 1 v1 — Baseline, contracts, and urgent correctness fixes
+
+### Files changed
+
+| File | Change | Why and how |
+|---|---|---|
+| `src/core/transactions/contracts.ts` | Added `TransactionCandidate`, `TransactionProcessingOutcome`, rejection reasons, `PersistedTransaction`, and `TransactionRepository`. | Establishes a presentation-independent contract for later use cases. The types distinguish rejected, duplicate, review, saved, and failed outcomes. They are not wired into the current runtime yet, so Phase 1 does not silently alter ingestion policy. |
+| `src/core/transactions/repaymentPlanner.ts` | Added the pure `planAutomaticRepayment()` planner and `repaymentSplit()` mapper. | Moves only automatic repayment calculation out of Zustand. It finds the matched contact, sorts their unpaid receivables oldest-first, marks only whole split rows that fit the available credit, and returns immutable updates plus the amount actually settled. It stops at an oldest row that does not fit rather than skipping ahead to newer debt. |
+| `src/database/expenseRepo.ts` | Added `UPDATE_EXPENSE_SPLITS_SQL`, centralized insert parameter mapping, and added `insertExpenseWithRepayment()` / `updateExpenseWithRepayment()`. | Makes a manual repayment credit plus related split updates one synchronous SQLite transaction. For a live credit already inserted by the existing flow, makes the related split updates and credit linkage atomic. A thrown SQL/write error rolls back all operations in that group. |
+| `src/hooks/useExpenses.ts` | Replaced embedded repayment matching and direct per-split writes with the pure planner and repository transaction methods. | The existing store remains a temporary adapter. It updates its split rows only after persistence succeeds. If live repayment linking fails, the already-saved credit remains visible without a repayment link and previous splits are left unchanged. |
+| `src/__tests__/transactionRepayment.test.ts` | Added planner regression tests. | Covers whole rows fitting the credit, oldest-first behavior, not skipping an unaffordable oldest row, no mutation, and rejection of non-credit/invalid/unmatched inputs. |
+| `src/__tests__/expenseRepo.test.ts` | Added atomic repayment persistence tests. | Covers successful transaction ordering and rollback if manual credit insertion or live credit linkage fails after an earlier split update. |
+| `docs/v2.0 - improvement_plan/PHASE_1_BASELINE_AND_CONTRACTS.md` | Added observed path/behavior matrices, contract implementation record, repayment rule and bug disposition, completion status, and verification results. | Makes current behavior and phase limits reviewable without redesigning the existing UI. |
+| `docs/v2.0 - improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md` | Marked Phase 1 complete and summarized its result. | Keeps the roadmap’s status aligned with implementation. |
+| `docs/v2.0 - improvement_plan/IMPLEMENTATION_CHANGELOG.md` | Added the requested phase-by-phase progress and file-change log. | Records why and how each completed file changed and lists expected file areas and remaining work for Phases 2–9. |
+
+### Behavior change and limits
+
+Before this phase, automatic matching could mark a split paid even when the incoming credit did not cover the full split. The new planner settles complete rows only and preserves oldest-first order. The current split model cannot represent a partial payment against an individual row. If a credit exceeds the sum of fully settled rows but does not cover the next row, only the fully settled amount is linked to the split ledger; the remainder remains an ordinary credit. A richer partial-payment model is future work.
+
+Manual credit insertion and its split settlements now commit or roll back together. In the live path, the original credit record is inserted before the store applies repayment matching. The follow-up transaction atomically links the credit and updates old splits. If that follow-up fails, the credit stays saved as an unlinked credit; no split row is marked settled. Moving the entire live flow into one application use case remains Phase 3 work.
+
+The original path uses only expenses currently loaded in Zustand (currently windowed to recent history) to find repayments. Phase 1 preserves this behavior; searching the full ledger is not part of this correction.
+
+### Verification
+
+- `npm test -- --runInBand src/__tests__/transactionRepayment.test.ts src/__tests__/expenseRepo.test.ts` — passed: 2 suites, 10 tests.
+- `npx tsc --noEmit` — passed.
+- `npx eslint` on the changed TypeScript implementation and tests — passed.
+- Graphify code AST updated. Its semantic extraction attempt for changed docs failed with connection errors; code nodes were subsequently refreshed successfully.
+
+### Remaining Phase 1 decisions / constraints
+
+- Phase 1 v1 assumed whole-split settlement. The user's v2 decision replaces that assumption with partial split allocation.
+- Parser async, learning, and AI fallback activation is approved; the local AI inference implementation remains to be selected and integrated.
+- Hard deletion and soft invalidation both exist; their product semantics remain to be consolidated.
+- The UI relocation is tracked in Phase 1 v2; no screen redesign or visual refactor is part of it.
+
+## Phase 1 v2 — Partial repayments and presentation isolation (complete)
+
+### Files changed in v2
+
+| File or exact file set | Change | Why and how |
+|---|---|---|
+| `src/types/expense.ts` | Added optional `ExpenseSplit.paidAmount`. | Stores cumulative repayments without overwriting the original split amount. Old JSON rows remain compatible: a missing field is treated as zero, while legacy `isPaid` rows remain fully settled. |
+| `src/core/transactions/repaymentPlanner.ts` | Changed the planner to allocate partial amounts oldest-first; added `remainingSplitAmount()`. | Each allocation is capped by the incoming credit and split's outstanding amount. The final reached split may be partially paid; repeated payments accumulate; `isPaid` is set only when no balance remains. |
+| `src/hooks/useExpenses.ts` | Updated automatic, manual, settle, unsettle, and toggle flows to preserve/synchronize `paidAmount`. | Keeps existing store actions compatible while displaying/persisting the new split state. Related automatic repayment writes still use the atomic repository methods from v1. |
+| `src/presentation/legacy/screens/SplitsScreen.tsx` | Moved from `src/screens/`; balance totals and active split amounts now use remaining amount. | Makes current ledger display reflect partial payments without redesigning the screen. |
+| `src/presentation/legacy/components/EditTransactionModal.tsx` | Moved from `src/components/`; split amount edits preserve and cap paid amount. | Prevents edits from silently erasing or exceeding recorded repayments. |
+| `src/presentation/legacy/components/BankCard.tsx`, `CalendarModal.tsx`, `CategoryPopup.tsx`, `ExpenseItem.tsx`, `LockScreen.tsx`, `PinSetupModal.tsx`, `SecurityGate.tsx` | Relocated unchanged from `src/components/`. | Groups the current component layer as replaceable presentation code. Relative imports were rebased. |
+| `src/presentation/legacy/screens/AccountsScreen.tsx`, `HistoryScreen.tsx`, `HomeScreen.tsx`, `SettingsScreen.tsx` | Relocated unchanged from `src/screens/`. | Groups existing screens under the legacy presentation boundary; no visual or workflow redesign. |
+| `src/presentation/legacy/styles/AccountsScreenStyles.ts`, `HistoryScreenStyles.ts`, `HomeScreenStyles.ts`, `SettingsScreenStyles.ts`, `SplitsScreenStyles.ts`, `commonStyles.ts`, `theme.ts` | Relocated unchanged from `src/styles/`. | Keeps styles/theme beside the legacy screens they serve. |
+| `src/presentation/legacy/navigation/AppNavigator.tsx` | Relocated from `src/navigation/`; screen imports rebased. | Contains navigation inside the legacy presentation boundary. |
+| `src/presentation/legacy/README.md` | Added a boundary note. | Explains that transaction workflows belong outside the legacy UI location. |
+| `App.tsx` and moved presentation modules | Rewrote relative import paths. | Preserves the existing app entry and module graph after relocation. |
+| `src/__tests__/transactionRepayment.test.ts` | Updated planner tests for partial payment, repeated allocation, and legacy split compatibility. | Verifies that original amounts remain, paid amounts accumulate/cap, and outstanding balances calculate correctly. |
+| `README.md`, `docs/ARCHITECTURE.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/TRD.md` | Updated current presentation path and split repayment model. | Keeps setup/architecture/requirements docs aligned with the implementation. |
+| `docs/v2.0 - improvement_plan/PHASE_1_BASELINE_AND_CONTRACTS.md`, `ARCHITECTURE_RESTRUCTURING_PLAN.md`, this log | Recorded user decisions and Phase 1 v2 scope/status. | Separates approved requirements from work that remains in Phases 2–9. |
+
+### Decisions recorded for later phases
+
+- The single reject/review/save policy is approved and belongs to Phase 2.
+- Async parser invocation and correction learning are active in live processing/import preview and explicit user corrections. Offline AI fallback is an approved requirement but remains inactive because there is no local inference handler/runtime.
+- Historical import must use the shared transaction processing path and apply repayment allocations chronologically; this remains Phase 3 work.
+- Current UI is relocated to `src/presentation/legacy/`; no redesign is requested.
+
+## Phase 2 — One transaction decision policy (in progress)
+
+**Goal:** make one application policy the sole owner of reject/review/auto-save decisions. Parser confidence and classifier evidence feed that policy. The implementation contract, behavior-preservation tests, Phase 1 gaps, and exit criteria are specified in [Phase 2: One Transaction Decision Policy](./PHASE_2_TRANSACTION_DECISION_POLICY.md).
+
+**Expected file areas and rationale:**
+
+| Expected files | Planned work |
+|---|---|---|
+| `src/core/transactions/contracts.ts`, `decisionPolicy.ts` | Replaced the draft mixed outcome contract with a pure, versioned reject/review/auto-save policy plus separate persistence outcomes. |
+| `src/services/messaging/messageService.ts`, `src/core/parser/parseMessage.ts` | Collect typed filtering/parse signals and invoke structured async parsing without discarding confidence details. |
+| `src/services/transactions/expenseService.ts`, `transactionOrchestrator.ts` | Map full parser/classifier evidence into one policy call and keep persistence results separate. Accepted credit insertion and repayment updates are atomic. |
+| `src/hooks/useMessageListener.ts`, `src/presentation/legacy/screens/SettingsScreen.tsx` | Adapt policy results in live ingestion and import preview; the live async queue preserves message order. Import preview uses the policy; final batch writes moved to shared application operations in Phase 3. |
+| `src/database/expenseRepo.ts`, `src/hooks/useExpenses.ts` | Added an unwindowed split-bearing ledger query; manual repayment and contact-wide settle/unsettle use all matching rows, with atomic writes. |
+| `src/presentation/legacy/components/CategoryPopup.tsx`, `src/hooks/useExpenses.ts` | Record explicit user merchant/category corrections through `LearningEngine`, which persists to the repository read by parser resolvers. |
+| `src/__tests__/decisionPolicy.test.ts`, `decisionParity.test.ts`, `expenseService.test.ts`, `expenseRepo.test.ts`, `transactionOrchestrator.test.ts`, `transactionRepayment.test.ts`, `parser.test.ts` | Cover thresholds, parser evidence, typed rejects, one policy call, full-ledger query, atomic credit allocations, async structured parsing, and legacy decision parity. |
+| `docs/APP_MESSAGE_LISTENER_FLOW.md` | Replaced the old synchronous/null-drop flow with the async evidence → policy → persistence flow, including live ordering and import limitations. |
+| `docs/ARCHITECTURE.md`, `docs/TRD.md` | Updated active decision thresholds, parser confidence weights, learning behavior, AI runtime status, and full-ledger atomic repayment description. |
+| `docs/v2.0 - improvement_plan/PHASE_1_BASELINE_AND_CONTRACTS.md`, `ARCHITECTURE_RESTRUCTURING_PLAN.md`, `IMPLEMENTATION_CHANGELOG.md`, `PHASE_2_TRANSACTION_DECISION_POLICY.md` | Recorded which Phase 1 gaps closed, exact Phase 2 implementation status, verification, and the remaining local-AI runtime requirement. |
+
+### Phase 2 progress checkpoint
+
+The live path and the import preview now call the same decision policy. The import screen still owns its final batch writes and uses its separate dedup cache, so shared historical-import use cases remain Phase 3 work. Parser extraction currently runs synchronously inside the async orchestrator; async AI enrichment is inactive because there is no local inference handler/model. The sanitized `sms-samples.json` parity suite found no outcome differences from the legacy classifier thresholds.
+
+Verification at this checkpoint:
+
+- `npx tsc --noEmit` — passed.
+- `npm test -- --runInBand` — passed (29 suites, 635 tests).
+- ESLint on the changed TypeScript implementation and test files — passed with existing inline-style warnings in `SettingsScreen.tsx`.
+- `git diff --check` — passed.
+- Graphify code AST refresh — completed after final code edits; it skipped unsupported native/build files and reported one Android Gradle syntax limitation during extraction.
+
+### Phase 2 v2 Specification — Local AI Hybrid Orchestration (Proposed)
+
+Added [Phase 2 v2: Local AI Hybrid Orchestration Specification](./PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md). It outlines:
+- User-driven model catalog with comprehensive pros/cons, resource footprints (RAM, disk, latency), and clear explanations.
+- Adaptive multi-model cascading: fast-path micro-models (<40ms, <50MB RAM) for background SMS + deep generative SLMs for complex foreground import.
+- Device capability profiler (`IDeviceProfiler`) evaluating RAM, free storage, and 64-bit ABI.
+- High-Alert Warning system triggering a blocking alert modal if a user selects a model exceeding device capacity.
+- Clean Architecture contracts preserving the pure `TransactionDecisionPolicy` and `IAIResolver` boundaries.
+
+## Phase 3 — Shared application use cases (complete)
+
+Detailed design and original acceptance criteria: [Phase 3: Shared Application Use Cases](./PHASE_3_SHARED_APPLICATION_USE_CASES.md). Phase 2 remains in progress pending its local/offline AI runtime requirement; Phase 3 uses the existing decision policy and does not claim AI fallback is active.
+
+**Goal:** route live messages, historical import, manual creation, pending confirmation, edits, and invalidation/deletion through named application use cases. Input adapters can differ; business policy should be shared.
+
+**Expected file areas and rationale:**
+
+| File | Change, reason, and behavior |
+|---|---|---|
+| `src/core/transactions/applicationUseCases.ts` | Added the shared write gateway, accepted-transaction persistence, chronological stable batch import, and mutation use cases. Repayment planning and persistence are shared; each imported row commits independently and returns an explicit result. |
+| `src/services/transactions/transactionApplication.ts` | Added application adapters for live ingestion, historical preview/import, manual creation, review confirmation, edits, invalidation, and deletion. Kept live and import dedup strategies separate for Phase 6. Correction learning now follows successful writes. |
+| `src/services/transactions/transactionDecisionService.ts` | Extracted candidate construction and the single policy invocation from the persistence service so application orchestration can reuse it without a circular dependency. |
+| `src/services/transactions/expenseService.ts`, `transactionOrchestrator.ts` | Kept compatibility exports while routing accepted persistence through the application operation and preserving the existing policy boundary. |
+| `src/hooks/useMessageListener.ts` | Delegates complete live processing and persistence to the application adapter; preserves serialized event order and updates Zustand only after a successful save. |
+| `src/presentation/legacy/screens/SettingsScreen.tsx` | Delegates preview decisions/dedup and selected-row writes. The existing screen remains visually unchanged; import commits oldest-first and retains failed rows for retry. |
+| `src/hooks/useExpenses.ts` | Delegates manual creation, edit, delete, and invalidation writes; reflects results only after successful persistence. Split settlement controls remain store-owned for Phase 5. |
+| `src/presentation/legacy/components/CategoryPopup.tsx` | Delegates confirmation and correction learning; keeps pending candidates available on persistence failure. |
+| `src/services/transactions/` | Grouped `transactionApplication.ts`, `transactionDecisionService.ts`, `transactionOrchestrator.ts`, and `expenseService.ts` by transaction capability. This keeps application composition, policy adaptation, and compatibility persistence helpers discoverable together. |
+| `src/services/messaging/messageService.ts` | Moved incoming-message normalization/filtering/parsing to a messaging capability folder; transaction services depend on its message contract without making it a generic transaction service. |
+| `src/__tests__/transactionApplicationUseCases.test.ts`, `transactionOrchestrator.test.ts` | Added coverage for stable chronological import, repayment through the shared gateway, partial batch failure, and the extracted decision adapter. |
+| `docs/APP_MESSAGE_LISTENER_FLOW.md`, `docs/ARCHITECTURE.md`, `README.md`, this log, Phase 3 plan | Updated current workflow, limitations, exact file-level history, verification, and remaining phase boundaries. |
+
+### Behavior and remaining boundaries
+
+- Live, manual, confirmed, and imported credits use the same accepted-persistence operation. Credit allocations read the full split-bearing ledger and use the repository's existing atomic credit-plus-split write when a repayment plan exists.
+- Historical imports retain the current import-specific dedup strategy. Rows are sorted by transaction timestamp, stable on ties, and committed one at a time. Failure does not undo earlier successful rows; failed rows remain selectable for retry.
+- Manual entries bypass parser-confidence policy because the user directly supplied the transaction. Parsed messages still use the one Phase 2 decision policy.
+- Existing hard-delete and invalidation semantics remain. Reversing repayment allocations after linked edits/deletes remains deferred to Phase 5 because allocation history is not represented.
+- The repository-port migration is complete in Phase 4. At that checkpoint split settlement decisions in Zustand remained Phase 5 and dedup semantic unification remained Phase 6; both have since completed. Local/offline AI remains the outstanding Phase 2 requirement.
+- Backup restore is a snapshot operation routed through the transaction repository. It preserves snapshot settlement state and does not replay repayment allocation.
+
+Verification: `npx tsc --noEmit` passed. `npx jest --runInBand` passed with 30 suites and 639 tests. ESLint on changed TypeScript files passed with 0 errors and 19 existing inline-style warnings in `SettingsScreen.tsx`. `git diff --check` passed. `graphify update .` refreshed the graph to 1,398 nodes and 2,797 edges; it reported one unsupported Gradle syntax file and requested community relabeling after the set changed.
+
+### Phase 3 service folder organization
+
+Moved transaction-specific service adapters into `src/services/transactions/` and message ingestion into `src/services/messaging/`. Updated imports in hooks, screens, services, tests, architecture references, and workflow documentation. The move changes file organization only; core transaction rules remain in `src/core/transactions/`, and service adapters remain responsible for connecting those rules to parser, classifier, learning, and SQLite implementations.
+
+## Phase 4 — Repository boundary and temporary presentation adapters (complete)
+
+Detailed scope and semantics: [Phase 4: Repository Boundary](./PHASE_4_REPOSITORY_BOUNDARY.md).
+
+**Goal:** make application operations depend on a stable repository port and close transaction-persistence bypasses in hooks and screens while retaining the legacy UI.
+
+### Files changed
+
+| File | Change | Why and how |
+|---|---|---|
+| `src/core/transactions/contracts.ts` | Expanded `TransactionRepository`; added focused query, backup, maintenance ports and the `TransactionStorage` composition type. | Gives core/application operations stable persistence capabilities without exposing SQLite details. |
+| `src/core/transactions/applicationUseCases.ts` | Replaced the temporary write gateway with `TransactionRepository`; return persisted rows from insert operations and use full-ledger reads for repayment planning. | Keeps use cases reusable and lets historical import see prior writes in the same ordered batch. |
+| `src/database/SQLiteTransactionRepository.ts` (new) | Implements transaction, backup, query, and maintenance ports over `expenseRepo`; validates expected row effects and insert IDs. | Contains the concrete SQLite adapter boundary while reusing existing SQL and row mapping. |
+| `src/database/expenseRepo.ts` | Added ID lookup and atomic snapshot restore; made clear-all and dedup maintenance transactional; added affected-row checks for mutations. | Keeps transaction mechanics close to SQLite and makes backup/reset operations all-or-nothing. Overwrite restore replaces expense rows only. |
+| `src/services/transactions/transactionDependencies.ts` (new) | Creates the `SQLiteTransactionRepository` singleton as the composition point. | Keeps concrete adapter construction out of core use cases. |
+| `src/services/transactions/transactionApplication.ts` | Routes application writes, transaction queries, restore/reset, split persistence, trash metadata, account deletion, and dedup maintenance through the repository-backed facade. Validates the complete restore payload before writing. | Consolidates transaction persistence access and prevents partial invalid backups from mutating the ledger. |
+| `src/hooks/useExpenses.ts` | Removed direct `expenseRepo` calls and routes ledger persistence through transaction application operations. | Leaves selectors, refresh, and split calculation in the temporary Zustand adapter; split domain rules remain Phase 5. |
+| `src/presentation/legacy/screens/SettingsScreen.tsx` | Routes clear-all through the application facade and clears dependent in-memory state only after persistence succeeds. | Preserves UI while preventing a failed reset from presenting as successful. |
+| `src/presentation/legacy/screens/AccountsScreen.tsx` | Routes account transaction deletion through the application facade and handles persistence failure. | Removes the remaining screen-level transaction delete bypass. |
+| `src/__tests__/expenseRepo.test.ts` | Added backup append/overwrite transaction and rollback cases plus transactional clear-all coverage. | Verifies atomicity and preservation of backup split values. |
+| `src/__tests__/SQLiteTransactionRepository.test.ts` (new) | Covers persisted insert return, missing-row update failure, and backup snapshot delegation. | Exercises the concrete adapter contract. |
+| `src/__tests__/transactionApplicationUseCases.test.ts` | Updated the fake repository and added chronological historical repayment coverage against a long-standing split. | Closes the Phase 3 handoff gap: imported credits observe earlier writes and accumulate partial `paidAmount`. |
+| `README.md`, `docs/v2.0 - improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md`, this log, `PHASE_4_REPOSITORY_BOUNDARY.md` | Updated architecture tree, phase status, behavior, file-level record, and remaining boundaries. | Keeps the plan and implementation history aligned with the code. |
+
+### Behavior and remaining boundaries
+
+- Transaction and backup/reset writes from hooks/screens pass through repository-backed transaction application operations. Generic app settings and merchant-learning persistence remain their own capability boundaries.
+- Backup payloads are validated before writes. Append and overwrite batches are atomic. Overwrite replaces expense rows only, preserving settings and learned merchant mappings that are not in the backup snapshot.
+- Restore copies split payment values from the snapshot and never reruns parser policy, deduplication, or automatic repayment allocation.
+- At Phase 4 exit, split settlement calculations still remained in Zustand; Phase 5 has since moved them to core use cases. Live and import deduplication also differed at that checkpoint; Phase 6 has since unified them. Schema migration redesign was still Phase 7 work at that checkpoint and has since completed. The offline AI runtime remains Phase 2 work.
+
+### Boundary audit and carry-forward
+
+- No runtime transaction-mutating `expenseRepo` calls remain outside `SQLiteTransactionRepository`; legacy screens still access generic app/security settings directly, which is outside the transaction-ledger port but remains a presentation dependency to clean up later.
+- `LearningEngine` still constructs `SQLiteLearningRepository` from the parser package. Move that concrete dependency to composition/injection when implementing broader dependency guardrails (Phase 8).
+- Chronological historical repayment and database rollback are covered separately. Add a focused test that forces a later imported repayment's atomic insert/update to fail and verifies no split or credit from that row is left behind.
+- These are architecture/test-hardening carry-forwards, not known Phase 4 transaction persistence bypasses. They do not prevent Phase 5.
+
+Verification: `npx tsc --noEmit` passed; `npm test -- --runInBand` passed (31 suites, 648 tests); focused Phase 4 tests passed (3 suites, 23 tests); changed-file ESLint passed with 0 errors and 19 existing inline-style warnings in `SettingsScreen.tsx`; `git diff --check` passed. Graphify refreshed to 1,478 nodes and 2,988 edges across 104 communities; it reported a pre-existing Android Gradle syntax limitation and requested community relabeling after the community set changed.
+
+## Phase 5 — Split and repayment domain (complete)
+
+Detailed plan: [Phase 5: Split Settlement and Repayment Domain](./PHASE_5_SPLIT_REPAYMENT_DOMAIN.md).
+
+| File | Change | Why and how |
+|---|---|---|
+| `src/types/expense.ts` | Added stable split IDs, separate manual/repayment paid totals, and exact repayment allocation DTOs. | Existing `amount`, `paidAmount`, and `isPaid` remain readable; original debt amounts are not overwritten. |
+| `src/core/transactions/repaymentPlanner.ts` | Extended FIFO partial allocation to assign stable legacy split IDs, update separate payment totals, and return exact destination allocation records. | New repayment credits can later be reversed without recomputing history. |
+| `src/core/transactions/splitSettlement.ts` (new) | Added pure split ID, manual settlement, payment-state, reversal, and debt-mutation validation rules. | Keeps settlement decisions outside Zustand and makes manual values distinct from incoming repayments. |
+| `src/core/transactions/applicationUseCases.ts` | Added named settlement, repayment edit/reversal, invalidation/restore, and guarded delete operations. Removed raw update/invalidate/delete methods from the core application-facing repository contract. | Core coordinates rules and requires atomic repository mutation for linked transaction/split changes. |
+| `src/core/transactions/contracts.ts` | Added typed atomic transaction mutation commands. | Describes linked update/invalidate/delete operations without SQLite details. |
+| `src/database/expenseRepo.ts` | Added transaction-plus-split atomic mutation, insert-ID rollback validation, backup allocation-ID remapping, and protections for account deletion/deduplication. | Prevents partial repayment reversals, dangling links, or silently invalidated settlement history. |
+| `src/database/SQLiteTransactionRepository.ts` | Adapted the atomic mutation operation to SQLite. | Implements the core persistence contract. |
+| `src/services/transactions/transactionApplication.ts` | Routes edits, deletion, invalidation, manual settlement, and backup validation to the domain operations. | Keeps the concrete repository composed outside core and rejects malformed/dangling backup allocations. |
+| `src/hooks/useExpenses.ts` | Removed settle/unsettle/toggle calculations; dispatches use cases and refreshes state after persisted results. Added clear mutation failure messages. | Zustand is now a state adapter for split operations. |
+| `src/presentation/legacy/screens/SplitsScreen.tsx`, `HistoryScreen.tsx` | Kept layout; only show success after settlement succeeds and stop trash actions when guarded invalidation fails. | Exposes domain outcomes without redesigning UI. |
+| `src/__tests__/splitSettlement.test.ts` (new) | Covers exact allocation, manual versus repayment balances, reversal, legacy protection, mutation guards, and use-case routing. | Verifies domain behavior independently of SQLite. |
+| `src/__tests__/expenseRepo.test.ts`, `transactionRepayment.test.ts`, `transactionApplicationUseCases.test.ts`, `expenseService.test.ts`, `SQLiteTransactionRepository.test.ts` | Added rollback, backup ID remapping, account/dedup protection, and end-to-end use-case assertions for exact allocation metadata. | Covers SQLite and application boundaries. |
+| `README.md`, `docs/ARCHITECTURE.md`, `docs/APP_MESSAGE_LISTENER_FLOW.md`, roadmap, Phase 3/5 plans, this log | Updated architecture, handoffs, status, and supported legacy behavior. | Keeps implementation records aligned with the active runtime. |
+
+### Phase 5 follow-up closure
+
+| File | Change | Why and how |
+|---|---|---|
+| `src/database/SQLiteTransactionRepository.ts`, `src/database/expenseRepo.ts` | Removed unused raw update/invalidate/delete adapter methods and low-level functions, plus the obsolete repayment-link update operation. | Transaction mutation now has one app-facing path through guarded use cases and atomic repository commands. |
+| `src/hooks/useExpenses.ts`, `src/presentation/legacy/components/EditTransactionModal.tsx` | `deleteExpense` now reports success; the edit modal closes after delete/trash/restore only when the store confirms persistence succeeded. | A blocked legacy or settled mutation leaves the transaction visible for the user to review. |
+| `src/__tests__/SQLiteTransactionRepository.test.ts`, `src/__tests__/expenseRepo.test.ts` | Removed tests for deleted raw mutation paths. | Keeps tests aligned with the supported repository contract. |
+| `PHASE_5_SPLIT_REPAYMENT_DOMAIN.md` | Replaced stale pre-implementation “starting point” and “proposed” sections with the implemented boundary and allocation representation. | Prevents the plan from contradicting the shipped Phase 5 behavior. |
+
+### Behavior and remaining boundaries
+
+- New automatic repayments allocate FIFO and store exact `{expenseId, splitId, amount}` links in the repayment transaction. Debt split rows retain original amounts and track manual settlement separately from active repayment totals.
+- Editing a new repayment reverses its exact old allocations and replans the edited credit in one transaction. Invalidating reverses; restoring replans against current outstanding splits; deleting reverses before removing the credit.
+- Debt split changes that remove/reassign an already-settled split or reduce its amount below the settled total are rejected. Settled debt transactions cannot be invalidated/deleted until reconciled.
+- Older repayment rows without exact links are preserved and their edit/invalidation/deletion is blocked. Account removal and deduplication also refuse to invalidate transactions with settlement history.
+- Backup restore remaps linked expense IDs and rolls back if an allocation target is missing. It does not re-run repayment matching.
+- At the Phase 5 checkpoint, live/import dedup unification remained Phase 6; Phase 6 has since completed it. Explicit migrations were Phase 7 work then and have since completed; settings/learning dependency cleanup remains broader architecture work; local AI remains Phase 2.
+
+Verification: `npx tsc --noEmit` passed; `npx jest --runInBand` passed (32 suites, 666 tests). Focused Phase 5 tests passed (6 suites, 49 tests). Changed-file ESLint passed with 0 errors and 5 existing inline-style warnings in `HistoryScreen.tsx` and `SplitsScreen.tsx`. `git diff --check` passed.
+
+## Phase 6 — Unified deduplication (complete)
+
+Detailed plan and adopted policy: [Phase 6: Unified Transaction Deduplication](./PHASE_6_UNIFIED_DEDUPLICATION.md).
+
+**Goal:** align live and historical import duplicate semantics while preserving legitimate repeated transactions. A shared post-save notification also confirms successful transaction creations and edits.
+
+### Files changed and rationale
+
+| File | Change | Why and how |
+|---|---|---|
+| `src/core/dedup/duplicateCheck.ts`, `src/core/dedup/index.ts` | Added typed definite/possible/no-match decisions, shared five-minute event-time matching, normalized reference/message comparisons, and an indexed candidate cache. | Keeps policy pure and makes reference/time indexes performance-only. |
+| `src/core/transactions/contracts.ts`, `src/database/expenseRepo.ts`, `src/database/SQLiteTransactionRepository.ts` | Replaced boolean SQL/cache decisions with broad candidate retrieval; removed the recent-slice dedup query. Maintenance dedup now invokes the shared policy. | Keeps SQLite from defining its own duplicate semantics and retains atomic maintenance writes plus Phase 5 settlement guards. |
+| `src/core/transactions/applicationUseCases.ts`, `src/services/transactions/transactionApplication.ts` | Routes live, import, review, and maintenance checks through one policy. Selected possible matches can be explicitly accepted; definite matches remain blocked. Notifications run only after successful writes. | Preserves chronological import and separates persistence outcome from duplicate evidence and notification side effects. |
+| `src/presentation/legacy/screens/SettingsScreen.tsx`, `src/hooks/useMessageListener.ts` | Shows possible imported matches unchecked with a review hint; queues live possible matches for confirmation; removes the old live saved-notification branch. | Reuses existing preview/pending interactions with minimal UI changes. |
+| `src/services/notifications/transactionSavedNotification.ts` (new) | Added queued best-effort local notification requests with concise transaction details and Android permission handling. | Keeps notification failures from changing transaction persistence results. |
+| `android/app/src/main/java/com/expensetracker/bridge/MessageModule.kt` | Updated the notification channel description used for saved transaction notices. | Reuses the existing Android local notification bridge. |
+| `ios/ExpenseTracker/TransactionNotificationModule.swift`, `TransactionNotificationModule.m`, `AppDelegate.swift`, `ios/ExpenseTracker.xcodeproj/project.pbxproj` | Added and registered an iOS local notification bridge, permission request, and foreground display delegate. | Provides saved-transaction notices on the supported iOS target. |
+| `src/__tests__/dedup.test.ts`, `expenseRepo.test.ts`, `expenseService.test.ts`, `transactionApplicationUseCases.test.ts`, `SQLiteTransactionRepository.test.ts` | Added policy boundary, weak-match confirmation, broad candidate query, maintenance safeguard, and saved-notification behavior coverage. | Verifies policy parity, no silent blocking of weak matches, and no notification for duplicate/failed saves. |
+| `docs/APP_MESSAGE_LISTENER_FLOW.md`, roadmap, Phase 6 plan, this log | Updated current flow, adopted rules, phase status, file history, and verification. | Keeps architecture documentation consistent with the implementation. |
+
+### Behavior and verification
+
+- Exact normalized reference matches are definite across eligible history. Exact normalized message matches require same amount and transaction type within five minutes. Amount/merchant/type/time similarity is possible and goes to confirmation.
+- Invalidated and duplicate rows do not suppress candidates. Cross-source matches are allowed. Manual entry remains user-authoritative and bypasses deduplication.
+- Import preview uses a temporary indexed cache; commit rebuilds from persisted rows and only includes earlier successful rows. Selected possible matches can be imported; definite matches are skipped. Maintenance dedup auto-invalidates only definite matches and refuses to touch Phase 5 settlement history.
+- Save notifications cover live, manual, confirmed, imported, and edited transactions. Failed writes, duplicates, and pending reviews do not produce a saved notice. Notification failure is logged and does not undo persistence.
+
+Verification: `npx tsc --noEmit` passed; `npx jest --runInBand` passed (32 suites, 668 tests); focused Phase 6 tests passed (5 suites, 43 tests); changed-file ESLint passed with 0 errors and 19 existing inline-style warnings in `SettingsScreen.tsx`; `git diff --check` passed. Graphify offline update re-extracted 27 changed code files and refreshed the graph to 1,546 nodes and 3,219 edges; its no-LLM mode skipped semantic extraction of nine changed Markdown files. Android `:app:compileDebugKotlin` completed successfully (Gradle 9.3.1; task reported `UP-TO-DATE`). iOS build remains unavailable because `xcodebuild` is not installed.
+
+## Phase 7 — Explicit database migrations (complete)
+
+Detailed scope and supported upgrade boundary: [Phase 7: Explicit Database Migrations](./PHASE_7_EXPLICIT_DATABASE_MIGRATIONS.md).
+
+### Files changed and rationale
+
+| File | Change | Why and how |
+|---|---|---|
+| `src/database/schema.ts` (new) | Moved canonical table creation SQL out of database startup so schema statements can be owned by migrations and remain available through `db.ts` exports. |
+| `src/database/migrations/001_legacy_schema_baseline.ts` (new) | Creates missing tables, validates required legacy columns, and additively adds known optional columns. It preserves existing rows and fails on an unsupported legacy shape. |
+| `src/database/migrations/002_expense_indexes.ts` (new) | Creates the existing query indexes as a separately versioned migration. |
+| `src/database/migrations/index.ts` (new) | Uses SQLite `user_version`, applies migrations in order and in individual transactions, rolls back failures, and rejects future schema versions. |
+| `src/database/db.ts` | Replaced catch-and-ignore `ALTER TABLE` attempts with the migration runner. The connection is exposed only after migrations succeed; failed initialization closes the connection and remains retryable. |
+| `src/__tests__/databaseMigrations.test.ts` (new) | Covers fresh schema creation, legacy additive upgrades, failed-migration rollback/retry state, unsupported old schemas, and future-version refusal. |
+| `docs/v2.0 - improvement_plan/PHASE_7_EXPLICIT_DATABASE_MIGRATIONS.md` (new), architecture plan, this log | Records supported schema boundary, migration sequence, changed files, and verification. |
+
+### Supported schema boundary
+
+- Version 0 is the app's existing pre-Phase-7 schema family. Migration adds the known optional columns and support tables without deleting or rewriting transaction rows.
+- A legacy `expenses` table missing required core columns fails with a list of missing columns. The app does not guess how to reconstruct unknown formats.
+- Legacy installs missing `created_at` receive a nullable column because SQLite cannot add the fresh-install time-expression default to a populated table with `ALTER TABLE`; the app does not currently read this field.
+- A database with a `user_version` newer than the app's latest migration is refused without mutation.
+- Each migration and its version update commit together. If a migration fails, its version is not advanced and it can be retried after the cause is corrected.
+
+Verification: `npx tsc --noEmit` passed; `npx jest --runInBand` passed (33 suites, 674 tests), including six migration cases; ESLint on changed migration code/tests passed with no errors; `git diff --check` passed. A one-off Node SQLite in-memory smoke check migrated a populated legacy database to version 2, preserved its transaction row, and verified all four indexes. Graphify code graph was refreshed and reclustered to 1,562 nodes, 3,255 edges, and 108 communities; semantic extraction for changed Markdown files failed with a Gemini connection error, so Graphify may still surface stale phase-status text.
+
+## Phase 8 — Domain organization and dependency guardrails (complete)
+
+Detailed plan: [Phase 8: Domain Organization and Dependency Guardrails](./PHASE_8_DOMAIN_ORGANIZATION_AND_DEPENDENCY_GUARDRAILS.md).
+
+**Goal:** remove observed dependency inversions, make service ownership easy to find, and enforce a lightweight dependency direction. UI redesign remains out of scope.
+
+**Completed changes:**
+
+| Files | Change and rationale |
+|---|---|
+| `src/core/classifier/spamClassifier.ts`, `src/infrastructure/persistence/sqlite/SQLiteSpamClassifierRepository.ts` | Kept classification policy in core and moved learned-state persistence behind a repository port. |
+| `src/core/parser/learning/`, `src/infrastructure/persistence/sqlite/SQLiteLearningRepository.ts` | Removed SQLite construction from `LearningEngine`; app composition selects the production repository. |
+| `src/core/settings/`, `src/infrastructure/persistence/sqlite/SQLiteSettingsRepository.ts`, `src/services/settings/settingsService.ts` | Added a settings port, concrete adapter, and focused capability methods for existing callers. |
+| `src/core/security/securityPorts.ts`, `src/services/security/securityService.ts`, `src/infrastructure/native/ReactNativeDeviceAuthProvider.ts` | Isolated security behavior from persistence and native-module access. |
+| `src/services/advisor/advisorService.ts`, `src/infrastructure/observability/telemetryService.ts` | Grouped advisor by capability and moved telemetry into infrastructure; `expenseRepo` now depends on the adapter location rather than a service. |
+| `src/app/composition/`, `src/services/transactions/transactionApplication.ts`, `src/services/messaging/messageService.ts` | Centralized concrete adapter selection and routed production parser/transaction dependencies through it. |
+| `src/presentation/legacy/screens/{Accounts,History,Home,Settings}Screen.tsx`, `src/hooks/useSecurityStore.ts` | Repointed legacy callers through capability services without changing UI layout or behavior. |
+| `src/__tests__/{securityService,spamClassifier,settingsService,importBoundaries}.test.ts` and updated related tests | Added port-based behavior and persistence coverage plus explicit allow/deny boundary cases. |
+| `scripts/check-import-boundaries.js`, `package.json` | Added a small import scanner to `npm run lint`, covering core, database, infrastructure, services, composition, hooks, and presentation direction. |
+| `docs/ARCHITECTURE.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/TRD.md`, Phase 8 plan, architecture plan | Corrected moved-file references and recorded the implemented boundaries and known follow-up. |
+
+The scanner runs over production source files and excludes test fixtures, because boundary tests intentionally contain invalid imports as input. A narrow `services -> app/composition` exception remains for the current configured singleton access in messaging and transaction application modules; other service-to-app paths are rejected.
+
+Deferred seams recorded for later work: presentation still imports service singletons from app composition, and `services/notifications/transactionSavedNotification.ts` imports React Native APIs directly. The notification provider is localized and best-effort, but Phase 8 does not currently enforce a services-to-native-module rule; Phase 9 will clarify ownership and whether to introduce a provider port/adapter.
+
+Small lint fixes made during Phase 8 verification: `scripts/parse-cli.js` now imports Node's `performance` API explicitly, and unused parameters/imports in the AI test, `BankExtractor`, `MessageFilter`, and currency normalizer were removed or marked intentionally unused. These had been blocking the repository-wide lint command before the new boundary check could be considered verified.
+
+Verification: `npx tsc --noEmit` passed; `npm test -- --runInBand` passed (36 suites, 681 tests); `npm run lint` passed (boundary scan passed, ESLint had 0 errors and 118 existing warnings); `git diff --check` passed. Graphify was refreshed and reclustered to 1,673 nodes, 3,324 edges, and 116 communities. Phase 2 local AI/model work remains independent and is not a Phase 8 blocker.
+
+## Phase 9 — Documentation and future feature readiness (complete)
+
+Detailed plan: [Phase 9: Documentation and Future Feature Readiness](./PHASE_9_DOCUMENTATION_AND_FUTURE_FEATURE_READINESS.md).
+
+**Goal:** keep runtime docs accurate and make new sources reuse established use cases. Completed as a documentation-only phase; Phase 2 AI/model integration and runtime privacy/platform seams remain outside scope.
+
+**Expected file areas and rationale:**
+
+| File(s) changed | What changed and why |
+|---|---|
+| `README.md` | Updated feature/support claims, current source tree, docs links, setup/verification commands, and privacy/telemetry caveats; removed brittle test totals and absolute offline claims. |
+| `docs/ARCHITECTURE.md` | Replaced stale current-flow descriptions with the active event-to-persistence path, corrected adapter/ownership and migration details, and marked obsolete diagrams historical. |
+| `docs/APP_MESSAGE_LISTENER_FLOW.md` | Aligned native event ordering, parse/decision/persist flow, and best-effort saved-transaction notification behavior with current code. |
+| `docs/TRD.md` | Corrected service, parser, migration, repayment, and telemetry claims; clarified that token dictionary terms are interpreted by the resolver. |
+| `docs/IMPLEMENTATION_PLAN.md` | Marked old phase breakdown as historical and linked the active roadmap; removed stale current-phase/capability statements. |
+| `docs/TESTING_STRATEGY.md` | Updated existing commands, test scope and privacy handling; documented that collected device fixtures retain raw message data. |
+| `docs/REVISION_HISTORY.md` | Labeled dated claims/counts historical and corrected misleading collection-script privacy descriptions. |
+| `docs/FEATURE_EXTENSION_GUIDE.md` (new) | Added source/provider extension routes, reuse constraints, and decisions to settle when each capability is approved. |
+| `docs/v2.0 - improvement_plan/PHASE_8_DOMAIN_ORGANIZATION_AND_DEPENDENCY_GUARDRAILS.md` | Recorded direct UI-to-composition dependencies and the notification native-module seam for later UI/provider boundary work. |
+| `docs/v2.0 - improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md` | Marked Phase 9 complete and linked its completion record. |
+| `docs/v2.0 - improvement_plan/PHASE_9_DOCUMENTATION_AND_FUTURE_FEATURE_READINESS.md` | Recorded completion, actual notification/telemetry seam decisions, scope boundaries, and verification outcome. |
+| `docs/v2.0 - improvement_plan/IMPLEMENTATION_CHANGELOG.md` | Replaced the planned Phase 9 entry with this file-level completion record. |
+
+**How the reconciliation was done:** claims were checked against current source ownership and call paths, package scripts, database migration code, transaction decision/persistence flow, notification provider, telemetry adapter, and device fixture collector. Historical snapshots were labeled rather than presented as current guarantees. The feature guide routes future capabilities through existing use cases and documents what remains undecided.
+
+**Deferred work:** Phase 2 local AI inference; remove/redact sender data in development telemetry; introduce an explicit notification port/native adapter if additional providers or platform boundaries require it; inject composition dependencies through a presentation-facing API during replacement UI work. No runtime code changed.
+
+**Verification:** `git diff --check` passed. Relative Markdown links and referenced npm scripts were checked. Mermaid was inspected in source; no renderer was available for visual validation.
+
+## Phase 2 V2 — Local AI hybrid orchestration (paused by owner)
+
+Detailed scope and acceptance gates: [Phase 2 V2: Local AI Hybrid Orchestration and Model Selection](./PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md).
+
+**Implemented foundation:** field-level proposal types and strict validation, conservative caller context, proposal merging with deterministic financial facts taking precedence, removal of confidence-based auto-save uplift in the legacy resolver path, settings storage for a future model choice, digest-verified app-private artifact installation/removal, and a local llama.rn adapter that accepts only an installed artifact. AI remains disabled because no exact artifact has passed the quality, licensing, platform, integrity, and device-resource gates.
+
+| File | Change | Why and how |
+|---|---|---|
+| `package.json`, `package-lock.json` | Added exact `llama.rn@0.12.9` and `react-native-fs@2.20.0` dependencies. | Provides the native local-inference runtime and app-private file operations used by the verified artifact lifecycle manager. |
+| `.gitignore` | Ignored `android/app/src/main/assets/ggml-hexagon/`. | The llama.rn Gradle sync task generates/copies optional Hexagon support libraries into this directory; they are build artifacts regenerated from the dependency, not app-authored source. |
+| `src/core/parser/ai/AIExtractionProposal.ts` (new) | Added execution contexts, per-field evidence/provenance, typed proposal and engine contracts, strict bounded-value validation, and routing rules. | Prevents unvalidated model output from becoming parser evidence; unsupported/malformed fields are rejected. |
+| `src/infrastructure/ai/LlamaExtractionEngine.ts` (new) | Added a local llama.rn adapter requiring a supplied model path and identity; it has explicit load/unload lifecycle and only runs in foreground or historical contexts. | Keeps model execution in infrastructure and avoids remote inference, automatic downloads, logging input, or model confidence claims. It is not wired in production until a model is approved. |
+| `src/infrastructure/ai/ModelArtifactManager.ts` (new) | Added explicit HTTPS host allowlisting, safe path metadata, size and SHA-256 verification, app-private temporary downloads, atomic promotion, cancellation, cleanup, reuse of a verified same-version artifact, and removal. | Prevents an unverified or partial model from being loaded; older versioned files remain intact if a replacement fails. It has no hard-coded downloadable catalog yet. |
+| `src/core/settings/SettingsRepository.ts`, `src/services/settings/settingsService.ts` | Added AI enabled/model preference shape and persistence using existing key/value settings storage; the default is disabled. | Avoids a schema migration and provides a service boundary for replacement UI. No new UI was added. |
+| `src/core/parser/orchestrator/ParserOrchestrator.ts`, `src/core/parser/models/StructuredExpense.ts` | Added an injectable, opt-in proposal engine; typed proposal validation; ephemeral per-field evidence; deterministic material-field conflict handling; and review-required proposal-only candidates when amount and direction are present. Defaults remain no engine and AI disabled. | Keeps the existing transaction decision policy authoritative, preserves deterministic amounts/direction, and prevents model-only confidence uplift or automatic save. |
+| `src/services/messaging/messageService.ts`, `src/services/transactions/transactionApplication.ts` | Threaded context through the parser boundary; live ingestion defaults to `live_background`, historical preview specifies `historical_import`. | Makes invocation intent explicit at callers and ensures live message processing remains deterministic. |
+| `src/core/parser/ai/AIResolver.ts` | Replaced raw message text in the in-memory cache key with a non-reversible short fingerprint. | Avoids retaining source text in cache identity. Cache remains bounded and in-memory. |
+| `src/__tests__/parser/aiProposal.test.ts`, `src/__tests__/parser/aiOrchestration.test.ts`, `src/__tests__/parser/modelArtifactManager.test.ts` (new) | Added validator, context routing, deterministic conflict, no-confidence-uplift, artifact integrity, cancellation, and source allowlist tests. | Covers malformed output and verifies model proposals cannot override deterministic material facts or bypass review; proves artifact promotion happens only after size/hash checks. |
+| `docs/v2.0 - improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md`, `ARCHITECTURE_RESTRUCTURING_PLAN.md`, this log | Updated implementation status and documented exact limits and remaining gates. | Prevents foundation work from being represented as active/complete AI inference. |
+
+**Remaining before completion:** select and document one exact model artifact and license; record source/platform/ABI and measured device resources; benchmark quality against a held-out sanitized fixture set and device latency tiers; add only that artifact to a pinned catalog; wire its installed runtime through composition and settings; verify iOS native build/runtime fallback and model load/unload/timeout behavior on supported devices; and complete privacy and import-order acceptance tests. No candidate model is enabled by this implementation.
+
+**Verification so far:** `npx tsc --noEmit` passed; `npm test -- --runInBand` passed (39 suites, 695 tests). `npm run lint` passed with no errors and 120 repository warnings (including generated `dist/`); changed-file ESLint and `git diff --check` passed. `:app:compileDebugKotlin` and `:app:assembleDebug` both succeeded; the latter compiled/packaged the llama.rn Android native libraries for ARM64 and x86_64. llama.rn selected CPU-only because Hexagon SDK is absent. No iOS build or on-device model benchmark has been run.
+
+### Corpus baseline and regression corrections — 2026-10-27
+
+The developer-provided device export was used locally to measure current parser/policy behavior, and the synthetic regression suite was reviewed against actual parser output. No raw messages, sender IDs, dates, or financial values from the export are recorded here.
+
+| File | Change | Why and how |
+|---|---|---|
+| `.gitignore` | Added `/data/`. | Keeps the private device export out of commits by default while allowing local baseline runs. |
+| `src/__tests__/deviceCorpusBaseline.test.ts` (new) | Added an optional test that reads the local export, sends inbox messages through the real incoming-message parser and decision policy, and emits aggregate counts only. | Provides a repeatable behavior baseline from the user’s device data without turning unlabeled personal messages into a claimed accuracy metric. It skips when the local export is absent. |
+| `src/__tests__/__fixtures__/sanitized-scenarios.json` (new) | Made the synthetic sanitized scenarios the test’s canonical fixture and corrected expected parser outputs. | Removes fixture drift and records observed parser category/bank/balance fields separately from candidate classifier categories where those differ. |
+| `src/__tests__/sanitizedCorpus.test.ts` (new) | Reads the JSON fixture directly, avoids writing files during tests, and asserts parser and policy outputs plus selected extended transaction types. | A useful regression test must validate actual outcomes, not recreate fixture data or check only that parsing returned something. |
+| `src/core/parser/resolver/TransactionResolver.ts` | Recognizes reversal wording before generic failed-transaction wording, requires an actual cashback receipt/credit signal before classifying cashback as a refund, limits chargeback detection to actual dispute events, and prioritizes an explicit account debit when the payee is also described as credited. | Prevents reversal-of-failure messages, future promotional cashback language, generic “to dispute” bank footers, and beneficiary-credit wording from flipping the account holder's transaction direction. |
+| `src/core/parser/models/StructuredExpense.ts` | Maps chargeback to credit in base transaction direction. | A chargeback represents returned/reversed funds and must not be recorded as an ordinary debit. |
+| `docs/v2.0 - improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md` | Added the aggregate local corpus baseline and initially documented a provisional model candidate. | Makes clear what evidence exists and what remains before model selection. The candidate in that checkpoint was superseded by the product owner's strict under-100 MB limit, recorded in the follow-up below. |
+| `docs/v2.0 - improvement_plan/SANITIZED_TRANSACTION_CORPUS.md` | Deleted. | Removed the new standalone sanitization document at the user’s request; regression examples remain in the test fixture. |
+
+**Baseline result:** 1,035 records (1,014 inbox, 21 sent/other); among inbox, 436 parsed, with 313 auto-save, 123 review, and 578 reject outcomes; parsed direction counts are 350 debit, 75 credit, and 11 other/unspecified; 83 repeated bodies after NFKC normalization, trimming, and case-folding. The data has no ground-truth labels, so these are behavior counts only. The test intentionally excludes raw values from console output, and `/data/` is ignored by Git.
+
+**Regression review:** the synthetic suite contains 22 fixture cases plus a transfer-direction regression. Strengthening its assertions uncovered semantic defects: promotional cashback language was treated as a current refund; reversal text containing a failed-transaction phrase was treated as a failed debit; generic dispute-help footers could be classified as chargebacks; payee-credit wording could override an explicit debit from the user's account; and chargebacks were mapped to debit. The resolver/direction fixes above address these; the updated suite checks category/bank/balance and relevant extended types as well as debit/credit direction.
+
+**Verification for this update:** `npm test -- --runInBand` passed (41 suites, 719 tests); `npx tsc --noEmit` passed; `npm run lint` passed with 0 errors and 118 existing warnings; changed-file ESLint and `git diff --check` passed. `git check-ignore data/extracted_messages.json` confirms the raw export is ignored. Device corpus counts and synthetic fixture pass rates are not AI quality measurements; a manually labeled, held-out sanitized set and real-device resource benchmarks remain necessary. No model was downloaded or enabled.
+
+### Phase 2 V2 direction update and evaluation draft — 2026-10-27
+
+| File | Change | Why and how |
+|---|---|---|
+| `docs/v2.0 - improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md` | Replaced the oversized Qwen candidate with a provisional SmolLM2-135M Q3_K_S lead listed at 88.2 MB; set a strict local artifact limit below 100 MB; added deterministic/local/cloud user modes, foreground consent, no automatic cloud fallback, provider-neutral proposal adapters, and the unresolved proxy-versus-BYOK credential decision. | Captures the product owner's direction while keeping cloud inference opt-in and proposal-only. The small model is only a research lead, not approved or selected. A file-size limit is separate from memory, latency, and quality gates. |
+| `docs/v2.0 - improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md` | Merged the local labeling, de-identification, sampling, split, metric, and provider-choice procedure into the single Phase 2 V2 plan. | Keeps the evaluation workflow alongside runtime and release gates without treating parser predictions as truth or sending the device export to a cloud service. |
+| `scripts/create-device-evaluation-draft.py` (new) | Added a local-only, deterministic sampler that deduplicates normalized inbox bodies and writes blank annotation rows to ignored `data/phase2-v2-evaluation-draft.json`; it prints only row counts. | Advances the labeled holdout preparation. The draft contains private message text, no sender/date/record IDs, and no parser predictions. It is unreviewed and must not be committed or sent to a provider. |
+| `data/phase2-v2-evaluation-draft.json` (local, Git-ignored) | Generated a 100-row unlabeled draft from unique inbox messages. | Provides a starting point for manual gold-label review. Each row is marked unreviewed and its expected fields are empty. The file is intentionally excluded from the repository. |
+
+**Verification:** the generator produced 100 unique inbox rows with blank labels; a local structural check passed without printing message contents; `git check-ignore` confirms the draft is ignored. No provider API was called and no model artifact was downloaded. The Qwen reference from the prior checkpoint is superseded and removed from the active Phase 2 V2 plan.
+
+### Phase 2 V2 model-library clarification — 2026-10-27
+
+The product owner clarified that the user should browse available local models, choose whether to install each one, keep multiple models installed, switch models, and remove models in-app. The app code can remain in Git; model binary distribution is a separate hosting concern.
+
+| File | Change | Why and how |
+|---|---|---|
+| `docs/v2.0 - improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md` | Added the model-library workflow, external artifact hosting choices, catalog metadata and integrity requirements, multi-model inventory/selection semantics, and a replaceable UI requirement. | Makes the user's intended install/try/remove flow explicit while keeping model binaries out of ordinary Git history and AI workflows independent of future UI replacement. |
+| `docs/v2.0 - improvement_plan/IMPLEMENTATION_CHANGELOG.md` | Recorded the current implementation gaps and the difference between source code hosting and model artifact hosting. | The existing artifact manager can download, verify, retain versioned files, and remove them, but has no catalog or library inventory; the settings service stores only one selected model ID; the manager's code limit is still 1 GB; no production model engine is wired. |
+
+**Distribution design:** keep catalog records with model ID/version, publisher/license, task description, exact size, SHA-256, format/runtime, compatibility, and HTTPS download URL. Model binaries can be hosted separately on a public model registry or release/object-storage host. A bundled catalog means adding a model requires an app update; a versioned remote static catalog can list new models without app updates, but must be host-allowlisted and integrity-verified. Fine-tuning happens before distribution: publish the finished, quantized artifact and let users download that file; users do not train on-device. The 100 MB cap must be enforced against the whole downloadable model artifact before enabling installation.
+
+### Phase 2 V2 model-library implementation — 2026-10-27
+
+The first app-side model library slice is implemented. It provides a safe download/manage boundary but does not publish or activate any model. Fine-tuning requires verified human labels, which are still pending in the local draft dataset.
+
+| File | Change | Why and how |
+|---|---|---|
+| `src/core/parser/ai/ModelCatalog.ts` (new) | Added provider-neutral catalog metadata, runtime/format/task types, artifact store port, installed artifact references, model library entry shape, and the exclusive 100,000,000-byte maximum. | Defines a core contract without importing infrastructure, allowing later ONNX and GGUF adapters to share the same install/library boundary. |
+| `src/infrastructure/ai/ModelArtifactManager.ts` | Reduced accepted artifact size from 1 GiB to strictly less than 100,000,000 bytes; added size-only inventory check and digest-verified installed artifact lookup. | Enforces the user's model download ceiling and supports lightweight catalog refreshes without rehashing every large model file on each list operation. Full SHA-256 is still verified before selection/use. |
+| `src/services/ai/modelLibraryService.ts`, `src/services/ai/index.ts` (new) | Added catalog listing, cancellable installation with progress, persistent multi-model inventory, one active local model, deterministic-only switch, and protection against removing the active model. | Provides replaceable application-facing browse/install/select/remove operations; model runtime dispatch and UI wiring remain future work. |
+| `src/core/settings/SettingsRepository.ts`, `src/services/settings/settingsService.ts` | Added installed model references and active model preference using the existing key/value settings adapter; preserved the prior AI settings API for compatibility. | Lets several model versions remain installed while storing one selected model without a schema migration. |
+| `src/infrastructure/ai/localModelCatalog.ts` (new) | Added the typed catalog insertion point, currently empty. | Prevents dead or placeholder URLs from being exposed before fine-tuned artifacts are hosted and their licenses, hashes, sizes, and runtime metadata are verified. |
+| `src/app/composition/index.ts` | Composed and exported the model artifact manager and model library service with Hugging Face as the initial allowed host. | Makes the capability available to a future replaceable UI while keeping download construction in the composition root. |
+| `src/__tests__/modelLibraryService.test.ts` (new), `src/__tests__/parser/modelArtifactManager.test.ts`, `src/__tests__/settingsService.test.ts` | Added boundary, install/verify, multi-model, active-model removal, selection, and settings persistence coverage. | Verifies the model library lifecycle and strict download-size gate. |
+| `README.md`, `docs/ARCHITECTURE.md`, Phase 2 V2 plan, this log | Updated actual status, planned MiniLM/MobileBERT/SmolLM2 roles, hosting and runtime requirements, and remaining gaps. | Keeps docs clear that the catalog is empty and no model inference is wired in production. |
+
+**Remaining:** annotate and sanitize the local review draft; fine-tune and publish each artifact on Hugging Face; add tokenizer/config dependencies to catalog packaging; implement ONNX Runtime React Native support and runtime selection alongside llama.rn; wire active model selection into `ParserOrchestrator`; add a small browse/install/switch/remove UI; measure each model on devices; and only then populate the catalog with pinned URLs and hashes. Public Hugging Face storage is best-effort, so review traffic/storage limits and have a fallback host plan if needed.
+
+**Verification:** `npx tsc --noEmit` passed; `npm test -- --runInBand` passed (42 suites, 726 tests); `npm run lint` passed (import-boundary scan passed, ESLint had 0 errors and 118 warnings); `git diff --check` passed; the local evaluation draft is ignored by Git. Graphify refreshed to 1,829 nodes, 3,776 edges, and 127 communities. Graphify reported a pre-existing Android Gradle parsing limitation and requested community relabeling after the community set changed.
+
+### Phase 2 V2 inference and model-library completion plan — 2026-10-27
+
+| File | Change | Why and how |
+|---|---|---|
+| `docs/v2.0 - improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md` | Added a one-run implementation sequence for shared ONNX inference, the existing GGUF adapter, task-slot parser selection, secure multi-file packages, model management, quality evaluation, and Android/iOS device profiling. | Connects the already implemented library foundation to a complete runtime and user workflow, with clear artifact, privacy, quality, platform, and performance gates. |
+| `docs/v2.0 - improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md` | Selected three Hugging Face training starting checkpoints and merged the completion plan into the single Phase 2 V2 document; clarified the catalog remains empty until the owner's fine-tuned paths and verified package metadata are supplied. | Resolves the previous candidate-selection gap without pretending the upstream weights are fine-tuned or app-downloadable. |
+
+**Model selections:** MiniLM-L6-v2 for intent evidence, Google MobileBERT uncased for category evidence, and HuggingFaceTB SmolLM2-135M-Instruct for structured extraction. These are training checkpoints, not approved app artifacts. Final packages must include runtime dependencies and remain strictly under 100,000,000 bytes. The completion plan corrects the library's current single-active-model setting to per-task assignments because the models have distinct roles.
+
+**Remaining before model-specific release gates:** the owner must provide fine-tuned artifact repository/file paths. Final size, SHA-256, license, tokenizer/config bundle, ONNX/GGUF compatibility, and model quality cannot be truthfully finalized before those artifacts exist. The reusable service/runtime-selection and UI work can proceed before then; no placeholder catalog URLs or hashes were added.
+
+### Phase 2 V2 implementation — task assignments and model-management screen — 2026-10-27
+
+| File | Change | Why and how |
+|---|---|---|
+| `src/core/parser/ai/ModelCatalog.ts` | Added a task-slot type and task-to-slot mapping. | Keeps `intent`, `category`, and `extraction` model roles consistent across catalog, settings, UI, and runtime selection. |
+| `src/core/settings/SettingsRepository.ts`, `src/services/settings/settingsService.ts` | Replaced the single selection as the current preference shape with independent per-task assignments; reads the previous `activeModel` format and exposes it for catalog-aware migration. | Supports one compatible active model per role, preserves deterministic-only state, validates assigned models against installed inventory, and avoids dropping existing user preferences. |
+| `src/services/ai/modelLibraryService.ts` | Added catalog-aware migration, per-task selection/clear, removal protection for assigned models, and cleanup for missing or mismatched files/slots. | Makes the three-model workflow possible while preventing incompatible assignment or deletion of an active task model. |
+| `src/services/ai/modelRuntimeSelector.ts`, `src/app/composition/index.ts`, `src/core/parser/orchestrator/ParserOrchestrator.ts` | Added a serial, per-slot adapter selector that validates each proposal, skips failed slots, merges evidence/conflicts, and refuses background/unknown contexts. Wired the selector through composition while keeping the adapter registry empty until hosted artifacts exist. | Establishes the production selection seam without enabling models that are not yet available. Disabled local slots preserve the existing parser path; an assigned but unavailable slot remains deterministic-only and never triggers cloud fallback. |
+| `src/presentation/legacy/screens/ModelLibraryScreen.tsx`, `src/presentation/legacy/navigation/AppNavigator.tsx` | Added a compact Models tab with install/progress/cancel, task assignment, deterministic-only choice, and guarded removal. | Delivers the requested user control without redesigning other screens; the empty catalog clearly says models are not yet published. |
+| `src/__tests__/modelLibraryService.test.ts`, `src/__tests__/settingsService.test.ts`, `src/__tests__/modelRuntimeSelector.test.ts` | Added assignment isolation, legacy migration, wrong-slot rejection, serial routing, context gating, and invalid-output fallback coverage. | Protects settings compatibility and the new orchestration seam without requiring private model binaries. |
+| `package.json`, `package-lock.json`, `patches/onnxruntime-react-native+1.24.3.patch` | Added exact `onnxruntime-react-native@1.24.3` and `patch-package@8.0.1`; the patch removes Gradle 9-incompatible `VersionNumber`, pins Android and CocoaPods native runtimes to 1.24.3, and runs on postinstall. | Official package 1.24.3 failed Android assembly on Gradle 9 and contained floating native runtime versions. This reproducible patch addresses both before native model adapter work. |
+| `README.md`, `docs/ARCHITECTURE.md`, Phase 2 V2 plan, this log | Updated actual UI/selector state and clarified that catalog and adapter registry are still empty. | Prevents docs from implying that inference is already running. |
+
+**Verification:** `npx tsc --noEmit` passed; focused model/settings tests passed (2 suites, 10 tests); full Jest passed (43 suites, 732 tests); `npm run lint` passed: import-boundary scan passed, 0 errors, 108 warnings across the repository; ESLint on the changed model-management files passes with 0 warnings. Android `./gradlew :app:assembleDebug` passed for arm64-v8a and x86_64 after applying the pinned ONNX package compatibility patch. iOS native build and device measurements are unavailable in this Linux workspace and require finalized model artifacts. `git diff --check` passes. Graphify refreshed to 1,876 nodes, 3,909 edges, and 127 communities; it reported the pre-existing Android Gradle syntax parsing limitation and requested community relabeling after the graph changed.
+
+### Phase 2 V2 local model smoke tests — 2026-10-27
+
+| File or local artifact | Change | Why and how |
+|---|---|---|
+| `scripts/test-local-models.py` (new) | Added a one-model-at-a-time local smoke runner. ONNX selections tokenize a synthetic message, run an ONNX Runtime CPU session, and validate finite output tensors; SmolLM2 runs llama.cpp generation with a constrained JSON schema. | Makes it possible to load and exercise each downloaded checkpoint locally without sending messages to a service. The runner intentionally does not claim task accuracy. |
+| `data/models/minilm/` (Git-ignored) | Installed `sentence-transformers/all-MiniLM-L6-v2`, revision `1110a243fdf4706b3f48f1d95db1a4f5529b4d41`, QInt8 ARM64 ONNX, 23,026,053 bytes, SHA-256 `4278337fd0ff3c68bfb6291042cad8ab363e1d9fbc43dcb499fe91c871902474`. | Local artifact fits the model-file limit and produced a finite `[1, 128, 384]` output on the development host. |
+| `data/models/mobilebert/` (Git-ignored) | Installed `onnx-community/mobilebert-uncased-ONNX`, revision `942aa734fe280f8c2697afd89cdb41e6796223e8`, quantized ONNX, 26,715,553 bytes, SHA-256 `b6df1d4eec1e96dd0768d31083207b2c823e95bb1a89f07836d94841b4d2926c`. | The model produced finite `[1, 20, 512]` output; the checkpoint has no expense-category head. |
+| `data/models/smollm2/` (Git-ignored) | Installed `QuantFactory/SmolLM2-135M-Instruct-GGUF`, revision `476854d00ede130660aba430d15f9347ad2e7d0e`, Q3_K_S, 88,201,792 bytes, SHA-256 `352142b0127d4e325d99fbd6a9578f940843ec3f9475ce51f023fdfc343afa40`. | Local generation emitted valid JSON under a grammar, but the synthetic cafe debit was miscategorized as `Bills & Utilities`. This demonstrates runtime operation and also shows the un-fine-tuned model is not quality-ready. |
+| `data/models/.venv/` (Git-ignored) | Installed isolated `onnxruntime`, `tokenizers`, `numpy`, and `llama-cpp-python` CPU runtime dependencies. | Keeps test dependencies and model files out of the app package and Git history. |
+
+**Verification:** Ran the script separately with `--model minilm`, `--model mobilebert`, and `--model smollm2`. All three local runtime smoke tests completed; the two ONNX outputs were finite and SmolLM2 returned parseable JSON under grammar constraints. Host inference times were 0.024 s, 0.017 s, and 1.019 s respectively; these are not mobile performance results. This did not exercise the React Native app: its catalog and production adapter registry are still empty, and there is no Android device connected to this execution environment. These are un-fine-tuned checkpoint smoke tests, not a model quality evaluation.
+
+Future receipt OCR, notification providers, import formats, or backup should enter through adapters and existing use cases. Multi-currency needs domain and repository support before presentation work.
+
+## Cross-cutting files and constraints
+
+- `src/types/expense.ts`: current `Expense` and `ExpenseSplit` remain compatibility models during migration; evolve carefully with data migration support.
+- `src/core/parser/*`: parser remains a candidate producer. Do not make it persist or own presentation decisions.
+- `src/hooks/useExpenses.ts`: current UI state remains temporarily; no visual redesign is included in this roadmap.
+- `docs/APP_MESSAGE_LISTENER_FLOW.md`: had a pre-existing user working-tree edit before this implementation. It was not changed as part of Phase 1.
+- Graphify artifacts are generated outputs; refresh the code graph after code structure changes and record semantic extraction failures honestly.
+
+## Remaining decisions and risks
+
+1. Fine-tuned local artifact paths and representative held-out labels are still needed before any model can be catalogued, loaded, or quality-approved.
+2. Exact deletion versus soft-invalidation semantics.
+3. Which historical database schemas must remain upgradeable (Phase 7).
+4. The 30-day repayment window, live credit-link failure, and historical-import routing gaps are closed. Phase 5 has since moved split rules out of Zustand and added safe reversal for new linked repayments; legacy summary-only repayment mutations remain blocked pending reconciliation.
+
+## Parser verification and deferred-work organization — 2026-10-27
+
+| File | Change | Why and how |
+|---|---|---|
+| `docs/APP_WIDE_SUPPORT_ERROR_REPORTING_PLAN.md` | Moved the approved later-phase support-reporting plan out of `docs/v2.0 - improvement_plan/`. | Keeps the independent backend/mobile reporting project out of the architecture restructuring phase folder; `docs/Plan.md` indexes it. |
+| `docs/UI_REPLACEMENT_ISSUES.md` (new) | Consolidated deferred presentation issues: direct composition imports, transitional Zustand/screen contracts, outcome presentation, the placeholder Models screen, support-reporting settings, and replacement navigation/visual/accessibility work. | Gives future UI work one issue list without spending restructuring effort on a UI redesign. `docs/Plan.md` is the backlog index. |
+| `docs/Plan.md`, `docs/FEATURE_EXTENSION_GUIDE.md`, `docs/ARCHITECTURE.md`, `docs/TRD.md`, architecture/Phase 8/9/Phase 2 V2 docs | Added current status and updated links to the moved support plan and UI issue list; marked Phase 2 V2 paused by the owner. | Keeps the plan index and current architecture references aligned while leaving Phase 2 V2 resumable later. |
+| `docs/v2.0 - improvement_plan/IMPLEMENTATION_CHANGELOG.md`, `PHASE_1_BASELINE_AND_CONTRACTS.md`, `PHASE_2_TRANSACTION_DECISION_POLICY.md` | Corrected stale phase status and parser/runtime descriptions. | Reflects that historical import is complete, host-only base models exist, and app-integrated AI remains inactive. |
+
+**Parser verification:** `npm test -- --runInBand src/__tests__/parser.test.ts src/__tests__/sanitizedCorpus.test.ts src/__tests__/deviceCorpusBaseline.test.ts` passed (3 suites, 72 tests). The local device baseline processed 1,014 inbox records out of 1,035 total records: 436 parsed, with 313 auto-save, 123 review, and 578 reject decisions. The corpus has no ground-truth labels, so these are behavior/coverage counts, not parser accuracy. A synthetic CLI example parsed ₹450 debit at Example Cafe with 89% confidence. No parser implementation was changed.
+
+**Documentation checks:** all relative links under `docs/v2.0 - improvement_plan/` were checked after the moves; `git diff --check` passed.
+

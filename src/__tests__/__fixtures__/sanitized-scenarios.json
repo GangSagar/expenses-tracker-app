@@ -1,0 +1,427 @@
+[
+  {
+    "id": "NORM-01",
+    "category": "normal",
+    "description": "Standard card debit at known food merchant",
+    "sender": "HDFCBK",
+    "message": "Dear Customer, your A/c XX1234 is debited for Rs 450.00 on 16-Oct-26 at SWIGGY - HDFC Bank",
+    "expectedParser": {
+      "amount": 450,
+      "transactionType": "debit",
+      "merchant": "Swiggy",
+      "category": "Food & Dining",
+      "account": "1234",
+      "bank": "HDFC",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "auto_save",
+      "reason": "high_confidence"
+    }
+  },
+  {
+    "id": "NORM-02",
+    "category": "normal",
+    "description": "Standard salary credit",
+    "sender": "HDFCBK",
+    "message": "Rs.25000.00 credited to your A/c XX1234 on 16-Oct-26 by SALARY",
+    "expectedParser": {
+      "amount": 25000,
+      "transactionType": "credit",
+      "merchant": "Salary",
+      "category": "Other",
+      "account": "1234",
+      "bank": "HDFC",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "review",
+      "reason": "medium_confidence"
+    }
+  },
+  {
+    "id": "NORM-03",
+    "category": "normal",
+    "description": "UPI debit transaction at shopping merchant",
+    "sender": "AXISBK",
+    "message": "INR 1,250.00 debited from A/c 5678 on 15-Oct-26 to AMAZON via UPI Ref 665520489343",
+    "expectedParser": {
+      "amount": 1250,
+      "transactionType": "debit",
+      "merchant": "Amazon",
+      "category": "Shopping",
+      "account": "5678",
+      "bank": "Axis",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "auto_save",
+      "reason": "high_confidence"
+    }
+  },
+  {
+    "id": "NORM-04",
+    "category": "normal",
+    "description": "Ride hailing transport debit",
+    "sender": "ICICIB",
+    "message": "Paid Rs 249.00 to UBER from ICICI Bank A/c XX9012 on 14-Oct-26",
+    "expectedParser": {
+      "amount": 249,
+      "transactionType": "debit",
+      "merchant": "Uber",
+      "category": "Travel",
+      "account": "9012",
+      "bank": "ICICI",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "auto_save",
+      "reason": "high_confidence"
+    }
+  },
+  {
+    "id": "NORM-05",
+    "category": "normal",
+    "description": "Grocery supermarket debit transaction",
+    "sender": "SBINB",
+    "message": "A/c 8899 debited by Rs 1850.50 on 12-Oct-26 at DMART Ref 123456 - SBI",
+    "expectedParser": {
+      "amount": 1850.5,
+      "transactionType": "debit",
+      "merchant": "Dmart",
+      "category": "Other",
+      "account": "8899",
+      "bank": "SBI",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "auto_save",
+      "reason": "high_confidence"
+    },
+    "expectedCandidateCategory": "Groceries"
+  },
+  {
+    "id": "MISS-01",
+    "category": "missing_fields",
+    "description": "Debit notification with missing amount",
+    "sender": "HDFCBK",
+    "message": "Your A/c XX1234 has been debited at SWIGGY on 16-Oct-26. Call 18002673456 if not done by you.",
+    "expectedParser": null,
+    "expectedDecision": {
+      "kind": "reject",
+      "reason": "missing_amount"
+    }
+  },
+  {
+    "id": "MISS-02",
+    "category": "missing_fields",
+    "description": "Debit with amount and account but missing merchant",
+    "sender": "HDFCBK",
+    "message": "Rs 500.00 debited from A/c XX1234 on 16-Oct-26",
+    "expectedParser": {
+      "amount": 500,
+      "transactionType": "debit",
+      "merchant": null,
+      "category": "Other",
+      "account": "1234",
+      "bank": "HDFC",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "review",
+      "reason": "medium_confidence"
+    }
+  },
+  {
+    "id": "MISS-03",
+    "category": "missing_fields",
+    "description": "Wallet debit with no bank or bank account number",
+    "sender": "PAYTM",
+    "message": "Paid Rs. 150 to Zomato from Paytm Wallet on 15-Oct-26",
+    "expectedParser": {
+      "amount": 150,
+      "transactionType": "debit",
+      "merchant": "Zomato",
+      "category": "Food & Dining",
+      "account": null,
+      "bank": "Paytm Payments Bank",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "auto_save",
+      "reason": "high_confidence"
+    }
+  },
+  {
+    "id": "MISS-04",
+    "category": "missing_fields",
+    "description": "Transaction with missing date and time (inferred arrival time)",
+    "sender": "HDFCBK",
+    "message": "Rs 320.00 debited on A/c XX1234 at STARBUCKS",
+    "expectedParser": {
+      "amount": 320,
+      "transactionType": "debit",
+      "merchant": "Starbucks",
+      "category": "Food & Dining",
+      "account": "1234",
+      "bank": "HDFC",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "auto_save",
+      "reason": "high_confidence"
+    }
+  },
+  {
+    "id": "MISL-01",
+    "category": "misleading_amounts",
+    "description": "Debit amount followed by larger available account balance",
+    "sender": "HDFCBK",
+    "message": "Rs 150.00 spent on Card xx1234 at CAFE. Avl Bal: Rs 25,430.00",
+    "expectedParser": {
+      "amount": 150,
+      "transactionType": "debit",
+      "merchant": "Cafe",
+      "category": "Food & Dining",
+      "account": "1234",
+      "bank": "HDFC",
+      "availableBalance": 25430,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "auto_save",
+      "reason": "high_confidence"
+    }
+  },
+  {
+    "id": "MISL-02",
+    "category": "misleading_amounts",
+    "description": "Credit card transaction with large available credit limit",
+    "sender": "JM-HSBCIN-S",
+    "message": "HSBC: Rs 90.0 spent on your HSBC Credit Card ending 7285 at POHA ON WHEELS. Available limit Rs 85,000.00",
+    "expectedParser": {
+      "amount": 90,
+      "transactionType": "debit",
+      "merchant": "Poha",
+      "category": "Other",
+      "account": "7285",
+      "bank": null,
+      "availableBalance": 85000,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "auto_save",
+      "reason": "high_confidence"
+    },
+    "expectedCandidateCategory": "Health"
+  },
+  {
+    "id": "MISL-03",
+    "category": "misleading_amounts",
+    "description": "Transaction containing 10-digit order number that looks like a large amount",
+    "sender": "HDFCBK",
+    "message": "Rs 420.00 debited for Order 9876543210 at FLIPKART from A/c XX4321",
+    "expectedParser": {
+      "amount": 420,
+      "transactionType": "debit",
+      "merchant": "Flipkart",
+      "category": "Shopping",
+      "account": "4321",
+      "bank": "HDFC",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "auto_save",
+      "reason": "high_confidence"
+    }
+  },
+  {
+    "id": "MISL-04",
+    "category": "misleading_amounts",
+    "description": "Transaction containing secondary promotional cashback amount",
+    "sender": "HDFCBK",
+    "message": "Debited INR 599.00 for NETFLIX on A/c XX1234. Get Rs 50 cashback on your next subscription.",
+    "expectedParser": {
+      "amount": 599,
+      "transactionType": "debit",
+      "merchant": "Netflix",
+      "category": "Entertainment",
+      "account": "1234",
+      "bank": "HDFC",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "auto_save",
+      "reason": "high_confidence"
+    },
+    "expectedExtendedTransactionType": "debit"
+  },
+  {
+    "id": "REF-01",
+    "category": "refunds",
+    "description": "Direct merchant refund credited to account",
+    "sender": "HDFCBK",
+    "message": "Refund of Rs 450.00 from SWIGGY credited to your A/c XX1234 on 16-Oct-26",
+    "expectedParser": {
+      "amount": 450,
+      "transactionType": "credit",
+      "merchant": "Unknown",
+      "category": "Other",
+      "account": "1234",
+      "bank": "HDFC",
+      "availableBalance": null,
+      "requiresConfirmation": true
+    },
+    "expectedDecision": {
+      "kind": "review",
+      "reason": "parser_requires_confirmation"
+    },
+    "expectedCandidateCategory": "Food & Dining",
+    "expectedExtendedTransactionType": "refund"
+  },
+  {
+    "id": "REF-02",
+    "category": "refunds",
+    "description": "Reversal of a failed transaction",
+    "sender": "SBINB",
+    "message": "Reversal of Rs 1,200.00 credited back to A/c XX5678 for failed txn at FLIPKART",
+    "expectedParser": {
+      "amount": 1200,
+      "transactionType": "credit",
+      "merchant": "For Failed Txn At Flipkart",
+      "category": "Shopping",
+      "account": "5678",
+      "bank": "SBI",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "auto_save",
+      "reason": "high_confidence"
+    },
+    "expectedExtendedTransactionType": "reversal"
+  },
+  {
+    "id": "REF-03",
+    "category": "refunds",
+    "description": "Chargeback credit for disputed transaction",
+    "sender": "ICICIB",
+    "message": "Chargeback of Rs 2,500.00 credited to Card ending 4321 towards dispute ref 998877",
+    "expectedParser": {
+      "amount": 2500,
+      "transactionType": "credit",
+      "merchant": "Card Ending 4321 Towards Dispute",
+      "category": "Other",
+      "account": "4321",
+      "bank": "ICICI",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "review",
+      "reason": "medium_confidence"
+    },
+    "expectedExtendedTransactionType": "chargeback"
+  },
+  {
+    "id": "AMB-01",
+    "category": "ambiguous",
+    "description": "OTP authorization containing amount (must be blocked)",
+    "sender": "HDFCBK",
+    "message": "OTP is 482910 for txn of Rs 1,500.00 at AMAZON. Do not share this with anyone.",
+    "expectedParser": null,
+    "expectedDecision": {
+      "kind": "reject",
+      "reason": "blocked_message"
+    }
+  },
+  {
+    "id": "AMB-02",
+    "category": "ambiguous",
+    "description": "Upcoming bill due reminder (not an actual debit)",
+    "sender": "AX-AIRTEL-P",
+    "message": "Your Airtel bill of Rs 899.00 is due on 25-Oct. Pay now to avoid disconnection.",
+    "expectedParser": null,
+    "expectedDecision": {
+      "kind": "reject",
+      "reason": "blocked_message"
+    }
+  },
+  {
+    "id": "AMB-03",
+    "category": "ambiguous",
+    "description": "Marketing loan offer containing large currency amount",
+    "sender": "JK-BOBSMS-S",
+    "message": "Congratulations! Pre-approved personal loan of Rs 500,000 available at 10.5%. Apply now.",
+    "expectedParser": null,
+    "expectedDecision": {
+      "kind": "reject",
+      "reason": "blocked_message"
+    }
+  },
+  {
+    "id": "AMB-04",
+    "category": "ambiguous",
+    "description": "Informal peer transfer without explicit merchant details",
+    "sender": "HDFCBK",
+    "message": "INR 350.00 debited from A/c XX1234 sent to Rahul via UPI",
+    "expectedParser": {
+      "amount": 350,
+      "transactionType": "debit",
+      "merchant": "Rahul",
+      "category": "Other",
+      "account": "1234",
+      "bank": "HDFC",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "auto_save",
+      "reason": "high_confidence"
+    },
+    "expectedCandidateCategory": "Bills & Recharge"
+  },
+  {
+    "id": "AMB-05",
+    "category": "ambiguous",
+    "description": "Non-transactional personal SMS from 10-digit mobile number",
+    "sender": "+919876543210",
+    "message": "Can you transfer Rs 500 to my account for the movie tickets tonight?",
+    "expectedParser": null,
+    "expectedDecision": {
+      "kind": "reject",
+      "reason": "non_transactional_sender"
+    }
+  },
+  {
+    "id": "AMB-06",
+    "category": "ambiguous",
+    "description": "Debit at unknown random merchant requiring confirmation",
+    "sender": "HDFCBK",
+    "message": "Rs 780.00 debited from A/c XX1234 at UNKNOWN_VENDOR_XYZ on 16-Oct-26",
+    "expectedParser": {
+      "amount": 780,
+      "transactionType": "debit",
+      "merchant": "Unknown",
+      "category": "Other",
+      "account": "1234",
+      "bank": "HDFC",
+      "availableBalance": null,
+      "requiresConfirmation": false
+    },
+    "expectedDecision": {
+      "kind": "review",
+      "reason": "medium_confidence"
+    }
+  }
+]

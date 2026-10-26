@@ -73,7 +73,7 @@ class MessageModule(reactContext: ReactApplicationContext) :
         // the NotificationChannel class is new and not in the support library
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "Expense Tracker Alerts"
-            val descriptionText = "Notifications for uncategorized expenses"
+            val descriptionText = "Notifications for saved transactions and expense alerts"
             val importance = NotificationManager.IMPORTANCE_HIGH
             val channel = NotificationChannel(channelId, name, importance).apply {
                 description = descriptionText

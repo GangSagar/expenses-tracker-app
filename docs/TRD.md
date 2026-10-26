@@ -5,7 +5,7 @@
 | Metadata                      | Details                                                            |
 | :---------------------------- | :----------------------------------------------------------------- |
 | **System Name**         | Smart Expense Tracker Technical Architecture                       |
-| **Document Version**    | 1.6.0                                                              |
+| **Document Version**    | 2.0 (current runtime contracts)                                    |
 | **Language & Runtimes** | TypeScript 5.8, Kotlin, C++20, Node.js 22+                         |
 | **Frameworks**          | React Native 0.85.3 (New Architecture / Bridgeless), Hermes Engine |
 | **Database**            | Embedded SQLite 3 via `react-native-quick-sqlite` (JSI bindings) |
@@ -16,53 +16,35 @@
 
 ## 1. System Architecture Overview
 
-The system operates across three tightly integrated tiers:
+This document describes current runtime contracts. Detailed Android API/version claims should be checked against the native source before relying on them for a release.
 
-1. **Native Android Subsystem (Kotlin)**: Intercepts low-level OS broadcasts (`SMS_RECEIVED` and `StatusBarNotification`), enforces early structural filtering, and transmits raw event payloads directly to JavaScript via JSI / TurboModules.
-2. **React Native Processing Core (TypeScript / Hermes)**: Implements Unicode normalization, sender allowlists, Bayesian spam classification, and a 10-stage modular parsing pipeline (lexical tokenization, targeted extraction, contextual resolvers, dynamic bank rules, weighted confidence scoring, adaptive learning, and local AI fallback).
-3. **Local Persistence & State Layer (C++ / SQLite / Zustand)**: High-speed synchronous SQLite persistence using `react-native-quick-sqlite` C++ bindings, paired with reactive, memoized Zustand client stores.
+The current system is organized around these responsibilities:
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        ANDROID OPERATING SYSTEM                        │
-│   ┌──────────────────────────┐         ┌───────────────────────────┐   │
-│   │ Telephony (SMS Received) │         │ Notification System Event │   │
-│   └────────────┬─────────────┘         └─────────────┬─────────────┘   │
-└────────────────┼─────────────────────────────────────┼─────────────────┘
-                 │                                     │
-┌────────────────▼─────────────────────────────────────▼─────────────────┐
-│                    NATIVE ANDROID LAYER (KOTLIN)                       │
-│  ┌───────────────────────┐             ┌────────────────────────────┐  │
-│  │     SmsReceiver       │             │ NotificationListenerService│  │
-│  └───────────┬───────────┘             └─────────────┬──────────────┘  │
-│              └───────────────────┬───────────────────┘                 │
-│                                  ▼                                     │
-│                     MessageModule (TurboModule)                        │
-└──────────────────────────────────┬─────────────────────────────────────┘
-                                   │ JSI Event Bridge
-┌──────────────────────────────────▼─────────────────────────────────────┐
-│                 REACT NATIVE CORE ENGINE (TYPESCRIPT)                  │
-│                                                                        │
-│   1. Unicode Normalization (Mathematical sans-serif & stylized fonts)  │
-│   2. Sender Validation (Filter personal 10-digit mobile numbers)       │
-│   3. Content Blocklist (Filter OTPs, Promo, Telecom balance alerts)    │
-│   4. Naive Bayes Spam Classifier (Local probability threshold)         │
-│   5. Modular Parsing Engine (Tokenizer, Extractors, Resolvers, Rules)  │
-│   6. Weighted Confidence Scoring & On-Device Learning Feedback         │
-│   7. Multi-Source Deduplication (15-min window, Ref ID & Token scan)   │
-│   8. Smart Split Auto-Repayment (Match incoming credit to split debts) │
-└──────────────────────────────────┬─────────────────────────────────────┘
-                                   │ Synchronous C++ JSI
-┌──────────────────────────────────▼─────────────────────────────────────┐
-│                  STORAGE & OBSERVABILITY SUBSYSTEM                     │
-│  ┌─────────────────────────────────┐   ┌────────────────────────────┐  │
-│  │   react-native-quick-sqlite     │   │   OpenTelemetry Service    │  │
-│  │    (Local SQLite Engine)        │   │    (OTLP Tracing Client)   │  │
-│  └────────────────┬────────────────┘   └─────────────┬──────────────┘  │
-│                   │                                  │ OTLP HTTP :4318 │
-│                   ▼                                  ▼                 │
-│         expense_tracker.db                  Local Jaeger Server        │
-└────────────────────────────────────────────────────────────────────────┘
+1. **Native input**: Android SMS and supported app notifications reach JavaScript through the `MessageModule`; queued startup messages and live events are consumed by `useMessageListener`.
+2. **Application capabilities**: `messageService` collects parser/spam/filter evidence, `transactionDecisionService` calls the single decision policy, and `transactionApplication` coordinates shared write/query use cases.
+3. **Core policies and models**: `src/core/` contains parsing, transaction decision, deduplication, repayment, and repository contracts without SQLite or React Native dependencies.
+4. **Adapters and persistence**: `src/app/composition/` selects configured services and adapters. SQLite transactions are implemented in `src/database/SQLiteTransactionRepository.ts`; SQLite settings, learning, and classifier-state adapters are under `src/infrastructure/persistence/sqlite/`.
+5. **Temporary presentation state**: hooks and legacy screens use Zustand and capability services. Current screens still import some singleton instances from app composition; this is recorded in the [UI replacement issue list](./UI_REPLACEMENT_ISSUES.md) for later work.
+
+Local AI inference is not configured. Optional telemetry is enabled only in `__DEV__` outside tests and targets a local Jaeger endpoint. The current telemetry call includes a sender attribute; it truncates long strings but does not redact phone numbers.
+
+```mermaid
+flowchart LR
+    OS[Android SMS / app notification] --> Native[Native bridge]
+    Native --> Listener[useMessageListener]
+    Listener --> Input[messageService]
+    Input --> Parser[Composed ParserOrchestrator]
+    Parser --> Decision[transactionDecisionService]
+    Decision --> Policy[core decisionPolicy]
+    Policy --> App[transactionApplication]
+    App --> UseCases[core transaction use cases]
+    UseCases --> Repo[SQLiteTransactionRepository]
+    Repo --> DB[(Local SQLite)]
+    App --> Notify[Best-effort saved notice]
+    App --> State[Zustand / temporary UI]
+    Composition[app/composition] -. selects adapters .-> Parser
+    Composition -. selects adapters .-> Repo
+    Input -. dev only .-> Telemetry[Local telemetry adapter]
 ```
 
 ---
@@ -75,7 +57,7 @@ The system operates across three tightly integrated tiers:
 | **Database**         | `react-native-quick-sqlite` | WatermelonDB / AsyncStorage | Direct C++ JSI binding directly into SQLite. Executes synchronous SQL statements without the JSON serialization overhead of standard React Native bridge modules.   |
 | **State Management** | Zustand 5.0                   | Redux Toolkit / MobX        | Ultra-lightweight footprint (~1.2kB), zero boilerplate, outside-React imperative access (crucial for background receivers), and high-frequency selective rendering. |
 | **Native Bridge**    | TurboModules JSI              | Old React Native Bridge     | Direct memory access between C++/Kotlin and Hermes JS engine without asynchronous JSON string queues.                                                               |
-| **Local Tracing**    | OpenTelemetry + Jaeger        | Firebase Performance        | Zero cloud telemetry constraint. Jaeger runs standalone on developer host machine, ingesting standard OTLP JSON traces over port `4318`.                          |
+| **Local Tracing**    | OpenTelemetry + Jaeger        | Firebase Performance        | Optional development traces target a local Jaeger collector on port `4318`; no remote analytics service is configured.                          |
 
 ---
 
@@ -176,10 +158,10 @@ Raw Message & Sender
 [7. Confidence Engine] ─────► Mathematical Multi-Factor Quality Score
        │
        ▼
-[8. Learning Engine] ───────► On-Device SQLite Feedback & Pattern Cache
+[8. Learning Engine] ───────► Correction lookup through ILearningRepository
        │
        ▼
-[9. AI Fallback Resolver] ──► Cached Local Fallback (if Confidence < 0.65)
+[9. Optional AI Resolver] ──► Only if enabled and a handler is injected
        │
        ▼
 [10. StructuredExpense] ────► Strongly Typed Immutable Financial Record
@@ -193,7 +175,7 @@ The normalizer executes sequentially across four modular transformations:
    - Maps mathematical bold, sans-serif, and styled glyphs (`0x1D400`–`0x1D7FF`) back to standard ASCII alphanumerics (`A-Z`, `a-z`, `0-9`).
    - Strips zero-width joiners, soft hyphens, and directional formatting marks.
 2. **`currencyNormalizer`**:
-   - Standardizes disparate currency symbols (`Rs.`, `Rs`, `INR`, `INR.`, `₹`) to uniform `INR` tokens with clean word boundaries.
+   - Normalizes common rupee spellings (`Rs.`, `Rs`, `INR`) to the rupee symbol (`₹`) with clean spacing.
 3. **`keywordNormalizer`**:
    - Standardizes common abbreviations across Indian banking SMS (`a/c` / `acct` ➔ `account`, `txn` ➔ `transaction`, `ref no` ➔ `reference`, `bal` / `avl bal` ➔ `balance`).
 4. **`whitespaceNormalizer`**:
@@ -230,7 +212,7 @@ export type TokenType =
 All bank templates, merchant cleaning patterns, and categories are decoupled into declarative JSON schemas:
 
 * **`bankRules.json`**:
-  Defines patterns, sender prefixes, and priority overrides for 15+ major Indian banks (SBI, HDFC, ICICI, Axis, Kotak, Bank of Baroda, PNB, Canara, IndusInd, IDFC FIRST, Yes Bank, AU Small Finance Bank, Union Bank, Bank of India, Punjab & Sind Bank, Federal Bank, Standard Chartered, HSBC, RBL) and digital UPI platforms (Google Pay, PhonePe, Paytm, BHIM, Cred, Amazon Pay).
+  Defines configured patterns, sender prefixes, and priority overrides for bank and payment formats. A configured rule is not a guarantee of coverage; parser tests and representative messages determine verified support.
 * **`merchantAliases.json`**:
   Maintains canonical brand maps and noise-stripping rules:
   - Noise prefixes stripped: `VPA`, `UPI/`, `PAYTM*`, `BILLDESK/`, `POS/`, `NEFT-`, `IMPS-`.
@@ -238,7 +220,7 @@ All bank templates, merchant cleaning patterns, and categories are decoupled int
 * **`categoryRules.json`**:
   Maps canonical merchants and keywords to 8 primary spending buckets: `Food & Dining`, `Groceries`, `Shopping`, `Travel`, `Utilities`, `Health`, `Entertainment`, `Financial Services`.
 * **`tokenDictionary.json`**:
-  Lexical dictionary of debit triggers (`debited`, `spent`, `withdrawn`, `paid`), credit triggers (`credited`, `received`, `refund`, `deposited`), account prefixes, and reference labels.
+  Defines lexical categories for debit/credit keywords, account prefixes, and reference labels. The dictionary supplies terms; `TransactionResolver` interprets those terms with the parsed message evidence to determine transaction direction.
 
 ### 4.4 Targeted Entity Extractors (`src/core/parser/extractor/`)
 
@@ -269,42 +251,40 @@ Specialized extractors operate on the token stream and normalized text independe
 Calculates a normalized quality score between `0.0` and `1.0` representing extraction certainty:
 
 $$
-\text{Confidence} = \sum_{i} (w_i \times s_i) - \text{Penalties}
+\text{Confidence} = \sum_{i} (w_i \times s_i)
 $$
 
 | Extracted Field            | Weight ($w_i$) | Validation Criteria ($s_i = 1.0$)                             |
 | :------------------------- | :--------------: | :-------------------------------------------------------------- |
 | **Amount**           |     `0.35`     | Valid positive decimal extracted adjacent to currency marker.   |
-| **Transaction Type** |     `0.20`     | Explicit debit/credit keyword detected without ambiguity.       |
+| **Transaction Type** |     `0.25`     | Explicit debit/credit keyword detected without ambiguity.       |
 | **Merchant**         |     `0.20`     | Payee entity identified and resolved via alias registry or VPA. |
-| **Account**          |     `0.15`     | Masked account/card pattern identified.                         |
-| **Bank**             |     `0.05`     | Bank identified via sender prefix or message body.              |
-| **Reference ID**     |     `0.05`     | 12-digit UTR / RRN captured.                                    |
+| **Category**         |     `0.10`     | Category resolver finds a rule or learned mapping.              |
+| **Account**          |     `0.10`     | Masked account/card pattern identified.                         |
 
-* **Penalties**: Subtracted for conflicting directionality (-0.15), low-signal generic merchant strings (-0.10), or unverified account masks (-0.05).
-* **Thresholds**: Messages scoring $\ge 0.65$ commit automatically; messages $< 0.65$ trigger the AI fallback or alert the user.
+* **Weighting**: Defaults are read from parser configuration and normalized to sum to 1.0. The current engine computes the weighted factor score; it does not apply the penalties listed in older design notes.
+* **Active decision policy**: Classifier confidence below `0.5` rejects; scores from `0.5` to below `0.8` go to review; scores at or above `0.8` can auto-save when parser requirements allow it. Parser confidence below `0.5` rejects and `requiresConfirmation` forces review. AI inference is not currently active.
 
 ### 4.7 Adaptive On-Device Learning Engine (`src/core/parser/learning/`)
 
-Implements continuous self-learning directly within local SQLite:
+Stores explicit merchant/category corrections locally through the repository used by parser resolvers:
 
 ```typescript
 export interface ILearningRepository {
-  getMerchantMapping(rawPattern: string): Promise<LearnedMerchant | null>;
-  saveMerchantMapping(mapping: LearnedMerchant): Promise<void>;
-  getCategoryMapping(merchant: string): Promise<LearnedCategory | null>;
-  saveCategoryMapping(mapping: LearnedCategory): Promise<void>;
-  incrementFrequency(rawPattern: string): Promise<void>;
+  save(mapping: LearnedMapping): void;
+  get(rawMerchant: string): LearnedMapping | null;
+  getAll(): LearnedMapping[];
 }
 ```
 
-* When a user edits a merchant or updates an expense category, `LearningEngine` stores the association.
-* Subsequent occurrences of the same token pattern bypass default heuristics, honoring user intent with confidence reinforcement.
+* When a user edits a merchant or updates an expense category, `LearningEngine` stores the association through `ILearningRepository`.
+* Standalone parser construction uses `InMemoryLearningRepository`; app composition selects `SQLiteLearningRepository` for production ingestion. Subsequent resolutions consult learned mappings. Token frequency learning and confidence reinforcement are not implemented.
 
 ### 4.8 Offline AI Fallback Resolver (`src/core/parser/ai/`)
 
-* Provides an interface for local on-device LLM or complex NLP inference for edge-case messages where confidence is below `0.65`.
-* Backed by `AICache` storing `SHA256(rawMessage) ➔ StructuredExpense` to guarantee zero redundant inferences and strict offline isolation.
+* `AIResolver` supports an injected inference handler and an in-memory `AICache`.
+* No handler/model is currently configured, and `enableAI` defaults to `false`. Therefore no AI inference runs in production today.
+* Selecting and integrating an on-device/offline inference runtime is approved future implementation work; network inference is out of scope.
 
 ### 4.9 Backward Compatibility Adapter (`src/core/parser/parseMessage.ts`)
 
@@ -322,6 +302,12 @@ export function parseStructured(
   sender = '',
   source: 'sms' | 'notification' | 'manual' = 'sms'
 ): StructuredExpense | null;
+
+export function parseStructuredAsync(
+  message: string,
+  sender?: string,
+  source?: 'sms' | 'notification' | 'manual'
+): Promise<StructuredExpense | null>;
 ```
 
 ---
@@ -332,7 +318,8 @@ export function parseStructured(
 
 * **Engine**: SQLite 3 compiled with C++ JSI direct execution via `react-native-quick-sqlite`.
 * **Database Name**: `expense_tracker.db`
-* **Location**: App internal sandboxed directory (`/data/data/com.expensetracker/files/expense_tracker.db`).
+* **Location**: App internal sandboxed storage managed by the native SQLite library; the exact path is platform/runtime-owned.
+* **Initialization and migrations**: `src/database/db.ts` runs sequential `PRAGMA user_version` migrations before exposing the connection. Current migration version is 2: version 1 establishes/validates the supported legacy baseline and support tables; version 2 adds query indexes. Each migration and version update run in one transaction. Unsupported legacy table shapes and databases newer than the app's latest version fail without being silently rewritten.
 
 ### 5.2 Table Schemas
 
@@ -341,20 +328,22 @@ export function parseStructured(
 Stores all individual transactional records:
 
 ```sql
+-- Fresh-install baseline in src/database/schema.ts.
+-- Existing supported databases are upgraded by src/database/migrations/.
 CREATE TABLE IF NOT EXISTS expenses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   amount REAL NOT NULL,
   merchant TEXT,
   alias TEXT,
-  category TEXT NOT NULL DEFAULT 'Other',
-  confidence REAL DEFAULT 1.0,
+  category TEXT,
+  confidence REAL,
   timestamp INTEGER NOT NULL,
-  source TEXT NOT NULL CHECK(source IN ('sms', 'notification', 'manual')),
+  source TEXT NOT NULL,
   raw_message TEXT NOT NULL,
-  transaction_type TEXT NOT NULL DEFAULT 'debit' CHECK(transaction_type IN ('debit', 'credit')),
+  transaction_type TEXT NOT NULL DEFAULT 'debit',
   account TEXT,
   bank TEXT,
-  payment_mode TEXT DEFAULT 'unknown' CHECK(payment_mode IN ('upi', 'cc', 'dc', 'netbanking', 'atm', 'cash', 'unknown')),
+  payment_mode TEXT DEFAULT 'unknown',
   is_duplicate INTEGER DEFAULT 0,
   available_balance REAL,
   splits TEXT,               -- JSON serialized array of split entities
@@ -364,10 +353,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   created_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_expenses_timestamp ON expenses(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_expenses_ref_id ON expenses(reference_id);
-CREATE INDEX IF NOT EXISTS idx_expenses_account_bank ON expenses(bank, account);
-CREATE INDEX IF NOT EXISTS idx_expenses_dedup ON expenses(amount, timestamp);
+-- Query indexes are applied by migration 2.
 ```
 
 #### 2. `merchant_categories` Table
@@ -389,25 +375,19 @@ Key-value store for user configurations:
 ```sql
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
-  value TEXT NOT NULL
+  value TEXT
 );
 ```
+
+The baseline also creates `classifier_state`, but the current spam-classifier adapter stores model state under the `settings` key `spam_classifier_state`; the table currently has no application reader/writer. `splits` is JSON and includes stable split IDs and exact repayment-allocation links when available. See `src/database/schema.ts` and `src/database/migrations/` for the executable schema; this excerpt is descriptive.
 
 ---
 
 ## 6. Smart Ledger & Repayment Settlement Algorithm
 
-When an incoming credit transaction is processed, the system executes an automated repayment scan:
+When an incoming credit is processed, the shared transaction application operation reads the full split-bearing ledger through `TransactionRepository`, applies eligible repayments oldest-first, and writes the credit and split updates atomically. Each allocation stores the target expense ID, split ID, and amount. Manual settlement amounts are kept separate. Older repayment rows without exact allocation links cannot be safely reversed and mutation is blocked pending reconciliation. See `src/core/transactions/repaymentPlanner.ts` and `src/core/transactions/applicationUseCases.ts`.
 
-```typescript
-function matchAutoRepayment(creditTx: ParsedTransaction, activeExpenses: Expense[]): SettlementPlan {
-  // 1. Identify contact name in credit body using word-boundary matching
-  // 2. Locate active splits across all historical expenses where split.contact === matchedContact AND isPaid === false
-  // 3. Sort active splits by timestamp ASC (oldest debt first)
-  // 4. Iterate and mark splits as isPaid = true up to creditTx.amount
-  // 5. Append corresponding settlement ledger reference to creditTx.splits
-}
-```
+Split rows preserve original `amount`. Cumulative `paidAmount` remains a compatibility summary; `manualPaidAmount` and `repaymentPaidAmount` separate manual settlements from automatic repayment allocations. Older rows without `paidAmount` are treated as unpaid by default, while legacy `isPaid = true` rows are treated as settled.
 
 ---
 
@@ -415,12 +395,13 @@ function matchAutoRepayment(creditTx: ParsedTransaction, activeExpenses: Expense
 
 ### 7.1 Architecture
 
-The app implements an OpenTelemetry OTLP JSON trace exporter running inside `src/services/telemetryService.ts`:
+The app implements an OpenTelemetry OTLP JSON trace exporter running inside `src/infrastructure/observability/telemetryService.ts`:
 
 * **Receiver**: Local Jaeger v1.60 running on developer workstation (`:4318/v1/traces`).
 * **Routing**:
   * Physical Device: Routed to `http://127.0.0.1:4318` via `adb reverse tcp:4318 tcp:4318`.
   * Emulator: Automatically routes via gateway `http://10.0.2.2:4318`.
+* The exporter is disabled in tests and outside `__DEV__`. Current spans may include the sender value; values are length-limited but phone numbers are not redacted. Keep the collector local and treat trace data as sensitive.
 
 ### 7.2 Trace Schema & Exported Attributes
 

@@ -23,7 +23,7 @@ describe('AIResolver & AICache Module', () => {
     const resolver = new AIResolver(cache);
 
     let handlerCalls = 0;
-    resolver.setInferenceHandler(async (rawMsg, merch) => {
+    resolver.setInferenceHandler(async (_rawMsg, _merch) => {
       handlerCalls++;
       return {
         merchant: 'Resolved Merchant',

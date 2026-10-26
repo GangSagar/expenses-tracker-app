@@ -1,6 +1,17 @@
 import { Expense, Category } from '../types/expense';
+import { QuickSQLiteConnection } from 'react-native-quick-sqlite';
 import { getDatabase } from './db';
-import { telemetry } from '../services/telemetryService';
+import { telemetry } from '../infrastructure/observability/telemetryService';
+import { SplitSettlementUpdate } from '../core/transactions/repaymentPlanner';
+import { TransactionMutation } from '../core/transactions/contracts';
+import {
+  addDedupCandidate,
+  createDedupCache,
+  DedupCandidate,
+  DedupRecord,
+  DEDUP_WINDOW_MS,
+  findDuplicate,
+} from '../core/dedup/duplicateCheck';
 
 // ==========================================
 // Centralized Database SQL Command Constants
@@ -20,27 +31,26 @@ export const UPDATE_EXPENSE_WITH_AMOUNT_SQL = `
   WHERE id = ?
 `;
 
-export const UPDATE_EXPENSE_SQL = `
-  UPDATE expenses 
-  SET merchant = ?, category = ?, bank = ?, payment_mode = ?, splits = ?, transaction_type = COALESCE(?, transaction_type)
-  WHERE id = ?
+export const UPDATE_EXPENSE_SPLITS_SQL = `
+  UPDATE expenses SET splits = ? WHERE id = ?
 `;
 
-export const GET_RECENT_EXPENSES_SQL = `
-  SELECT * FROM expenses WHERE timestamp > ? ORDER BY timestamp DESC
+export const GET_ALL_DEDUP_RECORDS_SQL = `
+  SELECT id, amount, merchant, transaction_type, timestamp, source, reference_id,
+    raw_message, is_invalid, is_duplicate
+  FROM expenses
 `;
 
-export const SELECT_EXPENSE_BY_REF_SQL = `
-  SELECT id FROM expenses WHERE reference_id = ?
+export const GET_DEDUP_CANDIDATES_SQL = `
+  SELECT id, amount, merchant, transaction_type, timestamp, source, reference_id,
+    raw_message, is_invalid, is_duplicate
+  FROM expenses
+  WHERE (? IS NOT NULL AND LOWER(TRIM(reference_id)) = ?)
+     OR (timestamp >= ? AND timestamp <= ?)
 `;
 
-export const SELECT_EXPENSE_BY_RAW_SQL = `
-  SELECT id FROM expenses WHERE raw_message = ? AND is_duplicate = 0 AND is_invalid = 0
-`;
-
-export const SELECT_EXPENSE_DEDUP_WINDOW_SQL = `
-  SELECT id FROM expenses 
-  WHERE amount = ? AND timestamp >= ? AND timestamp <= ? AND is_duplicate = 0 AND is_invalid = 0
+export const GET_EXPENSE_BY_ID_SQL = `
+  SELECT * FROM expenses WHERE id = ? LIMIT 1
 `;
 
 export const GET_ALL_EXPENSES_SQL = `
@@ -49,6 +59,13 @@ export const GET_ALL_EXPENSES_SQL = `
 
 export const GET_WINDOWED_EXPENSES_SQL = `
   SELECT * FROM expenses WHERE is_duplicate = 0 AND timestamp >= ? ORDER BY timestamp DESC
+`;
+
+/** Full ledger slice for repayment planning; independent of UI pagination/windowing. */
+export const GET_EXPENSES_WITH_SPLITS_SQL = `
+  SELECT * FROM expenses
+  WHERE is_duplicate = 0 AND splits IS NOT NULL
+  ORDER BY timestamp ASC
 `;
 
 export const GET_EXPENSES_BY_CATEGORY_SQL = `
@@ -100,6 +117,12 @@ export const INVALIDATE_EXPENSE_SQL = `
   UPDATE expenses SET is_invalid = ? WHERE id = ?
 `;
 
+export const INVALIDATE_EXPENSE_WITH_SPLITS_SQL = `
+  UPDATE expenses SET is_invalid = ?, splits = ?,
+    trash_reason = CASE WHEN ? = 0 THEN NULL ELSE trash_reason END
+  WHERE id = ?
+`;
+
 export const UPDATE_TRASH_REASON_SQL = `
   UPDATE expenses SET trash_reason = ? WHERE id = ?
 `;
@@ -127,177 +150,163 @@ export function insertExpense(expense: Omit<Expense, 'id'>): number {
     },
     () => {
       const db = getDatabase();
-      const splitsStr = expense.splits ? JSON.stringify(expense.splits) : null;
-      const result = db.execute(INSERT_EXPENSE_SQL, [
-        expense.amount,
-        expense.merchant,
-        expense.alias || null,
-        expense.category,
-        expense.confidence,
-        expense.timestamp,
-        expense.source,
-        expense.rawMessage,
-        expense.transactionType,
-        expense.account || null,
-        expense.bank || null,
-        expense.paymentMode || 'unknown',
-        expense.isDuplicate ? 1 : 0,
-        expense.availableBalance !== undefined ? expense.availableBalance : null,
-        splitsStr,
-        expense.referenceId || null,
-        expense.isInvalid ? 1 : 0,
-        expense.trashReason || null,
-      ]);
+      const result = db.execute(INSERT_EXPENSE_SQL, getInsertExpenseParams(expense));
       return result.insertId ?? -1;
     }
   );
 }
 
-export function updateExpense(
-  id: number,
-  merchant: string,
-  category: Category,
-  bank?: string,
-  paymentMode?: string,
-  amount?: number,
-  splits?: any[],
-  transactionType?: 'debit' | 'credit',
+function getInsertExpenseParams(expense: Omit<Expense, 'id'>): unknown[] {
+  return [
+    expense.amount,
+    expense.merchant,
+    expense.alias || null,
+    expense.category,
+    expense.confidence,
+    expense.timestamp,
+    expense.source,
+    expense.rawMessage,
+    expense.transactionType,
+    expense.account || null,
+    expense.bank || null,
+    expense.paymentMode || 'unknown',
+    expense.isDuplicate ? 1 : 0,
+    expense.availableBalance !== undefined ? expense.availableBalance : null,
+    expense.splits ? JSON.stringify(expense.splits) : null,
+    expense.referenceId || null,
+    expense.isInvalid ? 1 : 0,
+    expense.trashReason || null,
+  ];
+}
+
+function runInDatabaseTransaction<T>(
+  work: (execute: QuickSQLiteConnection['execute']) => T,
+): T {
+  const db = getDatabase();
+  db.execute('BEGIN TRANSACTION');
+  try {
+    const result = work(db.execute.bind(db));
+    db.execute('COMMIT');
+    return result;
+  } catch (error) {
+    try {
+      db.execute('ROLLBACK');
+    } catch {
+      // Keep the original write failure as the reported cause.
+    }
+    throw error;
+  }
+}
+
+function writeSplitUpdates(
+  execute: (query: string, params?: any[]) => { rowsAffected: number },
+  updates: SplitSettlementUpdate[],
 ): void {
-  const db = getDatabase();
-  const splitsStr = splits ? JSON.stringify(splits) : null;
-
-  if (amount !== undefined) {
-    db.execute(UPDATE_EXPENSE_WITH_AMOUNT_SQL, [
-      merchant,
-      category,
-      bank || null,
-      paymentMode || 'unknown',
-      amount,
-      splitsStr,
-      transactionType || null,
-      id,
+  for (const update of updates) {
+    const result = execute(UPDATE_EXPENSE_SPLITS_SQL, [
+      JSON.stringify(update.splits),
+      update.expenseId,
     ]);
-  } else {
-    db.execute(UPDATE_EXPENSE_SQL, [
-      merchant,
-      category,
-      bank || null,
-      paymentMode || 'unknown',
-      splitsStr,
-      transactionType || null,
-      id,
-    ]);
+    if (result.rowsAffected !== 1) {
+      throw new Error(`Could not update repayment split for expense ${update.expenseId}`);
+    }
   }
 }
 
-export function getRecentExpenses(minutes: number = 5): Expense[] {
-  const db = getDatabase();
-  const since = Date.now() - minutes * 60 * 1000;
-  const result = db.execute(GET_RECENT_EXPENSES_SQL, [since]);
-  return mapRows(result.rows?._array || []);
-}
-
-export function isDuplicateTransaction(
-  amount: number,
-  timestamp: number,
-  referenceId?: string,
-  rawMessage?: string,
-): boolean {
-  const db = getDatabase();
-
-  // 1. Check unique reference ID if present
-  if (referenceId) {
-    const result = db.execute(SELECT_EXPENSE_BY_REF_SQL, [referenceId]);
-    if (result.rows && result.rows.length > 0) return true;
-  }
-
-  // 2. Check identical message body if present
-  if (rawMessage) {
-    const result = db.execute(SELECT_EXPENSE_BY_RAW_SQL, [rawMessage]);
-    if (result.rows && result.rows.length > 0) return true;
-  }
-
-  // 3. Check identical amount within a 15-minute window to absorb live listener and manual entry timestamp drifts
-  const DEDUP_WINDOW_MS = 15 * 60 * 1000;
-  const result = db.execute(SELECT_EXPENSE_DEDUP_WINDOW_SQL, [
-    amount,
-    timestamp - DEDUP_WINDOW_MS,
-    timestamp + DEDUP_WINDOW_MS,
-  ]);
-  return !!(result.rows && result.rows.length > 0);
-}
-
-export interface DedupCache {
-  refIds: Set<string>;
-  rawMessages: Set<string>;
-  temporalIndex: Array<{ amount: number; timestamp: number }>;
-}
-
-/**
- * Creates an in-memory deduplication index from the local SQLite database.
- * Allows checking thousands of messages in memory in microseconds rather than
- * issuing 3 synchronous SQLite queries per message over disk.
- */
-export function createDedupCache(): DedupCache {
-  const db = getDatabase();
-  const all = db.execute(
-    'SELECT amount, timestamp, reference_id, raw_message FROM expenses WHERE is_invalid = 0',
+/** Insert a manual credit and its related split settlements atomically. */
+export function insertExpenseWithRepayment(
+  expense: Omit<Expense, 'id'>,
+  updates: SplitSettlementUpdate[],
+): number {
+  return telemetry.traceSync(
+    'db.insertExpenseWithRepayment',
+    { amount: expense.amount, type: expense.transactionType, source: expense.source },
+    () => runInDatabaseTransaction(execute => {
+      writeSplitUpdates(execute, updates);
+      const insertId = execute(INSERT_EXPENSE_SQL, getInsertExpenseParams(expense)).insertId;
+      if (!Number.isInteger(insertId) || Number(insertId) <= 0) {
+        throw new Error('SQLite did not return a valid repayment transaction identifier.');
+      }
+      return insertId!;
+    }),
   );
-  const rows = all.rows?._array || [];
-  const refIds = new Set<string>();
-  const rawMessages = new Set<string>();
-  const temporalIndex: Array<{ amount: number; timestamp: number }> = [];
-
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    if (r.reference_id) refIds.add(String(r.reference_id).trim());
-    if (r.raw_message) rawMessages.add(String(r.raw_message).trim());
-    if (typeof r.amount === 'number' && typeof r.timestamp === 'number') {
-      temporalIndex.push({ amount: r.amount, timestamp: r.timestamp });
-    }
-  }
-
-  return { refIds, rawMessages, temporalIndex };
 }
 
-export function isDuplicateWithCache(
-  cache: DedupCache,
-  amount: number,
-  timestamp: number,
-  referenceId?: string,
-  rawMessage?: string,
-): boolean {
-  if (referenceId && cache.refIds.has(String(referenceId).trim())) {
-    return true;
-  }
-  if (rawMessage && cache.rawMessages.has(String(rawMessage).trim())) {
-    return true;
-  }
-
-  const DEDUP_WINDOW_MS = 15 * 60 * 1000;
-  const minTs = timestamp - DEDUP_WINDOW_MS;
-  const maxTs = timestamp + DEDUP_WINDOW_MS;
-
-  for (let i = 0; i < cache.temporalIndex.length; i++) {
-    const item = cache.temporalIndex[i];
-    if (item.amount === amount && item.timestamp >= minTs && item.timestamp <= maxTs) {
-      return true;
-    }
-  }
-
-  return false;
+/** Persist a set of split state changes atomically. */
+export function updateSplitExpensesAtomically(updates: SplitSettlementUpdate[]): void {
+  if (updates.length === 0) return;
+  runInDatabaseTransaction(execute => {
+    writeSplitUpdates(execute, updates);
+  });
 }
 
-export function addToDedupCache(
-  cache: DedupCache,
-  amount: number,
-  timestamp: number,
-  referenceId?: string,
-  rawMessage?: string,
+/** Atomically applies one transaction mutation and every related split adjustment. */
+export function mutateExpenseWithSplitUpdatesAtomically(
+  id: number,
+  mutation: TransactionMutation,
+  updates: SplitSettlementUpdate[],
 ): void {
-  if (referenceId) cache.refIds.add(String(referenceId).trim());
-  if (rawMessage) cache.rawMessages.add(String(rawMessage).trim());
-  cache.temporalIndex.push({ amount, timestamp });
+  runInDatabaseTransaction(execute => {
+    writeSplitUpdates(execute, updates);
+    let result;
+    if (mutation.kind === 'update') {
+      result = execute(UPDATE_EXPENSE_WITH_AMOUNT_SQL, [
+        mutation.merchant,
+        mutation.category,
+        mutation.bank || null,
+        mutation.paymentMode || 'unknown',
+        mutation.amount,
+        mutation.splits ? JSON.stringify(mutation.splits) : null,
+        mutation.transactionType,
+        id,
+      ]);
+    } else if (mutation.kind === 'invalidate') {
+      if (mutation.splits !== undefined) {
+        result = execute(INVALIDATE_EXPENSE_WITH_SPLITS_SQL, [
+          mutation.isInvalid ? 1 : 0,
+          mutation.splits ? JSON.stringify(mutation.splits) : null,
+          mutation.isInvalid ? 1 : 0,
+          id,
+        ]);
+      } else {
+        result = execute(
+          mutation.isInvalid ? INVALIDATE_EXPENSE_SQL : INVALIDATE_EXPENSE_RESET_SQL,
+          mutation.isInvalid ? [1, id] : [0, id],
+        );
+      }
+    } else {
+      result = execute(DELETE_EXPENSE_SQL, [id]);
+    }
+    if (result.rowsAffected !== undefined && result.rowsAffected !== 1) {
+      const operation = mutation.kind === 'delete' ? 'delete' : 'update';
+      throw new Error(`Could not ${operation} transaction ${id}`);
+    }
+  });
+}
+
+export function getExpenseById(id: number): Expense | null {
+  const db = getDatabase();
+  const result = db.execute(GET_EXPENSE_BY_ID_SQL, [id]);
+  const row = result.rows?._array?.[0];
+  return row ? mapRows([row])[0] : null;
+}
+
+export function getAllDedupRecords(): DedupRecord[] {
+  const db = getDatabase();
+  const result = db.execute(GET_ALL_DEDUP_RECORDS_SQL);
+  return mapDedupRows(result.rows?._array || []);
+}
+
+export function getDedupCandidates(candidate: DedupCandidate): DedupRecord[] {
+  const db = getDatabase();
+  const referenceId = candidate.referenceId?.trim().toLocaleLowerCase() || null;
+  const result = db.execute(GET_DEDUP_CANDIDATES_SQL, [
+    referenceId,
+    referenceId,
+    candidate.timestamp - DEDUP_WINDOW_MS,
+    candidate.timestamp + DEDUP_WINDOW_MS,
+  ]);
+  return mapDedupRows(result.rows?._array || []);
 }
 
 export function getAllExpenses(
@@ -316,6 +325,14 @@ export function getWindowedExpenses(days: number = 30): Expense[] {
     const db = getDatabase();
     const since = Date.now() - days * 24 * 60 * 60 * 1000;
     const result = db.execute(GET_WINDOWED_EXPENSES_SQL, [since]);
+    return mapRows(result.rows?._array || []);
+  });
+}
+
+export function getExpensesWithSplits(): Expense[] {
+  return telemetry.traceSync('db.getExpensesWithSplits', {}, () => {
+    const db = getDatabase();
+    const result = db.execute(GET_EXPENSES_WITH_SPLITS_SQL);
     return mapRows(result.rows?._array || []);
   });
 }
@@ -374,16 +391,84 @@ export function exportAllExpensesData(): Expense[] {
   return mapRows(result.rows?._array || []);
 }
 
-export function clearAllExpenses(): void {
-  const db = getDatabase();
-  db.execute(CLEAR_ALL_EXPENSES_SQL);
-  db.execute(CLEAR_ALL_MERCHANT_CATEGORIES_SQL);
-  db.execute(CLEAR_ALL_SETTINGS_SQL);
+function clearAllExpenseData(
+  execute: (query: string, params?: any[]) => { rowsAffected: number },
+): void {
+  execute(CLEAR_ALL_EXPENSES_SQL);
+  execute(CLEAR_ALL_MERCHANT_CATEGORIES_SQL);
+  execute(CLEAR_ALL_SETTINGS_SQL);
 }
 
-export function deleteExpense(id: number): void {
-  const db = getDatabase();
-  db.execute(DELETE_EXPENSE_SQL, [id]);
+function mapBackupExpense(item: Expense): Omit<Expense, 'id'> {
+  return {
+    amount: item.amount,
+    merchant: item.merchant,
+    alias: item.alias,
+    category: item.category,
+    confidence: item.confidence || 1,
+    timestamp: item.timestamp,
+    source: item.source || 'manual',
+    rawMessage: item.rawMessage || 'Imported Transaction',
+    transactionType: item.transactionType || 'debit',
+    account: item.account,
+    bank: item.bank,
+    paymentMode: item.paymentMode,
+    isDuplicate: item.isDuplicate,
+    availableBalance: item.availableBalance,
+    splits: item.splits?.map(split => ({ ...split })),
+    referenceId: item.referenceId,
+    isInvalid: item.isInvalid,
+    trashReason: item.trashReason,
+  };
+}
+
+/** Restore exact backup rows in one commit; do not re-run repayment planning. */
+export function restoreExpenseSnapshot(expenses: Expense[], overwrite: boolean): void {
+  runInDatabaseTransaction(execute => {
+    // Replacing a backup replaces the ledger only; app preferences and learned
+    // merchant mappings are not part of the transaction snapshot.
+    if (overwrite) execute(CLEAR_ALL_EXPENSES_SQL);
+    const insertedRows: Array<{ source: Expense; id: number }> = [];
+    const restoredIds = new Map<number, number>();
+    for (const item of expenses) {
+      const withoutLinks = mapBackupExpense({
+        ...item,
+        splits: item.splits?.map(split => {
+          const withoutAllocations = { ...split };
+          delete withoutAllocations.repaymentAllocations;
+          return withoutAllocations;
+        }),
+      });
+      const result = execute(INSERT_EXPENSE_SQL, getInsertExpenseParams(withoutLinks));
+      if (!Number.isInteger(result.insertId) || Number(result.insertId) <= 0) {
+        throw new Error('SQLite did not return a valid transaction identifier while restoring the backup.');
+      }
+      const id = Number(result.insertId);
+      if (item.id !== undefined) restoredIds.set(item.id, id);
+      insertedRows.push({ source: item, id });
+    }
+    for (const { source, id } of insertedRows) {
+      if (!source.splits?.some(split => Array.isArray(split.repaymentAllocations))) continue;
+      const splits = source.splits.map(split => ({
+        ...split,
+        repaymentAllocations: split.repaymentAllocations?.map(allocation => {
+          const restoredExpenseId = restoredIds.get(allocation.expenseId);
+          if (restoredExpenseId === undefined) {
+            throw new Error(`Backup repayment allocation references missing transaction ${allocation.expenseId}.`);
+          }
+          return { ...allocation, expenseId: restoredExpenseId };
+        }),
+      }));
+      const result = execute(UPDATE_EXPENSE_SPLITS_SQL, [JSON.stringify(splits), id]);
+      if (result.rowsAffected !== undefined && result.rowsAffected !== 1) {
+        throw new Error(`Could not restore repayment allocation links for transaction ${id}.`);
+      }
+    }
+  });
+}
+
+export function clearAllExpenses(): void {
+  runInDatabaseTransaction(execute => clearAllExpenseData(execute));
 }
 
 export function deleteTransactionsForAccount(
@@ -391,73 +476,67 @@ export function deleteTransactionsForAccount(
   account: string,
 ): void {
   const db = getDatabase();
-  db.execute(DELETE_TRANSACTIONS_FOR_ACCOUNT_SQL, [bank, account]);
-}
-
-export function invalidateExpense(id: number, isInvalid: boolean): void {
-  const db = getDatabase();
-  if (!isInvalid) {
-    db.execute(INVALIDATE_EXPENSE_RESET_SQL, [0, id]);
-  } else {
-    db.execute(INVALIDATE_EXPENSE_SQL, [1, id]);
+  const affected = exportAllExpensesData().filter(expense => expense.bank === bank && expense.account === account);
+  if (affected.some(hasSettlementHistory)) {
+    throw new Error('Cannot remove this account while its transactions have split settlement or repayment history. Reconcile those splits first.');
   }
+  db.execute(DELETE_TRANSACTIONS_FOR_ACCOUNT_SQL, [bank, account]);
 }
 
 export function updateTrashReason(id: number, reason: string | null): void {
   const db = getDatabase();
-  db.execute(UPDATE_TRASH_REASON_SQL, [reason, id]);
+  const result = db.execute(UPDATE_TRASH_REASON_SQL, [reason, id]);
+  if (result.rowsAffected !== undefined && result.rowsAffected !== 1) {
+    throw new Error(`Could not update trash reason for transaction ${id}`);
+  }
 }
 
 export function deduplicateDatabase(): number {
-  const db = getDatabase();
-  const expenses = exportAllExpensesData().filter(e => !e.isInvalid);
+  const expenses = exportAllExpensesData().filter(e => !e.isInvalid && !e.isDuplicate);
+  expenses.sort((a, b) => a.timestamp - b.timestamp || (a.id || 0) - (b.id || 0));
+  const duplicates: Expense[] = [];
+  const prior = createDedupCache();
 
-  // Sort by timestamp asc
-  expenses.sort((a, b) => a.timestamp - b.timestamp);
-
-  let duplicateCount = 0;
-  const DEDUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
-
-  // Simple scan
-  for (let i = 0; i < expenses.length; i++) {
-    const current = expenses[i];
-    if (current.isInvalid) continue; // Already marked as dup in this loop
-
-    for (let j = i + 1; j < expenses.length; j++) {
-      const next = expenses[j];
-
-      // Stop checking if next transaction is beyond 5 mins
-      if (next.timestamp - current.timestamp > DEDUP_WINDOW_MS) {
-        break;
-      }
-
-      if (next.isInvalid) continue;
-
-      const sameAmount = current.amount === next.amount;
-      const sameMerchant =
-        normalizeMerchant(current.merchant) ===
-        normalizeMerchant(next.merchant);
-      const sameType = current.transactionType === next.transactionType;
-
-      if (sameAmount && sameMerchant && sameType) {
-        // Mark next as duplicate
-        next.isInvalid = true;
-        next.trashReason = 'duplicate';
-        duplicateCount++;
-
-        db.execute(
-          'UPDATE expenses SET is_invalid = 1, trash_reason = ? WHERE id = ?',
-          ['duplicate', next.id],
-        );
-      }
+  for (const current of expenses) {
+    const match = findDuplicate(current, prior);
+    if (match?.kind === 'definite') {
+      current.isInvalid = true;
+      current.trashReason = 'duplicate';
+      duplicates.push(current);
+    } else {
+      // Possible amount/merchant/time matches are intentionally retained.
+      addDedupCandidate(prior, current);
     }
   }
 
-  return duplicateCount;
+  if (duplicates.length > 0) {
+    if (duplicates.some(hasSettlementHistory)) {
+      throw new Error('Deduplication would invalidate a transaction with split settlement history. Reconcile that transaction first.');
+    }
+    runInDatabaseTransaction(execute => {
+      for (const duplicate of duplicates) {
+        const result = execute(
+          'UPDATE expenses SET is_invalid = 1, trash_reason = ? WHERE id = ?',
+          ['duplicate', duplicate.id],
+        );
+        if (result.rowsAffected !== 1) {
+          throw new Error(`Could not mark duplicate transaction ${duplicate.id}`);
+        }
+      }
+    });
+  }
+
+  return duplicates.length;
 }
 
-function normalizeMerchant(merchant: string): string {
-  return merchant.toLowerCase().replace(/[^a-z0-9]/g, '');
+function hasSettlementHistory(expense: Expense): boolean {
+  return (expense.splits || []).some(split =>
+    (Number(split.paidAmount) || 0) > 0 ||
+    (Number(split.manualPaidAmount) || 0) > 0 ||
+    (Number(split.repaymentPaidAmount) || 0) > 0 ||
+    !!split.repaymentAllocations?.length ||
+    !!split.owedByMe,
+  );
 }
 
 export function getSetting(key: string, defaultValue: string = ''): string {
@@ -516,4 +595,19 @@ function mapRows(rows: any[]): Expense[] {
       trashReason: row.trash_reason || undefined,
     };
   });
+}
+
+function mapDedupRows(rows: any[]): DedupRecord[] {
+  return mapRows(rows).map(expense => ({
+    id: expense.id,
+    amount: expense.amount,
+    merchant: expense.merchant,
+    transactionType: expense.transactionType,
+    timestamp: expense.timestamp,
+    source: expense.source,
+    referenceId: expense.referenceId,
+    rawMessage: expense.rawMessage,
+    isInvalid: expense.isInvalid,
+    isDuplicate: expense.isDuplicate,
+  }));
 }
