@@ -27,6 +27,7 @@ function summarize(input: TransactionDecisionInput) {
     parserConfidence: input.parser?.confidence,
     parserRequiresConfirmation: input.parser?.requiresConfirmation,
     parserConfidenceBreakdown: input.parser?.confidenceBreakdown,
+    parserAIEvidence: input.parser?.aiEvidence,
     classifierConfidence: input.classifier?.confidence,
     classifierMatchedVia: input.classifier?.matchedVia,
   };

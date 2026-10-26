@@ -32,6 +32,12 @@ export interface ParserDecisionEvidence {
     account: number;
     overall: number;
   };
+  aiEvidence?: {
+    modelId: string;
+    modelVersion: string;
+    conflicts: string[];
+    fieldEvidence: Record<string, { source: string; confidence: number } | undefined>;
+  };
 }
 
 export interface ClassifierDecisionEvidence {
@@ -47,6 +53,7 @@ export interface DecisionEvidenceSummary {
   parserConfidence?: number;
   parserRequiresConfirmation?: boolean;
   parserConfidenceBreakdown?: ParserDecisionEvidence['confidenceBreakdown'];
+  parserAIEvidence?: ParserDecisionEvidence['aiEvidence'];
   classifierConfidence?: number;
   classifierMatchedVia?: ClassifierDecisionEvidence['matchedVia'];
 }

@@ -14,7 +14,10 @@ const settingsRepository = new SQLiteSettingsRepository();
 export const settingsService = new SettingsService(settingsRepository);
 export const spamClassifier = new SpamClassifier(new SQLiteSpamClassifierRepository(settingsRepository));
 export const learningEngine = new LearningEngine(new SQLiteLearningRepository());
-export const parserOrchestrator = new ParserOrchestrator({ learningEngine });
+export const parserOrchestrator = new ParserOrchestrator({
+  learningEngine,
+  isLocalAIEnabled: () => settingsService.getAIModelPreferences().enabled,
+});
 export const securityService = createSecurityService(
   settingsRepository,
   new ReactNativeDeviceAuthProvider(),

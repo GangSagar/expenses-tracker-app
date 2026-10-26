@@ -7,6 +7,7 @@ import {
 import { normalizeUnicodeText } from '../../utils/formatHelpers';
 import { TransactionRejectionReason } from '../../core/transactions/contracts';
 import { parserOrchestrator, spamClassifier, telemetry } from '../../app/composition';
+import { ParseExecutionContext } from '../../core/parser/ai/AIExtractionProposal';
 
 export interface IncomingMessage {
   body: string;
@@ -27,6 +28,7 @@ export interface IncomingTransactionAnalysis {
 
 export async function processIncomingMessage(
   message: IncomingMessage,
+  context: ParseExecutionContext = 'live_background',
 ): Promise<IncomingTransactionAnalysis> {
   const span = telemetry.startSpan('sms.process_pipeline', {
     source: message.source,
@@ -44,7 +46,7 @@ export async function processIncomingMessage(
   } else if (spamClassifier.isSpam(normalizedBody)) {
     rejectionSignals.push('spam');
   } else {
-    parsed = await parserOrchestrator.parseAsync(normalizedBody, normalizedSender, message.source);
+    parsed = await parserOrchestrator.parseAsync(normalizedBody, normalizedSender, message.source, context);
     if (!parsed || !Number.isFinite(parsed.amount) || parsed.amount <= 0) {
       rejectionSignals.push('missing_amount');
       parsed = null;

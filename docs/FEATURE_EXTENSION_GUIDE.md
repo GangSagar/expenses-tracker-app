@@ -31,6 +31,22 @@ Manual entry, review confirmation, edits, and historical import should continue 
 | Backup provider | Add an export/import adapter around the existing snapshot application operations. | Preserve IDs and split-allocation semantics; validate the complete input before destructive overwrite. Decide encryption and destination before implementation. |
 | Multi-currency | Extend transaction amount and currency contracts, calculations, persistence, and migrations. | Define base currency, exchange-rate source and timestamp, historical conversion, and rounding before adding UI labels. |
 | Replacement UI | Use a presentation-facing API/composition boundary for capability services. | Do not import concrete SQLite repositories or `src/app/composition/` singletons directly in screens/hooks. This addresses the Phase 8 deferred UI coupling. |
+| [App-wide error reporting](#app-wide-error-reporting) | Route unexpected failures through a centralized error-reporting capability with a replaceable delivery adapter. | Expected outcomes (reject, review, duplicate, validation, permission denial) are not crashes. Reports must be privacy-filtered and must never interrupt transaction processing. |
+
+## App-wide error reporting
+
+The product requirement is to send unexpected app errors to customer support, regardless of which feature produced them. Automatic delivery through a secure backend is selected. Reports should include the error, affected component/screen, user-action flow, and reproduction-relevant technical details. The configured recipient is `hrnharshit1@gmail.com`; no backend endpoint or app-wide reporting provider is currently configured. See the [app-wide support error reporting plan](./v2.0%20-%20improvement_plan/APP_WIDE_SUPPORT_ERROR_REPORTING_PLAN.md) for the backend and mobile implementation sequence.
+
+The reporting boundary should:
+
+- Accept unexpected, actionable failures (uncaught exceptions, native bridge failures, failed persistence operations, and operational errors that need investigation). Ordinary business outcomes such as filtered messages, rejected candidates, review decisions, duplicates, user validation errors, and denied optional permissions should not generate support reports.
+- Create a small allowlisted diagnostic payload: error category/fingerprint, sanitized error summary and stack, component and screen identifiers, a bounded breadcrumb sequence of named user actions leading up to the error, app version, OS/platform version, and a non-identifying event ID. Breadcrumbs describe actions (for example `open_history`, `select_filter`, `save_edit`) and must not capture field values, screen text, or message contents. Exclude SMS/notification bodies, sender or contact identifiers, merchant names, amounts, account data, database rows, PINs, credentials, model input/output, and arbitrary exception payloads unless a separate review explicitly approves a field.
+- Avoid sending raw exception strings by default because native and third-party errors may embed message contents, file paths, or identifiers. Sanitize and bound the report before it leaves the device.
+- Deliver through an authenticated HTTPS backend that forwards reports to the configured support mailbox. Never embed SMTP credentials or private API keys in the mobile app. Do not send email directly from the parser or native modules.
+- Define the user's consent/opt-out behavior, offline queue and retention, retry/backoff limits, duplicate suppression, rate limiting, and deletion controls before implementation. Reporting must be best-effort and must not delay or change a successful transaction write.
+- Be disabled in tests and development telemetry should remain local unless deliberately configured. Do not reuse the local Jaeger endpoint as a production support channel.
+
+**Open decisions before implementation:** backend hosting/operator, email provider, app-attestation strategy, report retention, and whether repeated errors are emailed individually or grouped. Automatic delivery, the recipient, and the initial reproduction context are approved. Keep the recipient and provider credentials on the backend; do not embed secrets in the app.
 
 ## Stable ownership map
 
@@ -50,3 +66,4 @@ The extension does not select product-specific behavior in advance. Record the d
 - Multi-currency base currency, exchange-rate source/time, and rounding.
 - Notification permission and provider behavior on each target platform.
 - Presentation-facing dependency injection shape for the replacement UI.
+- Support-report recipient, delivery mode, consent, data fields, retention, retry/rate limits, and backend ownership for app-wide error reporting.

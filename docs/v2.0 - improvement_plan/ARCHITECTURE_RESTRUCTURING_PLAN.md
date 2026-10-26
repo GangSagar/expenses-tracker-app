@@ -76,11 +76,11 @@ At the audit checkpoint, the repository had in-memory duplicate checks in `src/c
 
 ### 6. Parser capabilities and live usage do not fully align
 
-Before Phase 2, live processing used the synchronous compatibility adapter and did not record parser correction learning. Live and import-preview paths now invoke `parseAsync()`, and explicit merchant/category corrections call `LearningEngine.learn()`. Extraction still runs synchronously inside `parseAsync()`; AI fallback remains disabled because no local inference handler/model is installed.
+Before Phase 2, live processing used the synchronous compatibility adapter and did not record parser correction learning. Live and import-preview paths now invoke `parseAsync()`, and explicit merchant/category corrections call `LearningEngine.learn()`. Phase 2 V2 implementation has added a typed proposal contract, context routing, settings capability, and a local llama.rn adapter. Extraction still runs synchronously; no verified model artifact is selected or wired, so runtime inference remains disabled.
 
 **Remaining risk:** developers could mistake the AI interface for an active model, or assume parser extraction itself is asynchronous. Final import persistence is shared with the live/manual application operations, and Phase 6 has unified source-specific deduplication. Local AI inference remains separate Phase 2 work.
 
-**Approved direction:** async parser invocation, correction learning, and local/offline AI fallback are product requirements. Async invocation and correction recording are now wired to live processing/import preview and explicit edits. Offline AI fallback remains incomplete until an inference runtime is selected and integrated with defined failure behavior; do not describe it as active meanwhile.
+**Approved direction:** async parser invocation, correction learning, and local/offline AI fallback are product requirements. Async invocation and correction recording are wired to live processing/import preview and explicit edits. The Phase 2 V2 foundation is in progress; offline AI fallback remains incomplete until a specific runtime/model passes evaluation and is integrated with validated evidence and defined failure behavior. Do not describe inference as active meanwhile.
 
 ### 7. Domain and storage representations are too close
 
@@ -134,11 +134,11 @@ Before Phase 2, live processing used the synchronous compatibility adapter and d
 
 ### Phase 2 — One transaction decision policy & Local AI Hybrid Orchestration
 
-**Direction approved; implementation in progress:** one policy consumes parser facts and classifier evidence, then returns reject, review, or auto-save with a reason. The live path and import preview now call it. See [Phase 2: One Transaction Decision Policy](./PHASE_2_TRANSACTION_DECISION_POLICY.md) for the core decision policy and [Phase 2 v2: Local AI Hybrid Orchestration](./PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md) for user-driven model selection, pros/cons catalog, multi-model cascading, and device capability high-alert warnings.
+**Direction approved; implementation in progress:** one policy consumes parser facts and classifier evidence, then returns reject, review, or auto-save with a reason. The live path and import preview now call it. See [Phase 2: One Transaction Decision Policy](./PHASE_2_TRANSACTION_DECISION_POLICY.md) for the core decision policy and [Phase 2 V2: Local AI Hybrid Orchestration](./PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md) for typed model evidence, conservative context routing, local-only inference, verified artifact handling, and resource/quality gates.
 
 **Likely areas:** `src/core/parser/ai/`, device capability services, `src/services/messaging/messageService.ts`, `src/services/transactions/`, and transaction tests.
 
-**Exit condition:** one policy is authoritative, decisions are explainable, and local AI fallback operates with user-driven hybrid model orchestration and device safety guards.
+**Exit condition:** one policy is authoritative, decisions are explainable, and a specific local model/runtime passes quality, privacy, platform, artifact-integrity, and resource gates with deterministic fallback behavior.
 
 ### Phase 3 — Shared application use cases
 
@@ -207,6 +207,10 @@ Organize domain/application/infrastructure code only where ownership is clear. K
 Keep the architecture diagram synchronized with runtime. For each new input (notification, receipt OCR, backup import), specify its adapter and route it through existing use cases. For multi-currency, evolve domain calculations and persisted representation before adding UI-only currency labels.
 
 **Exit condition:** docs distinguish current implementation from roadmap, and new features have a known extension point.
+
+## Cross-cutting planned work — app-wide support error reporting
+
+**Status: Planned; independent of Phase 2 V2.** The approved behavior is automatic, privacy-filtered reporting of unexpected app errors through a secure backend to `hrnharshit1@gmail.com`, including component/screen and bounded user-action breadcrumbs for reproduction. The implementation plan covers mobile capture and outbox, a Node.js/TypeScript backend and mailer adapter, rate limiting, validation, privacy controls, and deployment gates. Hosting, mail provider, attestation, and retention remain open. See [App-Wide Support Error Reporting Plan](./APP_WIDE_SUPPORT_ERROR_REPORTING_PLAN.md).
 
 ## Cross-phase engineering practices
 

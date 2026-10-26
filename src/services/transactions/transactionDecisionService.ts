@@ -40,6 +40,19 @@ export function processTransaction(analysis: IncomingTransactionAnalysis): Proce
       requiresConfirmation: parsed.requiresConfirmation,
       parserVersion: parsed.parserVersion,
       confidenceBreakdown: parsed.confidenceBreakdown,
+      ...(parsed.aiProposal ? {
+        aiEvidence: {
+          modelId: parsed.aiProposal.modelId,
+          modelVersion: parsed.aiProposal.modelVersion,
+          conflicts: parsed.aiProposal.conflicts,
+          fieldEvidence: Object.fromEntries(
+            Object.entries(parsed.fieldEvidence || {}).map(([field, evidence]) => [field, {
+              source: evidence?.source || 'unknown',
+              confidence: evidence?.confidence || 0,
+            }]),
+          ),
+        },
+      } : {}),
     },
     classifier: {
       category: classification.category,

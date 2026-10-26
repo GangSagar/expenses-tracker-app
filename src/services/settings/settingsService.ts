@@ -1,4 +1,4 @@
-import { SettingsRepository } from '../../core/settings/SettingsRepository';
+import { AIModelPreferences, SettingsRepository } from '../../core/settings/SettingsRepository';
 
 const DEFAULT_MONTHLY_BUDGET = '20000';
 
@@ -19,6 +19,19 @@ export class SettingsService {
 
   setFutureUpdatesNote(value: string): void {
     this.repository.set('future_updates_note', value);
+  }
+
+  getAIModelPreferences(): AIModelPreferences {
+    const enabled = this.repository.get('local_ai_enabled', 'false') === 'true';
+    const selectedModelId = this.repository.get('local_ai_model_id', '').trim() || null;
+    // An enabled flag without a selected verified model is not an active runtime.
+    return { enabled: enabled && selectedModelId !== null, selectedModelId };
+  }
+
+  setAIModelPreferences(preferences: AIModelPreferences): void {
+    const modelId = preferences.selectedModelId?.trim() || '';
+    this.repository.set('local_ai_model_id', modelId);
+    this.repository.set('local_ai_enabled', preferences.enabled && modelId ? 'true' : 'false');
   }
 
   getHiddenAccounts(): string[] {

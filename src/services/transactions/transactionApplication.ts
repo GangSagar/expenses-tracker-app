@@ -12,6 +12,7 @@ import { orchestrateTransaction } from './transactionOrchestrator';
 import { setMerchantMapping } from '../../core/classifier/merchantMap';
 import { learningEngine, transactionStorage } from '../../app/composition';
 import { notifyTransactionSaved } from '../notifications/transactionSavedNotification';
+import { ParseExecutionContext } from '../../core/parser/ai/AIExtractionProposal';
 
 function learnCorrection(alias: string, merchant: string, category: Expense['category']) {
   try {
@@ -62,7 +63,7 @@ export async function previewHistoricalMessage(
   message: IncomingMessage,
   cache: DedupCache,
 ) {
-  const analysis = await processIncomingMessage(message);
+  const analysis = await processIncomingMessage(message, 'historical_import' satisfies ParseExecutionContext);
   if (analysis.parsed && message.timestamp !== undefined) {
     analysis.parsed.timestamp = message.timestamp;
   }
