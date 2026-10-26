@@ -55,7 +55,7 @@ export interface StructuredExpense {
 }
 
 export function toBaseTransactionType(type: ExtendedTransactionType): TransactionType {
-  if (type === 'credit' || type === 'refund' || type === 'reversal') {
+  if (type === 'credit' || type === 'refund' || type === 'reversal' || type === 'chargeback') {
     return 'credit';
   }
   return 'debit';

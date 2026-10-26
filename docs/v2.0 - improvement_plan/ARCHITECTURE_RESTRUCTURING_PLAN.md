@@ -208,10 +208,6 @@ Keep the architecture diagram synchronized with runtime. For each new input (not
 
 **Exit condition:** docs distinguish current implementation from roadmap, and new features have a known extension point.
 
-## Cross-cutting planned work — app-wide support error reporting
-
-**Status: Planned; independent of Phase 2 V2.** The approved behavior is automatic, privacy-filtered reporting of unexpected app errors through a secure backend to `hrnharshit1@gmail.com`, including component/screen and bounded user-action breadcrumbs for reproduction. The implementation plan covers mobile capture and outbox, a Node.js/TypeScript backend and mailer adapter, rate limiting, validation, privacy controls, and deployment gates. Hosting, mail provider, attestation, and retention remain open. See [App-Wide Support Error Reporting Plan](./APP_WIDE_SUPPORT_ERROR_REPORTING_PLAN.md).
-
 ## Cross-phase engineering practices
 
 - Preserve behavior during structural moves; review functional changes separately.

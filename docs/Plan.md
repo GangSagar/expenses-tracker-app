@@ -1,5 +1,19 @@
 # Smart Expense Tracker (Personal Use) - Technical README
 
+## Current status and deferred work
+
+This section is the current backlog index. The older feature phases below are historical planning notes; use the linked v2 restructuring documents for implementation status.
+
+| Work item | Current status | Plan / evidence |
+|---|---|---|
+| Deterministic message parser | Working for the covered cases: the focused parser/sanitized-corpus suites passed 72 tests. The local device corpus baseline processes 1,014 inbox records, but it has no verified labels and therefore does not establish accuracy. | `npm test -- --runInBand src/__tests__/parser.test.ts src/__tests__/sanitizedCorpus.test.ts src/__tests__/deviceCorpusBaseline.test.ts`; [`parse-cli.js`](../scripts/parse-cli.js) |
+| Architecture restructuring | Phase 1 v2 and Phases 3–9 are complete. Phase 2's decision policy is active; app-integrated local AI remains incomplete. | [Architecture restructuring plan](./v2.0%20-%20improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md), [implementation changelog](./v2.0%20-%20improvement_plan/IMPLEMENTATION_CHANGELOG.md) |
+| Phase 2 V2 AI/model runtime | Paused by the owner until later. Host-only checkpoint smoke tests do not activate models in the app. | [Phase 2 V2 plan](./v2.0%20-%20improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md) |
+| UI replacement | Deferred; the current screens are legacy adapters. Known UI and composition-coupling issues are listed separately. | [UI replacement issues](./UI_REPLACEMENT_ISSUES.md) |
+| App-wide support error reporting | Planned for a later implementation. It requires a privacy-filtered mobile reporter and secure backend delivery. | [Support error reporting plan](./APP_WIDE_SUPPORT_ERROR_REPORTING_PLAN.md) |
+
+The parser baseline confirms that the current deterministic path runs; it is not an accuracy guarantee for every bank/template. The device corpus is unlabeled and remains local.
+
 ## Overview
 
 This project is a personal Android-based smart expense tracker application.

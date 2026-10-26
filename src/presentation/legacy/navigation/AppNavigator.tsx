@@ -1,15 +1,28 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import { Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import SplitsScreen from '../screens/SplitsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import ModelLibraryScreen from '../screens/ModelLibraryScreen';
 
 import AccountsScreen from '../screens/AccountsScreen';
 
 const Tab = createMaterialTopTabNavigator();
+const styles = StyleSheet.create({ icon: { fontSize: 20 } });
+const makeTabIcon = (glyph: string) => ({ color }: { color: string }) => (
+  <Text style={[styles.icon, { color }]}>{glyph}</Text>
+);
+const tabIcons = {
+  home: makeTabIcon('🏠'),
+  history: makeTabIcon('📋'),
+  splits: makeTabIcon('👥'),
+  accounts: makeTabIcon('💳'),
+  settings: makeTabIcon('⚙️'),
+  models: makeTabIcon('🧠'),
+};
 
 export default function AppNavigator() {
   return (
@@ -40,45 +53,42 @@ export default function AppNavigator() {
           name="Home"
           component={HomeScreen}
           options={{
-            tabBarIcon: ({ color }) => (
-              <Text style={{ color, fontSize: 20 }}>🏠</Text>
-            ),
+            tabBarIcon: tabIcons.home,
           }}
         />
         <Tab.Screen
           name="History"
           component={HistoryScreen}
           options={{
-            tabBarIcon: ({ color }) => (
-              <Text style={{ color, fontSize: 20 }}>📋</Text>
-            ),
+            tabBarIcon: tabIcons.history,
           }}
         />
         <Tab.Screen
           name="Splits"
           component={SplitsScreen}
           options={{
-            tabBarIcon: ({ color }) => (
-              <Text style={{ color, fontSize: 20 }}>👥</Text>
-            ),
+            tabBarIcon: tabIcons.splits,
           }}
         />
         <Tab.Screen
           name="Accounts"
           component={AccountsScreen}
           options={{
-            tabBarIcon: ({ color }) => (
-              <Text style={{ color, fontSize: 20 }}>💳</Text>
-            ),
+            tabBarIcon: tabIcons.accounts,
           }}
         />
         <Tab.Screen
           name="Settings"
           component={SettingsScreen}
           options={{
-            tabBarIcon: ({ color }) => (
-              <Text style={{ color, fontSize: 20 }}>⚙️</Text>
-            ),
+            tabBarIcon: tabIcons.settings,
+          }}
+        />
+        <Tab.Screen
+          name="Models"
+          component={ModelLibraryScreen}
+          options={{
+            tabBarIcon: tabIcons.models,
           }}
         />
       </Tab.Navigator>

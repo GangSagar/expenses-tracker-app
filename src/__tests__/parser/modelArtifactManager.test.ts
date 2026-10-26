@@ -3,7 +3,7 @@ jest.mock('react-native-fs', () => ({
   default: { DocumentDirectoryPath: '/app-private' },
 }));
 
-import { ModelArtifactManager } from '../../infrastructure/ai/ModelArtifactManager';
+import { MAX_MODEL_SIZE_BYTES, ModelArtifactManager } from '../../infrastructure/ai/ModelArtifactManager';
 
 const digest = 'a'.repeat(64);
 const spec = {
@@ -62,6 +62,25 @@ describe('ModelArtifactManager', () => {
     await expect(manager.install({ ...spec, url: 'http://evil.example/fixture.gguf' }).promise)
       .rejects.toThrow('allowlisted HTTPS');
     expect(fs.downloadFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects artifacts at or above the strict 100 MB limit before downloading', async () => {
+    const { fs } = createFileSystem();
+    const manager = new ModelArtifactManager(new Set(['models.example.test']), fs as never);
+
+    await expect(manager.install({ ...spec, sizeBytes: MAX_MODEL_SIZE_BYTES }).promise)
+      .rejects.toThrow('below 100 MB');
+    expect(fs.downloadFile).not.toHaveBeenCalled();
+  });
+
+  it('reuses only a size- and digest-verified installed artifact', async () => {
+    const { fs, files } = createFileSystem();
+    const manager = new ModelArtifactManager(new Set(['models.example.test']), fs as never);
+    const installed = await manager.install(spec).promise;
+
+    await expect(manager.getInstalled(spec)).resolves.toEqual(installed);
+    expect(files.size).toBe(1);
+    expect(fs.downloadFile).toHaveBeenCalledTimes(1);
   });
 
   it('cancels before starting a download', async () => {

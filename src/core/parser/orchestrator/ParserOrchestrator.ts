@@ -204,9 +204,9 @@ export class ParserOrchestrator implements IParserOrchestrator {
     }
     if (!expense) return null;
 
-    // An injected proposal engine replaces the legacy enrichment path. Without
-    // one, preserve the old opt-in resolver contract for compatibility.
-    if (this.aiExtractionEngine || !mayRunAIForContext(context)) return expense;
+    // An enabled proposal engine replaces the legacy enrichment path. When no
+    // local slot is assigned, preserve the old opt-in resolver contract.
+    if ((this.aiExtractionEngine && this.isLocalAIEnabled()) || !mayRunAIForContext(context)) return expense;
 
     // Step 9: AI Resolver (Conditional fallback when needed)
     if (

@@ -24,7 +24,7 @@ The current system is organized around these responsibilities:
 2. **Application capabilities**: `messageService` collects parser/spam/filter evidence, `transactionDecisionService` calls the single decision policy, and `transactionApplication` coordinates shared write/query use cases.
 3. **Core policies and models**: `src/core/` contains parsing, transaction decision, deduplication, repayment, and repository contracts without SQLite or React Native dependencies.
 4. **Adapters and persistence**: `src/app/composition/` selects configured services and adapters. SQLite transactions are implemented in `src/database/SQLiteTransactionRepository.ts`; SQLite settings, learning, and classifier-state adapters are under `src/infrastructure/persistence/sqlite/`.
-5. **Temporary presentation state**: hooks and legacy screens use Zustand and capability services. Current screens still import some singleton instances from app composition; this is a deferred replacement-UI boundary.
+5. **Temporary presentation state**: hooks and legacy screens use Zustand and capability services. Current screens still import some singleton instances from app composition; this is recorded in the [UI replacement issue list](./UI_REPLACEMENT_ISSUES.md) for later work.
 
 Local AI inference is not configured. Optional telemetry is enabled only in `__DEV__` outside tests and targets a local Jaeger endpoint. The current telemetry call includes a sender attribute; it truncates long strings but does not redact phone numbers.
 

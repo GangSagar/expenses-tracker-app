@@ -5,7 +5,7 @@ import {
   mayRunAIForContext,
   validateAIExtractionProposal,
 } from '../../core/parser/ai/AIExtractionProposal';
-import { InstalledModelArtifact } from './ModelArtifactManager';
+import { InstalledModelArtifact } from '../../core/parser/ai/ModelCatalog';
 
 /**
    * Local-only llama.rn adapter. It accepts only an artifact returned by the

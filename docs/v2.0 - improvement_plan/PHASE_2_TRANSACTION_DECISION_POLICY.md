@@ -98,16 +98,15 @@ This ordering is the implementation proposal for Phase 2. The test corpus and de
 
 The live and import-preview paths now call `ParserOrchestrator.parseAsync()` and preserve the returned `StructuredExpense` through the policy. `parseAsync()` still runs extraction synchronously, then may await AI fallback. Async orchestration is active; the extraction engine itself is not asynchronous and AI inference is not operational.
 
-Explicit user merchant/category corrections now call `LearningEngine.learn()`, and parser resolvers read the same SQLite-backed merchant mapping repository. AI remains inactive. Before enabling local fallback inference:
+Explicit user merchant/category corrections now call `LearningEngine.learn()`, and parser resolvers read the same SQLite-backed merchant mapping repository. AI remains inactive in the app. Three upstream checkpoints have been smoke-tested on the developer host, but they are not registered in app composition and have not passed task-quality gates. Before enabling local fallback inference:
 
-- Define the correction event and only record a correction after the user confirms a merchant/category change.
-- Persist correction data through the learning repository and verify parser resolvers consume the same repository.
-- Select and integrate an on-device/offline inference runtime behind `IAIResolver`; no network inference or hidden cloud fallback.
+- Integrate the ONNX and GGUF runtime adapters behind the existing model-selection seam and `IAIResolver`; no network inference or hidden cloud fallback.
+- Package tokenizer/config/model files as verified installable artifacts and populate the app catalog only with final, pinned model paths and hashes.
 - Define timeout, cancellation, cache key, no-result/error behavior, and whether a failed fallback preserves the original parse result.
 - Keep offline parsing functional if the local model is unavailable or disabled.
 - Test that AI enrichment can update candidate facts but cannot independently choose reject/review/auto-save.
 
-A local runtime is an approved product requirement, but the project currently has no inference dependency or bundled model. Keep this as an explicit incomplete requirement rather than substituting a rule-based mapper and calling it AI.
+A local runtime is an approved product requirement. Native runtime packages are present, and base model files exist only in the developer's Git-ignored workspace; no production model adapter is registered or bundled with the app. Keep this requirement incomplete rather than substituting a rule-based mapper and calling it AI.
 
 ## Scope
 

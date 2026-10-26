@@ -11,14 +11,14 @@ The current UI is scheduled for replacement. This work therefore changes transac
 | Phase | Status | Result |
 |---|---|---|
 | 1. Baseline, contracts, partial repayments, and presentation isolation | Complete (v2) | Partial allocations are persisted and shown; Phase 1 audit gaps in full-ledger repayment lookup and live repayment atomicity were closed while beginning Phase 2. |
-| 2. One transaction decision policy | In progress | Typed policy is wired into live ingestion and import preview; a local offline AI inference runtime remains unimplemented. |
+| 2. One transaction decision policy | In progress | Typed policy, async parser invocation, and correction learning are active; local AI inference remains unintegrated in the app. Developer-host base checkpoint smoke tests do not close that requirement. |
 | 3. Shared application use cases | Complete | Live, historical import, manual creation, review confirmation, edit, invalidation, and delete now enter named application operations; historical imports use chronological shared repayment persistence. |
 | 4. Repository boundary and temporary presentation adapters | Complete | Focused repository ports are implemented by SQLite; transaction, backup, reset, split-persistence, account-delete, and maintenance writes now cross the boundary. |
 | 5. Splits and repayment domain boundary | Complete | Split decisions moved out of Zustand; new repayments store exact allocation links, linked mutations reverse atomically, and unsafe legacy repayment mutations are blocked. |
 | 6. Unified deduplication | Complete | Live, import, review, and maintenance use the shared policy; successful saves and edits request local notifications. |
 | 7. Explicit database migrations | Complete | Existing unversioned installs migrate through a transactional legacy baseline; new databases use the same versioned schema path. |
-| 8. Domain organization and dependency guardrails | Planned | Detailed plan records observed dependency inversions, capability grouping, legacy adapter scope, and import-boundary checks; implementation has not started. |
-| 9. Documentation and future feature readiness | In progress | Restructuring plan, Phase 1 record, and this log document the actual flow; broader docs still need reconciliation as phases land. |
+| 8. Domain organization and dependency guardrails | Complete | Observed dependency inversions were addressed and the import-boundary check is active. |
+| 9. Documentation and future feature readiness | Complete (documentation-only) | Current-facing architecture, runtime status, and extension guidance were reconciled. |
 
 ## Phase 1 v1 — Baseline, contracts, and urgent correctness fixes
 
@@ -357,7 +357,7 @@ Detailed plan: [Phase 9: Documentation and Future Feature Readiness](./PHASE_9_D
 
 **Verification:** `git diff --check` passed. Relative Markdown links and referenced npm scripts were checked. Mermaid was inspected in source; no renderer was available for visual validation.
 
-## Phase 2 V2 — Local AI hybrid orchestration (in progress)
+## Phase 2 V2 — Local AI hybrid orchestration (paused by owner)
 
 Detailed scope and acceptance gates: [Phase 2 V2: Local AI Hybrid Orchestration and Model Selection](./PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md).
 
@@ -381,6 +381,106 @@ Detailed scope and acceptance gates: [Phase 2 V2: Local AI Hybrid Orchestration 
 
 **Verification so far:** `npx tsc --noEmit` passed; `npm test -- --runInBand` passed (39 suites, 695 tests). `npm run lint` passed with no errors and 120 repository warnings (including generated `dist/`); changed-file ESLint and `git diff --check` passed. `:app:compileDebugKotlin` and `:app:assembleDebug` both succeeded; the latter compiled/packaged the llama.rn Android native libraries for ARM64 and x86_64. llama.rn selected CPU-only because Hexagon SDK is absent. No iOS build or on-device model benchmark has been run.
 
+### Corpus baseline and regression corrections — 2026-10-27
+
+The developer-provided device export was used locally to measure current parser/policy behavior, and the synthetic regression suite was reviewed against actual parser output. No raw messages, sender IDs, dates, or financial values from the export are recorded here.
+
+| File | Change | Why and how |
+|---|---|---|
+| `.gitignore` | Added `/data/`. | Keeps the private device export out of commits by default while allowing local baseline runs. |
+| `src/__tests__/deviceCorpusBaseline.test.ts` (new) | Added an optional test that reads the local export, sends inbox messages through the real incoming-message parser and decision policy, and emits aggregate counts only. | Provides a repeatable behavior baseline from the user’s device data without turning unlabeled personal messages into a claimed accuracy metric. It skips when the local export is absent. |
+| `src/__tests__/__fixtures__/sanitized-scenarios.json` (new) | Made the synthetic sanitized scenarios the test’s canonical fixture and corrected expected parser outputs. | Removes fixture drift and records observed parser category/bank/balance fields separately from candidate classifier categories where those differ. |
+| `src/__tests__/sanitizedCorpus.test.ts` (new) | Reads the JSON fixture directly, avoids writing files during tests, and asserts parser and policy outputs plus selected extended transaction types. | A useful regression test must validate actual outcomes, not recreate fixture data or check only that parsing returned something. |
+| `src/core/parser/resolver/TransactionResolver.ts` | Recognizes reversal wording before generic failed-transaction wording, requires an actual cashback receipt/credit signal before classifying cashback as a refund, limits chargeback detection to actual dispute events, and prioritizes an explicit account debit when the payee is also described as credited. | Prevents reversal-of-failure messages, future promotional cashback language, generic “to dispute” bank footers, and beneficiary-credit wording from flipping the account holder's transaction direction. |
+| `src/core/parser/models/StructuredExpense.ts` | Maps chargeback to credit in base transaction direction. | A chargeback represents returned/reversed funds and must not be recorded as an ordinary debit. |
+| `docs/v2.0 - improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md` | Added the aggregate local corpus baseline and initially documented a provisional model candidate. | Makes clear what evidence exists and what remains before model selection. The candidate in that checkpoint was superseded by the product owner's strict under-100 MB limit, recorded in the follow-up below. |
+| `docs/v2.0 - improvement_plan/SANITIZED_TRANSACTION_CORPUS.md` | Deleted. | Removed the new standalone sanitization document at the user’s request; regression examples remain in the test fixture. |
+
+**Baseline result:** 1,035 records (1,014 inbox, 21 sent/other); among inbox, 436 parsed, with 313 auto-save, 123 review, and 578 reject outcomes; parsed direction counts are 350 debit, 75 credit, and 11 other/unspecified; 83 repeated bodies after NFKC normalization, trimming, and case-folding. The data has no ground-truth labels, so these are behavior counts only. The test intentionally excludes raw values from console output, and `/data/` is ignored by Git.
+
+**Regression review:** the synthetic suite contains 22 fixture cases plus a transfer-direction regression. Strengthening its assertions uncovered semantic defects: promotional cashback language was treated as a current refund; reversal text containing a failed-transaction phrase was treated as a failed debit; generic dispute-help footers could be classified as chargebacks; payee-credit wording could override an explicit debit from the user's account; and chargebacks were mapped to debit. The resolver/direction fixes above address these; the updated suite checks category/bank/balance and relevant extended types as well as debit/credit direction.
+
+**Verification for this update:** `npm test -- --runInBand` passed (41 suites, 719 tests); `npx tsc --noEmit` passed; `npm run lint` passed with 0 errors and 118 existing warnings; changed-file ESLint and `git diff --check` passed. `git check-ignore data/extracted_messages.json` confirms the raw export is ignored. Device corpus counts and synthetic fixture pass rates are not AI quality measurements; a manually labeled, held-out sanitized set and real-device resource benchmarks remain necessary. No model was downloaded or enabled.
+
+### Phase 2 V2 direction update and evaluation draft — 2026-10-27
+
+| File | Change | Why and how |
+|---|---|---|
+| `docs/v2.0 - improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md` | Replaced the oversized Qwen candidate with a provisional SmolLM2-135M Q3_K_S lead listed at 88.2 MB; set a strict local artifact limit below 100 MB; added deterministic/local/cloud user modes, foreground consent, no automatic cloud fallback, provider-neutral proposal adapters, and the unresolved proxy-versus-BYOK credential decision. | Captures the product owner's direction while keeping cloud inference opt-in and proposal-only. The small model is only a research lead, not approved or selected. A file-size limit is separate from memory, latency, and quality gates. |
+| `docs/v2.0 - improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md` | Merged the local labeling, de-identification, sampling, split, metric, and provider-choice procedure into the single Phase 2 V2 plan. | Keeps the evaluation workflow alongside runtime and release gates without treating parser predictions as truth or sending the device export to a cloud service. |
+| `scripts/create-device-evaluation-draft.py` (new) | Added a local-only, deterministic sampler that deduplicates normalized inbox bodies and writes blank annotation rows to ignored `data/phase2-v2-evaluation-draft.json`; it prints only row counts. | Advances the labeled holdout preparation. The draft contains private message text, no sender/date/record IDs, and no parser predictions. It is unreviewed and must not be committed or sent to a provider. |
+| `data/phase2-v2-evaluation-draft.json` (local, Git-ignored) | Generated a 100-row unlabeled draft from unique inbox messages. | Provides a starting point for manual gold-label review. Each row is marked unreviewed and its expected fields are empty. The file is intentionally excluded from the repository. |
+
+**Verification:** the generator produced 100 unique inbox rows with blank labels; a local structural check passed without printing message contents; `git check-ignore` confirms the draft is ignored. No provider API was called and no model artifact was downloaded. The Qwen reference from the prior checkpoint is superseded and removed from the active Phase 2 V2 plan.
+
+### Phase 2 V2 model-library clarification — 2026-10-27
+
+The product owner clarified that the user should browse available local models, choose whether to install each one, keep multiple models installed, switch models, and remove models in-app. The app code can remain in Git; model binary distribution is a separate hosting concern.
+
+| File | Change | Why and how |
+|---|---|---|
+| `docs/v2.0 - improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md` | Added the model-library workflow, external artifact hosting choices, catalog metadata and integrity requirements, multi-model inventory/selection semantics, and a replaceable UI requirement. | Makes the user's intended install/try/remove flow explicit while keeping model binaries out of ordinary Git history and AI workflows independent of future UI replacement. |
+| `docs/v2.0 - improvement_plan/IMPLEMENTATION_CHANGELOG.md` | Recorded the current implementation gaps and the difference between source code hosting and model artifact hosting. | The existing artifact manager can download, verify, retain versioned files, and remove them, but has no catalog or library inventory; the settings service stores only one selected model ID; the manager's code limit is still 1 GB; no production model engine is wired. |
+
+**Distribution design:** keep catalog records with model ID/version, publisher/license, task description, exact size, SHA-256, format/runtime, compatibility, and HTTPS download URL. Model binaries can be hosted separately on a public model registry or release/object-storage host. A bundled catalog means adding a model requires an app update; a versioned remote static catalog can list new models without app updates, but must be host-allowlisted and integrity-verified. Fine-tuning happens before distribution: publish the finished, quantized artifact and let users download that file; users do not train on-device. The 100 MB cap must be enforced against the whole downloadable model artifact before enabling installation.
+
+### Phase 2 V2 model-library implementation — 2026-10-27
+
+The first app-side model library slice is implemented. It provides a safe download/manage boundary but does not publish or activate any model. Fine-tuning requires verified human labels, which are still pending in the local draft dataset.
+
+| File | Change | Why and how |
+|---|---|---|
+| `src/core/parser/ai/ModelCatalog.ts` (new) | Added provider-neutral catalog metadata, runtime/format/task types, artifact store port, installed artifact references, model library entry shape, and the exclusive 100,000,000-byte maximum. | Defines a core contract without importing infrastructure, allowing later ONNX and GGUF adapters to share the same install/library boundary. |
+| `src/infrastructure/ai/ModelArtifactManager.ts` | Reduced accepted artifact size from 1 GiB to strictly less than 100,000,000 bytes; added size-only inventory check and digest-verified installed artifact lookup. | Enforces the user's model download ceiling and supports lightweight catalog refreshes without rehashing every large model file on each list operation. Full SHA-256 is still verified before selection/use. |
+| `src/services/ai/modelLibraryService.ts`, `src/services/ai/index.ts` (new) | Added catalog listing, cancellable installation with progress, persistent multi-model inventory, one active local model, deterministic-only switch, and protection against removing the active model. | Provides replaceable application-facing browse/install/select/remove operations; model runtime dispatch and UI wiring remain future work. |
+| `src/core/settings/SettingsRepository.ts`, `src/services/settings/settingsService.ts` | Added installed model references and active model preference using the existing key/value settings adapter; preserved the prior AI settings API for compatibility. | Lets several model versions remain installed while storing one selected model without a schema migration. |
+| `src/infrastructure/ai/localModelCatalog.ts` (new) | Added the typed catalog insertion point, currently empty. | Prevents dead or placeholder URLs from being exposed before fine-tuned artifacts are hosted and their licenses, hashes, sizes, and runtime metadata are verified. |
+| `src/app/composition/index.ts` | Composed and exported the model artifact manager and model library service with Hugging Face as the initial allowed host. | Makes the capability available to a future replaceable UI while keeping download construction in the composition root. |
+| `src/__tests__/modelLibraryService.test.ts` (new), `src/__tests__/parser/modelArtifactManager.test.ts`, `src/__tests__/settingsService.test.ts` | Added boundary, install/verify, multi-model, active-model removal, selection, and settings persistence coverage. | Verifies the model library lifecycle and strict download-size gate. |
+| `README.md`, `docs/ARCHITECTURE.md`, Phase 2 V2 plan, this log | Updated actual status, planned MiniLM/MobileBERT/SmolLM2 roles, hosting and runtime requirements, and remaining gaps. | Keeps docs clear that the catalog is empty and no model inference is wired in production. |
+
+**Remaining:** annotate and sanitize the local review draft; fine-tune and publish each artifact on Hugging Face; add tokenizer/config dependencies to catalog packaging; implement ONNX Runtime React Native support and runtime selection alongside llama.rn; wire active model selection into `ParserOrchestrator`; add a small browse/install/switch/remove UI; measure each model on devices; and only then populate the catalog with pinned URLs and hashes. Public Hugging Face storage is best-effort, so review traffic/storage limits and have a fallback host plan if needed.
+
+**Verification:** `npx tsc --noEmit` passed; `npm test -- --runInBand` passed (42 suites, 726 tests); `npm run lint` passed (import-boundary scan passed, ESLint had 0 errors and 118 warnings); `git diff --check` passed; the local evaluation draft is ignored by Git. Graphify refreshed to 1,829 nodes, 3,776 edges, and 127 communities. Graphify reported a pre-existing Android Gradle parsing limitation and requested community relabeling after the community set changed.
+
+### Phase 2 V2 inference and model-library completion plan — 2026-10-27
+
+| File | Change | Why and how |
+|---|---|---|
+| `docs/v2.0 - improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md` | Added a one-run implementation sequence for shared ONNX inference, the existing GGUF adapter, task-slot parser selection, secure multi-file packages, model management, quality evaluation, and Android/iOS device profiling. | Connects the already implemented library foundation to a complete runtime and user workflow, with clear artifact, privacy, quality, platform, and performance gates. |
+| `docs/v2.0 - improvement_plan/PHASE_2_V2_LOCAL_AI_HYBRID_ORCHESTRATION.md` | Selected three Hugging Face training starting checkpoints and merged the completion plan into the single Phase 2 V2 document; clarified the catalog remains empty until the owner's fine-tuned paths and verified package metadata are supplied. | Resolves the previous candidate-selection gap without pretending the upstream weights are fine-tuned or app-downloadable. |
+
+**Model selections:** MiniLM-L6-v2 for intent evidence, Google MobileBERT uncased for category evidence, and HuggingFaceTB SmolLM2-135M-Instruct for structured extraction. These are training checkpoints, not approved app artifacts. Final packages must include runtime dependencies and remain strictly under 100,000,000 bytes. The completion plan corrects the library's current single-active-model setting to per-task assignments because the models have distinct roles.
+
+**Remaining before model-specific release gates:** the owner must provide fine-tuned artifact repository/file paths. Final size, SHA-256, license, tokenizer/config bundle, ONNX/GGUF compatibility, and model quality cannot be truthfully finalized before those artifacts exist. The reusable service/runtime-selection and UI work can proceed before then; no placeholder catalog URLs or hashes were added.
+
+### Phase 2 V2 implementation — task assignments and model-management screen — 2026-10-27
+
+| File | Change | Why and how |
+|---|---|---|
+| `src/core/parser/ai/ModelCatalog.ts` | Added a task-slot type and task-to-slot mapping. | Keeps `intent`, `category`, and `extraction` model roles consistent across catalog, settings, UI, and runtime selection. |
+| `src/core/settings/SettingsRepository.ts`, `src/services/settings/settingsService.ts` | Replaced the single selection as the current preference shape with independent per-task assignments; reads the previous `activeModel` format and exposes it for catalog-aware migration. | Supports one compatible active model per role, preserves deterministic-only state, validates assigned models against installed inventory, and avoids dropping existing user preferences. |
+| `src/services/ai/modelLibraryService.ts` | Added catalog-aware migration, per-task selection/clear, removal protection for assigned models, and cleanup for missing or mismatched files/slots. | Makes the three-model workflow possible while preventing incompatible assignment or deletion of an active task model. |
+| `src/services/ai/modelRuntimeSelector.ts`, `src/app/composition/index.ts`, `src/core/parser/orchestrator/ParserOrchestrator.ts` | Added a serial, per-slot adapter selector that validates each proposal, skips failed slots, merges evidence/conflicts, and refuses background/unknown contexts. Wired the selector through composition while keeping the adapter registry empty until hosted artifacts exist. | Establishes the production selection seam without enabling models that are not yet available. Disabled local slots preserve the existing parser path; an assigned but unavailable slot remains deterministic-only and never triggers cloud fallback. |
+| `src/presentation/legacy/screens/ModelLibraryScreen.tsx`, `src/presentation/legacy/navigation/AppNavigator.tsx` | Added a compact Models tab with install/progress/cancel, task assignment, deterministic-only choice, and guarded removal. | Delivers the requested user control without redesigning other screens; the empty catalog clearly says models are not yet published. |
+| `src/__tests__/modelLibraryService.test.ts`, `src/__tests__/settingsService.test.ts`, `src/__tests__/modelRuntimeSelector.test.ts` | Added assignment isolation, legacy migration, wrong-slot rejection, serial routing, context gating, and invalid-output fallback coverage. | Protects settings compatibility and the new orchestration seam without requiring private model binaries. |
+| `package.json`, `package-lock.json`, `patches/onnxruntime-react-native+1.24.3.patch` | Added exact `onnxruntime-react-native@1.24.3` and `patch-package@8.0.1`; the patch removes Gradle 9-incompatible `VersionNumber`, pins Android and CocoaPods native runtimes to 1.24.3, and runs on postinstall. | Official package 1.24.3 failed Android assembly on Gradle 9 and contained floating native runtime versions. This reproducible patch addresses both before native model adapter work. |
+| `README.md`, `docs/ARCHITECTURE.md`, Phase 2 V2 plan, this log | Updated actual UI/selector state and clarified that catalog and adapter registry are still empty. | Prevents docs from implying that inference is already running. |
+
+**Verification:** `npx tsc --noEmit` passed; focused model/settings tests passed (2 suites, 10 tests); full Jest passed (43 suites, 732 tests); `npm run lint` passed: import-boundary scan passed, 0 errors, 108 warnings across the repository; ESLint on the changed model-management files passes with 0 warnings. Android `./gradlew :app:assembleDebug` passed for arm64-v8a and x86_64 after applying the pinned ONNX package compatibility patch. iOS native build and device measurements are unavailable in this Linux workspace and require finalized model artifacts. `git diff --check` passes. Graphify refreshed to 1,876 nodes, 3,909 edges, and 127 communities; it reported the pre-existing Android Gradle syntax parsing limitation and requested community relabeling after the graph changed.
+
+### Phase 2 V2 local model smoke tests — 2026-10-27
+
+| File or local artifact | Change | Why and how |
+|---|---|---|
+| `scripts/test-local-models.py` (new) | Added a one-model-at-a-time local smoke runner. ONNX selections tokenize a synthetic message, run an ONNX Runtime CPU session, and validate finite output tensors; SmolLM2 runs llama.cpp generation with a constrained JSON schema. | Makes it possible to load and exercise each downloaded checkpoint locally without sending messages to a service. The runner intentionally does not claim task accuracy. |
+| `data/models/minilm/` (Git-ignored) | Installed `sentence-transformers/all-MiniLM-L6-v2`, revision `1110a243fdf4706b3f48f1d95db1a4f5529b4d41`, QInt8 ARM64 ONNX, 23,026,053 bytes, SHA-256 `4278337fd0ff3c68bfb6291042cad8ab363e1d9fbc43dcb499fe91c871902474`. | Local artifact fits the model-file limit and produced a finite `[1, 128, 384]` output on the development host. |
+| `data/models/mobilebert/` (Git-ignored) | Installed `onnx-community/mobilebert-uncased-ONNX`, revision `942aa734fe280f8c2697afd89cdb41e6796223e8`, quantized ONNX, 26,715,553 bytes, SHA-256 `b6df1d4eec1e96dd0768d31083207b2c823e95bb1a89f07836d94841b4d2926c`. | The model produced finite `[1, 20, 512]` output; the checkpoint has no expense-category head. |
+| `data/models/smollm2/` (Git-ignored) | Installed `QuantFactory/SmolLM2-135M-Instruct-GGUF`, revision `476854d00ede130660aba430d15f9347ad2e7d0e`, Q3_K_S, 88,201,792 bytes, SHA-256 `352142b0127d4e325d99fbd6a9578f940843ec3f9475ce51f023fdfc343afa40`. | Local generation emitted valid JSON under a grammar, but the synthetic cafe debit was miscategorized as `Bills & Utilities`. This demonstrates runtime operation and also shows the un-fine-tuned model is not quality-ready. |
+| `data/models/.venv/` (Git-ignored) | Installed isolated `onnxruntime`, `tokenizers`, `numpy`, and `llama-cpp-python` CPU runtime dependencies. | Keeps test dependencies and model files out of the app package and Git history. |
+
+**Verification:** Ran the script separately with `--model minilm`, `--model mobilebert`, and `--model smollm2`. All three local runtime smoke tests completed; the two ONNX outputs were finite and SmolLM2 returned parseable JSON under grammar constraints. Host inference times were 0.024 s, 0.017 s, and 1.019 s respectively; these are not mobile performance results. This did not exercise the React Native app: its catalog and production adapter registry are still empty, and there is no Android device connected to this execution environment. These are un-fine-tuned checkpoint smoke tests, not a model quality evaluation.
+
 Future receipt OCR, notification providers, import formats, or backup should enter through adapters and existing use cases. Multi-currency needs domain and repository support before presentation work.
 
 ## Cross-cutting files and constraints
@@ -393,8 +493,21 @@ Future receipt OCR, notification providers, import formats, or backup should ent
 
 ## Remaining decisions and risks
 
-1. The local/offline AI inference runtime and its operational limits; the product requirement for offline fallback is approved.
+1. Fine-tuned local artifact paths and representative held-out labels are still needed before any model can be catalogued, loaded, or quality-approved.
 2. Exact deletion versus soft-invalidation semantics.
 3. Which historical database schemas must remain upgradeable (Phase 7).
 4. The 30-day repayment window, live credit-link failure, and historical-import routing gaps are closed. Phase 5 has since moved split rules out of Zustand and added safe reversal for new linked repayments; legacy summary-only repayment mutations remain blocked pending reconciliation.
+
+## Parser verification and deferred-work organization — 2026-10-27
+
+| File | Change | Why and how |
+|---|---|---|
+| `docs/APP_WIDE_SUPPORT_ERROR_REPORTING_PLAN.md` | Moved the approved later-phase support-reporting plan out of `docs/v2.0 - improvement_plan/`. | Keeps the independent backend/mobile reporting project out of the architecture restructuring phase folder; `docs/Plan.md` indexes it. |
+| `docs/UI_REPLACEMENT_ISSUES.md` (new) | Consolidated deferred presentation issues: direct composition imports, transitional Zustand/screen contracts, outcome presentation, the placeholder Models screen, support-reporting settings, and replacement navigation/visual/accessibility work. | Gives future UI work one issue list without spending restructuring effort on a UI redesign. `docs/Plan.md` is the backlog index. |
+| `docs/Plan.md`, `docs/FEATURE_EXTENSION_GUIDE.md`, `docs/ARCHITECTURE.md`, `docs/TRD.md`, architecture/Phase 8/9/Phase 2 V2 docs | Added current status and updated links to the moved support plan and UI issue list; marked Phase 2 V2 paused by the owner. | Keeps the plan index and current architecture references aligned while leaving Phase 2 V2 resumable later. |
+| `docs/v2.0 - improvement_plan/IMPLEMENTATION_CHANGELOG.md`, `PHASE_1_BASELINE_AND_CONTRACTS.md`, `PHASE_2_TRANSACTION_DECISION_POLICY.md` | Corrected stale phase status and parser/runtime descriptions. | Reflects that historical import is complete, host-only base models exist, and app-integrated AI remains inactive. |
+
+**Parser verification:** `npm test -- --runInBand src/__tests__/parser.test.ts src/__tests__/sanitizedCorpus.test.ts src/__tests__/deviceCorpusBaseline.test.ts` passed (3 suites, 72 tests). The local device baseline processed 1,014 inbox records out of 1,035 total records: 436 parsed, with 313 auto-save, 123 review, and 578 reject decisions. The corpus has no ground-truth labels, so these are behavior/coverage counts, not parser accuracy. A synthetic CLI example parsed ₹450 debit at Example Cafe with 89% confidence. No parser implementation was changed.
+
+**Documentation checks:** all relative links under `docs/v2.0 - improvement_plan/` were checked after the moves; `git diff --check` passed.
 

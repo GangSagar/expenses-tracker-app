@@ -84,6 +84,7 @@ graphify-out/
 
 # Build outputs
 /dist/
+/data/
 
 # Generated React Native drawable and raw assets
 android/app/src/main/res/drawable-mdpi/
@@ -92,3 +93,6 @@ android/app/src/main/res/drawable-xxhdpi/
 android/app/src/main/res/drawable-xxxhdpi/
 android/app/src/main/res/raw/
 android/app/src/main/assets/ggml-hexagon/
+
+# Private test fixtures
+src/__tests__/__fixtures__/collected-real-samples.json

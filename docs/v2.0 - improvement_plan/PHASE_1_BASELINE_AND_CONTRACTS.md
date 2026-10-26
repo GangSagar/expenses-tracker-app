@@ -293,7 +293,7 @@ Current evidence and recommendations:
 
 - **Combined decision policy:** implemented in Phase 2; parser confidence and classifier evidence feed the single policy that decides reject/review/auto-save.
 - **Async parsing and correction learning:** active in live processing and import preview. Explicit merchant/category corrections feed the learning repository used by parser resolvers.
-- **AI fallback:** approved as an active product requirement and restricted to local/offline inference, but not yet active. `AIResolver` has no default inference handler and no local runtime/model is installed.
+- **AI fallback:** approved as an active product requirement and restricted to local/offline inference, but not active in the app. The developer host has downloaded smoke-test checkpoints under Git-ignored `data/models/`; the app composition has no registered model adapters and its catalog remains empty.
 - **Partial split repayments:** approved and implemented in Phase 1 v2 using cumulative `paidAmount` with legacy `isPaid` compatibility.
 - **Deletion semantics:** both exist in code: soft invalidation and hard deletion. Product policy for each operation remains to be recorded before centralizing writes.
 - **Supported database upgrade versions at the Phase 1 checkpoint:** startup used best-effort sequential `ALTER TABLE` calls and had no explicit schema version. Phase 7 has since added versioned migration support for that known legacy schema family.
@@ -302,7 +302,7 @@ Current evidence and recommendations:
 
 ## Phase 1 v2 completion record
 
-Phase 1 v2 implemented partial repayment accounting and relocated the existing UI at `src/presentation/legacy/` without visual redesign. During Phase 2 startup, the audit gaps in parser evidence, full-ledger repayment lookup, and atomic live repayment persistence were closed. The policy, async parser invocation, and correction learning are now active; local AI fallback and shared historical-import writes remain incomplete. See the [Phase 2 specification](./PHASE_2_TRANSACTION_DECISION_POLICY.md) and [implementation log](./IMPLEMENTATION_CHANGELOG.md) for the current status.
+Phase 1 v2 implemented partial repayment accounting and relocated the existing UI at `src/presentation/legacy/` without visual redesign. During Phase 2 startup, the audit gaps in parser evidence, full-ledger repayment lookup, and atomic live repayment persistence were closed. Phase 3 later completed shared historical-import writes. The policy, async parser invocation, and correction learning are active; local AI fallback remains incomplete in the app. See the [Phase 2 specification](./PHASE_2_TRANSACTION_DECISION_POLICY.md) and [implementation log](./IMPLEMENTATION_CHANGELOG.md) for the current status.
 
 Verification performed for this phase:
 

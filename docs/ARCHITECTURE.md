@@ -15,7 +15,7 @@
 
 ### 1.1 System Context & External Boundaries
 
-Core transaction processing and ledger persistence run locally. In development, optional telemetry can send traces to a locally configured Jaeger collector; no cloud inference runtime is configured. Android SMS and notification listeners provide live message inputs.
+Core transaction processing and ledger persistence run locally. In development, optional telemetry can send traces to a locally configured Jaeger collector; no model adapter is active because the catalog remains empty until fine-tuned artifacts are supplied. The local-model library supports verified app-private artifact installation, multi-model inventory, per-task assignments, deterministic-only mode, and a small management screen, with a strict under-100 MB limit. Android SMS and notification listeners provide live message inputs.
 
 ```mermaid
 graph TB
@@ -83,7 +83,7 @@ graph TB
 4. **On-Device Correction Learning**:
    Explicit merchant/category corrections are recorded through `LearningEngine` in the local merchant-category repository. Parser resolvers consult those mappings. The current implementation does not include confidence decay or token-pattern frequency learning.
 5. **Offline-First Processing**:
-   Extraction, spam classification, local correction learning, and ledger persistence run on-device. `AIResolver` has no configured inference handler/model and is disabled by default. Telemetry is enabled only in `__DEV__` outside tests and targets a local Jaeger endpoint. The current pipeline includes the sender as a telemetry attribute; long strings are truncated, but phone-number redaction is not implemented.
+   Extraction, spam classification, local correction learning, and ledger persistence run on-device. The typed model catalog and verified download/library service are groundwork only; the catalog is currently empty and no inference engine is configured. Model preferences are disabled by default. Telemetry is enabled only in `__DEV__` outside tests and targets a local Jaeger endpoint. The current pipeline includes the sender as a telemetry attribute; long strings are truncated, but phone-number redaction is not implemented.
 
 ### 1.3 Module ownership and known seams
 
@@ -93,8 +93,9 @@ graph TB
 | Application capabilities | `src/services/` | Organized by messaging, notifications, transactions, settings, security, and advisor capabilities. Two services currently read configured singleton dependencies from app composition. |
 | Concrete wiring | `src/app/composition/` | Selects parser, settings, learning, spam, security, and transaction repository adapters. |
 | Persistence and platform adapters | `src/database/`, `src/infrastructure/` | SQLite transaction operations stay in the transaction repository; settings, learning, and spam adapters live under infrastructure. |
-| Legacy presentation | `src/presentation/legacy/`, `src/hooks/` | Screens/hooks still import service singletons from app composition. This is deferred replacement-UI integration work. |
+| Legacy presentation | `src/presentation/legacy/`, `src/hooks/` | Screens/hooks still import service singletons from app composition. Track the deferred work in the [UI replacement issue list](./UI_REPLACEMENT_ISSUES.md). |
 | Saved-transaction notifications | `src/services/notifications/transactionSavedNotification.ts` | Localized provider currently imports React Native APIs directly; provider ownership/port is a follow-up. |
+| Local model library | `src/services/ai/modelLibraryService.ts`, `src/services/ai/modelRuntimeSelector.ts`, `src/infrastructure/ai/ModelArtifactManager.ts`, `src/presentation/legacy/screens/ModelLibraryScreen.tsx` | Verified catalog install/remove, task-slot assignment, deterministic mode, parser selector seam, and management screen are present. The catalog and adapter registry are empty until final model packages are supplied, so inference remains disabled. |
 
 ---
 

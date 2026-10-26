@@ -5,7 +5,7 @@
 [![SQLite](https://img.shields.io/badge/SQLite-Quick--SQLite-green.svg?logo=sqlite&logoColor=white)](https://github.com/margelo/react-native-quick-sqlite)
 [![Privacy First](https://img.shields.io/badge/Privacy-Offline--first-success.svg)]()
 
-**Smart Expense Tracker** is an offline-first personal finance application for Android. It parses supported bank SMS messages and payment notifications locally and stores the ledger on-device. Optional developer telemetry can send traces to a locally configured Jaeger collector. Local AI inference is not configured.
+**Smart Expense Tracker** is an offline-first personal finance application for Android. It parses supported bank SMS messages and payment notifications locally and stores the ledger on-device. Optional developer telemetry can send traces to a locally configured Jaeger collector. The app now has a verified local-model download/library foundation, but no fine-tuned models are published in its catalog and no AI inference engine is active in production.
 
 ---
 
@@ -35,6 +35,7 @@ Most expense tracking apps either:
 
 * **Zero Manual Effort**: Incoming bank SMS messages and UPI notifications are automatically extracted, categorized, and reconciled.
 * **Offline-first & private**: Transaction parsing and SQLite ledger storage run on-device. Optional developer telemetry targets a local Jaeger collector; no cloud AI inference is configured.
+* **Optional local model library foundation**: Model artifacts are limited to under 100 MB, verified by size and SHA-256, and stored in app-private storage. A small model-management screen supports catalog install, per-task assignment, deterministic-only mode, and removal. The catalog remains empty until fine-tuned artifacts are published with verified metadata; model inference is not active yet.
 
 ---
 

@@ -6,7 +6,7 @@
 
 The project has evolved substantially since several overview documents were written. Current code has structured parser output, a shared transaction decision and application path, a SQLite transaction repository, versioned schema migrations, capability-oriented services, and an explicit composition root. Some docs still describe older phases as current, use old file paths, include stale verification counts, or describe capability interfaces as if they were active implementations.
 
-The next UI will also consume these capabilities. The existing screens and `useSecurityStore` still import service instances from `src/app/composition/`; this presentation-to-global-wiring coupling was deferred during Phase 8 and must be visible to the future UI work.
+The presentation-to-global-wiring coupling and other deferred screen issues are consolidated in [UI Replacement Issues](../UI_REPLACEMENT_ISSUES.md), indexed from [`docs/Plan.md`](../Plan.md).
 
 The current transaction-saved notification capability remains grouped under `src/services/notifications/` and calls React Native native modules directly. This is a localized platform boundary seam, and Phase 8's import checker currently does not flag native-module imports from services. Phase 9 records the seam and defers a notification port plus infrastructure adapter until a provider/platform expansion needs that boundary; current ownership is documented in the extension guide and architecture docs.
 
@@ -66,7 +66,7 @@ Add a concise extension guide/table that gives each future capability an entry p
 | New notification provider | Notification capability port and provider adapter | Trigger only after persistence succeeds; provider failure must not roll back the saved transaction. |
 | Backup/restore provider | Backup adapter and existing backup application operations | Preserve transaction, split-allocation, and migration invariants; validate before destructive overwrite. |
 | Multi-currency | Domain amount/currency representation plus migration/repository changes | Define base currency, conversion source/time, rounding, historical-rate semantics, and display rules before UI work. Do not treat currency as a label-only UI feature. |
-| Replacement UI | Presentation-facing composition/API boundary | Do not import `src/app/composition/` singleton instances into screens/hooks; keep UI independent of concrete repositories/providers. |
+| Replacement UI | Presentation-facing composition/API boundary | Do not import `src/app/composition/` singleton instances into screens/hooks; keep UI independent of concrete repositories/providers. See [UI Replacement Issues](../UI_REPLACEMENT_ISSUES.md). |
 
 Do not invent product decisions for OCR retention, CSV formats, backup destinations, exchange-rate provider, or conversion timing. List these as decisions required when a corresponding feature is approved.
 

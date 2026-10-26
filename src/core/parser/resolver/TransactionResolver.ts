@@ -19,23 +19,27 @@ export class TransactionResolver implements ITransactionResolver {
   ): ResolvedTransactionType {
     const text = message.clean.toUpperCase();
 
-    // 1. Check for Failed / Declined transactions first
+    // A reversal may mention that the original transaction failed. The actual
+    // reversal is the financial event represented by this message.
+    if (/\b(?:REVERSED|REVERSAL|BOUNCED)\b/.test(text)) {
+      return { type: 'reversal', confidence: 0.98 };
+    }
+
+    // A future/promotional cashback mention must not change a debit's direction.
     if (/\b(?:FAILED|DECLINED|UNSUCCESSFUL|REJECTED)\b/.test(text)) {
       return { type: 'failed', confidence: 0.99 };
     }
 
-    // 2. Check for Reversal
-    if (/\b(?:REVERSED|REVERSAL|BOUNCED|RETURNED)\b/.test(text)) {
-      return { type: 'reversal', confidence: 0.98 };
-    }
-
-    // 3. Check for Refund / Cashback
-    if (/\b(?:REFUND|REFUNDED|CASHBACK)\b/.test(text)) {
+    // Cashback is a credit only when the message describes it being received.
+    if (/\b(?:REFUND|REFUNDED)\b/.test(text) ||
+        (/\bCASHBACK\b/.test(text) && /\b(?:CREDITED|RECEIVED|ADDED|REFUNDED)\b/.test(text))) {
       return { type: 'refund', confidence: 0.98 };
     }
 
     // 4. Check for Chargeback / Dispute
-    if (/\b(?:CHARGEBACK|DISPUTED?)\b/.test(text)) {
+    // Bank footers often say "to dispute, call ..." on ordinary debits.
+    // Only treat dispute language as a chargeback when a dispute event is stated.
+    if (/\bCHARGEBACK\b|\bDISPUTE\s+(?:WAS\s+)?(?:RAISED|ACCEPTED|RESOLVED|LODGED)\b/.test(text)) {
       return { type: 'chargeback', confidence: 0.95 };
     }
 
@@ -52,6 +56,7 @@ export class TransactionResolver implements ITransactionResolver {
     }
 
     if (/\b(?:DR\.?|DEBITED?|SPENT|PAID)\s+FROM\b/i.test(text) ||
+        /\b(?:A\/C|ACC|ACCT|ACCOUNT)\s+[A-Z0-9*X]+\s+DEBITED?\s+(?:FOR|ON)\b/i.test(text) ||
         /\b(?:A\/C|ACC|ACCOUNT)(?:\s*NO\.?)?\s*[*xX\d]+\s+IS\s+DEBITED\b/i.test(text) ||
         /\b(?:A\/C|ACC|ACCOUNT)(?:\s*NO\.?)?\s*[*xX\d]+\s+DEBITED\b/i.test(text) ||
         /\bDEBITED\s+(?:A\/C|ACC|ACCOUNT)\b/i.test(text) ||
