@@ -14,7 +14,11 @@ import {
 } from 'react-native';
 import Contacts from 'react-native-contacts';
 import { Category, Expense, PaymentMode, ExpenseSplit } from '../../../types/expense';
-import { CATEGORIES, PAYMENT_MODES } from '../../../constants/appOptions';
+import {
+  EXPENSE_CATEGORIES,
+  INCOME_CATEGORIES,
+  PAYMENT_MODES,
+} from '../../../constants/appOptions';
 import { useExpenseStore } from '../../../hooks/useExpenses';
 
 interface Props {
@@ -352,7 +356,12 @@ export default function EditTransactionModal({
                   styles.chip,
                   transactionType === 'debit' && styles.chipActiveDebit,
                 ]}
-                onPress={() => setTransactionType('debit')}
+                onPress={() => {
+                  setTransactionType('debit');
+                  if (!EXPENSE_CATEGORIES.includes(category as (typeof EXPENSE_CATEGORIES)[number])) {
+                    setCategory('Other');
+                  }
+                }}
               >
                 <Text
                   style={[
@@ -368,7 +377,12 @@ export default function EditTransactionModal({
                   styles.chip,
                   transactionType === 'credit' && styles.chipActiveCredit,
                 ]}
-                onPress={() => setTransactionType('credit')}
+                onPress={() => {
+                  setTransactionType('credit');
+                  if (!INCOME_CATEGORIES.includes(category as (typeof INCOME_CATEGORIES)[number])) {
+                    setCategory('Other');
+                  }
+                }}
               >
                 <Text
                   style={[
@@ -392,7 +406,7 @@ export default function EditTransactionModal({
 
             <Text style={styles.label}>Category</Text>
             <View style={styles.grid}>
-              {CATEGORIES.map(cat => (
+              {(transactionType === 'credit' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(cat => (
                 <TouchableOpacity
                   key={cat}
                   style={[styles.chip, category === cat && styles.chipActive]}

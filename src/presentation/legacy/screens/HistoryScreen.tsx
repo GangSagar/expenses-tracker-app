@@ -28,7 +28,7 @@ const formatTime = (timestamp: number) => {
   });
 };
 
-const CATEGORIES: (Category | 'All')[] = ['All', ...APP_CATEGORIES];
+const CATEGORIES: (Category | 'All')[] = Array.from(new Set(['All', ...APP_CATEGORIES]));
 
 const SOURCES = ['All', 'sms', 'notification', 'manual'];
 const TYPES = ['All', 'debit', 'credit'];

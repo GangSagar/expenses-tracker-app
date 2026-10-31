@@ -634,6 +634,19 @@ export default function SettingsScreen() {
       case 'Self-transfers': return '🔄';
       case 'Transfers': return '💸';
       case 'Games': return '🎮';
+      case 'Bank Deposit': return '🏦';
+      case 'Business': return '💼';
+      case 'Interest': return '📈';
+      case 'A/C Transfer': return '📲';
+      case 'Bill Payment': return '🧾';
+      case 'Credit': return '💎';
+      case 'Investment': return '🪙';
+      case 'Loan': return '🤝';
+      case 'Recharge': return '🔋';
+      case 'Refund': return '↩️';
+      case 'Reimbursement': return '📋';
+      case 'Rewards': return '🎁';
+      case 'Salary': return '💰';
       default: return '📦';
     }
   };

@@ -30,15 +30,15 @@
       "amount": 25000,
       "transactionType": "credit",
       "merchant": "Salary",
-      "category": "Other",
+      "category": "Salary",
       "account": "1234",
       "bank": "HDFC",
       "availableBalance": null,
       "requiresConfirmation": false
     },
     "expectedDecision": {
-      "kind": "review",
-      "reason": "medium_confidence"
+      "kind": "auto_save",
+      "reason": "high_confidence"
     }
   },
   {
@@ -276,15 +276,15 @@
       "amount": 450,
       "transactionType": "credit",
       "merchant": "Unknown",
-      "category": "Other",
+      "category": "Refund",
       "account": "1234",
       "bank": "HDFC",
       "availableBalance": null,
-      "requiresConfirmation": true
+      "requiresConfirmation": false
     },
     "expectedDecision": {
-      "kind": "review",
-      "reason": "parser_requires_confirmation"
+      "kind": "auto_save",
+      "reason": "high_confidence"
     },
     "expectedCandidateCategory": "Food & Dining",
     "expectedExtendedTransactionType": "refund"

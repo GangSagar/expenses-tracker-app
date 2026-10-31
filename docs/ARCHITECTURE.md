@@ -80,9 +80,11 @@ graph TB
 2. **Event-Driven Native Input**: The native SMS receiver and notification listener hand supported events to the React Native `MessageModule`. The JS listener fetches queued messages on startup and serializes processing so timestamped events are not reordered.
 3. **Data-Driven Modular Parsing & Universal Bank Identification (SOLID & Clean Architecture)**:
    A 10-stage decoupled pipeline. Bank configurations, merchant aliases, token dictionaries, and category rules are managed via declarative schemas (`bankRegistry.json`, `merchantAliases.json`, `categoryRules.json`). Bank detection employs a multi-tier hierarchy: sender header matching against the unified registry (`bankRegistry.json` covering 50+ financial institutions with dedicated icon assets in `src/assets/banks/`), bank signatures/footers, sanitized body matching, and universal linguistic grammar patterns (`<Name> Bank`, `Bank of <Name>`, `<Name> Card`). Merchant extraction enforces clause termination lookaheads across `through`, `thru`, `thro`, `using`, `on`, `via`, and payment rails. Category classification evaluates `categoryRules.json` via regex word boundaries (`\b${keyword}\b`), eliminating false-positive substring matches. Message filtering delegates through canonical `MessageFilter` heuristics.
-4. **On-Device Correction Learning**:
+4. **Partitioned Category Taxonomy & Visual Asset System**:
+   Categories are cleanly partitioned into Expense (`EXPENSE_CATEGORIES`: 13 categories) and Income (`INCOME_CATEGORIES`: 14 categories). Every category across both partitions features dedicated 256x256 RGBA icons and 350x500 RGBA card backgrounds in `src/assets/categories/`, ensuring unique visual identity and color harmony even when category names coincide (e.g. `Other`).
+5. **On-Device Correction Learning**:
    Explicit merchant/category corrections are recorded through `LearningEngine` in the local merchant-category repository. Parser resolvers consult those mappings. The current implementation does not include confidence decay or token-pattern frequency learning.
-5. **Offline-First Processing**:
+6. **Offline-First Processing**:
    Extraction, spam classification, local correction learning, and ledger persistence run on-device. The typed model catalog and verified download/library service are groundwork only; the catalog is currently empty and no inference engine is configured. Model preferences are disabled by default. Telemetry is enabled only in `__DEV__` outside tests and targets a local Jaeger endpoint. The current pipeline includes the sender as a telemetry attribute; long strings are truncated, but phone-number redaction is not implemented.
 
 ### 1.3 Module ownership and known seams
@@ -333,6 +335,12 @@ The parser follows Clean Architecture principles with complete separation of con
   - `SQLiteCategoryLearningRepository` and `SQLiteTagLearningRepository` serialize model states into the SQLite `classifier_state` table (`category_learning_model` and `tag_learning_model` keys), preserving learned distributions across app restarts.
 * **Extended Transaction Domain Metadata (`src/types/expense.ts`, `src/database/expenseRepo.ts`)**:
   - Every transaction supports `tags` (string array), `notes` (user note/memo), `billImageUri` (receipt or bill attachment), `referenceId` / `transactionId` (UPI reference ID or bank reference number), and immutable automatic `location` (`{ latitude, longitude, label? }`).
+
+#### 7. Visual Identity & Category Asset Architecture (`src/assets/categories/`)
+* **Dual Partition Taxonomy**: Organizes transaction flows into Expense (`EXPENSE_CATEGORIES`, 13 categories) and Income (`INCOME_CATEGORIES`, 14 categories) in `src/constants/appOptions.ts`.
+* **Transparent Standalone Icons**: 256x256 RGBA icons without background containers or squircles, allowing flexible rendering and badge overlays across light and dark theme surfaces.
+* **Thematic Header Background Scenes**: Dedicated 350x500 visual compositions representing conceptual activity or financial setting for each category, serving as the card header artwork.
+* **Color Harmonization**: `CATEGORY_THEMES` provides matching `primary`, `secondary`, and `cardBg` tokens to tie the card header artwork and body container together smoothly. Exposed via `getCategoryIcon()`, `getCategoryBg()`, `getCategoryTheme()`, and `getCategoryColor()`.
 
 ---
 
