@@ -64,6 +64,41 @@ class MessageModule(reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
+    fun addAllowedNotificationPackage(packageName: String, promise: Promise) {
+        try {
+            val context = reactApplicationContext
+            com.expensetracker.notification.NotificationListener.addAllowedPackage(context, packageName)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ADD_PACKAGE_ERROR", "Failed to add allowed package", e)
+        }
+    }
+
+    @ReactMethod
+    fun removeAllowedNotificationPackage(packageName: String, promise: Promise) {
+        try {
+            val context = reactApplicationContext
+            com.expensetracker.notification.NotificationListener.removeAllowedPackage(context, packageName)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("REMOVE_PACKAGE_ERROR", "Failed to remove allowed package", e)
+        }
+    }
+
+    @ReactMethod
+    fun getAllowedNotificationPackages(promise: Promise) {
+        try {
+            val context = reactApplicationContext
+            val packages = com.expensetracker.notification.NotificationListener.getAllowedPackages(context)
+            val array = Arguments.createArray()
+            packages.forEach { array.pushString(it) }
+            promise.resolve(array)
+        } catch (e: Exception) {
+            promise.reject("GET_PACKAGES_ERROR", "Failed to fetch allowed packages", e)
+        }
+    }
+
+    @ReactMethod
     fun showExpenseNotification(title: String, message: String) {
         val context = reactApplicationContext ?: return
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

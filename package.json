@@ -10,14 +10,15 @@
     "jaeger:start": "./run jaeger --start",
     "jaeger:status": "./run jaeger --status",
     "jaeger:stop": "./run jaeger --stop",
-    "benchmark": "node scripts/parse-cli.js --benchmark",
-    "lint": "node scripts/check-import-boundaries.js && eslint .",
-    "parse": "./scripts/parse-sms.sh",
-    "postinstall": "node scripts/setup-android.js && patch-package",
-    "setup:android": "node scripts/setup-android.js",
+    "benchmark": "node scripts/tools/parse-cli.js --benchmark",
+    "lint": "node scripts/tools/check-import-boundaries.js && eslint .",
+    "parse": "./run parse",
+    "postinstall": "node scripts/setup/setup-android.js && patch-package",
+    "setup:android": "node scripts/setup/setup-android.js",
     "start": "react-native start",
     "test": "jest",
-    "test:collect": "python3 scripts/collect-testcases.py"
+    "test:collect": "python3 scripts/simulator/collect-testcases.py",
+    "test:simulate": "./run test --simulate"
   },
   "dependencies": {
     "@react-native/new-app-screen": "0.85.3",

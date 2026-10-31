@@ -266,11 +266,35 @@ npm run lint
 # Check TypeScript types
 npx tsc --noEmit
 
-# Run parser diagnostic CLI (see scripts/parse-sms.sh for supported arguments)
+# Run parser diagnostic CLI (see scripts/runners/run_parse.sh or ./run parse --help)
 npm run parse
 
 # Run parser throughput benchmark
 npm run benchmark
+
+# Simulate SMS & app notifications on emulator
+npm run test:simulate
+```
+
+### 🧪 Simulating Messages & Notifications on Emulator
+
+You can simulate live SMS messages, payment app notifications (Google Pay, PhonePe, Paytm, BHIM UPI, Google Messages), and test the anti-spam/filter pipeline directly on an Android emulator:
+
+```bash
+# Open interactive simulator menu
+./run test --simulate
+
+# Simulate genuine transactions directly:
+./run test -s sms HDFCBK "Dear Customer, your A/c XX1234 is debited for Rs 450.00 at SWIGGY"
+./run test -s gpay "Paid ₹350 to Starbucks on Google Pay"
+./run test -s bhim "Sent Rs. 200.00 to Ramesh via BHIM UPI"
+./run test -s phonepe "Paid ₹120 to Chai Point on PhonePe"
+
+# Test filter & spam classifier rejection:
+./run test -s spam loan          # Pre-approved loan advertisement (Bayesian spam filter)
+./run test -s spam otp           # Transaction OTP verification (OTP regex gate)
+./run test -s spam promo         # Marketing discount / cashback offer (Spam suppressor)
+./run test -s spam personal      # Personal chat from 10-digit number (Sender filter)
 ```
 
 ### 📱 Collecting Real Test Cases from Your Phone

@@ -1,4 +1,4 @@
-const { checkSource } = require('../../scripts/check-import-boundaries');
+const { checkSource } = require('../../scripts/tools/check-import-boundaries');
 
 describe('import boundaries', () => {
   it('rejects core imports from database and React Native', () => {

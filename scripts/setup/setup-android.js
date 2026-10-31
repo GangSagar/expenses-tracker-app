@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const rootDir = path.resolve(__dirname, '..');
+const rootDir = path.resolve(__dirname, '../..');
 const androidDir = path.join(rootDir, 'android');
 const localPropertiesPath = path.join(androidDir, 'local.properties');
 

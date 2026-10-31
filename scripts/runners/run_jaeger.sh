@@ -2,13 +2,13 @@
 set -e
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$DIR")"
-JAEGER_BIN="$DIR/jaeger/jaeger-all-in-one"
-DATA_DIR="$DIR/jaeger/data"
-LOG_DIR="$DIR/jaeger/logs"
+PROJECT_ROOT="$(cd "$DIR/../.." && pwd)"
+JAEGER_BIN="$PROJECT_ROOT/scripts/jaeger/jaeger-all-in-one"
+DATA_DIR="$PROJECT_ROOT/scripts/jaeger/data"
+LOG_DIR="$PROJECT_ROOT/scripts/jaeger/logs"
 LOG_FILE="$LOG_DIR/jaeger.log"
 
-UI_CONFIG="$DIR/jaeger/jaeger-ui.json"
+UI_CONFIG="$PROJECT_ROOT/scripts/jaeger/jaeger-ui.json"
 
 ensure_installed() {
   if [ ! -f "$JAEGER_BIN" ]; then

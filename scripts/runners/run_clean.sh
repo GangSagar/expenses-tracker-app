@@ -2,7 +2,7 @@
 set -e
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(dirname "$DIR")"
+ROOT_DIR="$(cd "$DIR/../.." && pwd)"
 
 show_help() {
   echo "Usage: ./run clean [options]"

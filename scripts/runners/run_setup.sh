@@ -2,7 +2,7 @@
 set -e
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(dirname "$DIR")"
+ROOT_DIR="$(cd "$DIR/../.." && pwd)"
 
 show_help() {
   echo "Usage: ./run setup [options]"
@@ -17,7 +17,7 @@ show_help() {
 case "${1:---android}" in
   --android|-a|android)
     echo "🔧 Running Android environment setup..."
-    node "$DIR/setup-android.js"
+    node "$ROOT_DIR/scripts/setup/setup-android.js"
     ;;
   --ios|-i|ios)
     echo "🔧 Running iOS CocoaPods setup..."
