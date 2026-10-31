@@ -1,4 +1,4 @@
-import { Expense, Category } from '../types/expense';
+import { Expense, Category, TransactionLocation } from '../types/expense';
 import { QuickSQLiteConnection } from 'react-native-quick-sqlite';
 import { getDatabase } from './db';
 import { telemetry } from '../infrastructure/observability/telemetryService';
@@ -21,13 +21,15 @@ export const INSERT_EXPENSE_SQL = `
   INSERT INTO expenses (
     amount, merchant, alias, category, confidence, timestamp, source, 
     raw_message, transaction_type, account, bank, payment_mode, 
-    is_duplicate, available_balance, splits, reference_id, is_invalid, trash_reason
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    is_duplicate, available_balance, splits, reference_id, is_invalid, trash_reason,
+    tags, notes, bill_image_uri, location
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
 export const UPDATE_EXPENSE_WITH_AMOUNT_SQL = `
   UPDATE expenses 
-  SET merchant = ?, category = ?, bank = ?, payment_mode = ?, amount = ?, splits = ?, transaction_type = COALESCE(?, transaction_type)
+  SET merchant = ?, category = ?, bank = ?, payment_mode = ?, amount = ?, splits = ?, transaction_type = COALESCE(?, transaction_type),
+      tags = COALESCE(?, tags), notes = COALESCE(?, notes), bill_image_uri = COALESCE(?, bill_image_uri)
   WHERE id = ?
 `;
 
@@ -173,9 +175,13 @@ function getInsertExpenseParams(expense: Omit<Expense, 'id'>): unknown[] {
     expense.isDuplicate ? 1 : 0,
     expense.availableBalance !== undefined ? expense.availableBalance : null,
     expense.splits ? JSON.stringify(expense.splits) : null,
-    expense.referenceId || null,
+    expense.referenceId || expense.transactionId || null,
     expense.isInvalid ? 1 : 0,
     expense.trashReason || null,
+    expense.tags ? JSON.stringify(expense.tags) : null,
+    expense.notes || null,
+    expense.billImageUri || null,
+    expense.location ? JSON.stringify(expense.location) : null,
   ];
 }
 
@@ -258,6 +264,9 @@ export function mutateExpenseWithSplitUpdatesAtomically(
         mutation.amount,
         mutation.splits ? JSON.stringify(mutation.splits) : null,
         mutation.transactionType,
+        mutation.tags ? JSON.stringify(mutation.tags) : null,
+        mutation.notes || null,
+        mutation.billImageUri || null,
         id,
       ]);
     } else if (mutation.kind === 'invalidate') {
@@ -570,6 +579,24 @@ function mapRows(rows: any[]): Expense[] {
       }
     }
 
+    let tags: string[] | undefined = undefined;
+    if (row.tags) {
+      try {
+        tags = JSON.parse(row.tags);
+      } catch (e) {
+        console.error('Failed to parse tags JSON', e);
+      }
+    }
+
+    let location: TransactionLocation | undefined = undefined;
+    if (row.location) {
+      try {
+        location = JSON.parse(row.location);
+      } catch (e) {
+        console.error('Failed to parse location JSON', e);
+      }
+    }
+
     return {
       id: row.id,
       amount: Number(row.amount) || 0,
@@ -591,6 +618,11 @@ function mapRows(rows: any[]): Expense[] {
           : undefined,
       splits: splits,
       referenceId: row.reference_id || undefined,
+      transactionId: row.reference_id || undefined,
+      tags,
+      notes: row.notes || undefined,
+      billImageUri: row.bill_image_uri || undefined,
+      location,
       isInvalid: row.is_invalid === 1,
       trashReason: row.trash_reason || undefined,
     };

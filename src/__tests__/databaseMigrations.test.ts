@@ -73,11 +73,12 @@ describe('versioned database migrations', () => {
 
     runMigrations(database);
 
-    expect(database.version).toBe(2);
-    expect(database.statements.filter(sql => sql === 'BEGIN TRANSACTION')).toHaveLength(2);
-    expect(database.statements.filter(sql => sql === 'COMMIT')).toHaveLength(2);
+    expect(database.version).toBe(3);
+    expect(database.statements.filter(sql => sql === 'BEGIN TRANSACTION')).toHaveLength(3);
+    expect(database.statements.filter(sql => sql === 'COMMIT')).toHaveLength(3);
     expect(Array.from(database.tables.get('expenses') || [])).toEqual(expect.arrayContaining([
       ...LEGACY_EXPENSE_COLUMNS, 'bank', 'alias', 'splits', 'reference_id', 'is_invalid',
+      'tags', 'notes', 'bill_image_uri', 'location',
     ]));
     expect(database.statements.some(sql => sql.includes('idx_expenses_reference_id'))).toBe(true);
   });
@@ -90,10 +91,11 @@ describe('versioned database migrations', () => {
 
     runMigrations(database);
 
-    expect(database.version).toBe(2);
+    expect(database.version).toBe(3);
     expect(Array.from(database.tables.get('expenses') || [])).toEqual(expect.arrayContaining([
       ...LEGACY_EXPENSE_COLUMNS, 'bank', 'alias', 'available_balance', 'splits',
       'reference_id', 'is_invalid', 'trash_reason', 'created_at',
+      'tags', 'notes', 'bill_image_uri', 'location',
     ]));
     expect(database.tables.get('merchant_categories')?.has('display_name')).toBe(true);
     expect(database.statements.some(sql => /\b(DROP|DELETE|INSERT)\b/i.test(sql))).toBe(false);

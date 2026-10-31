@@ -11,6 +11,7 @@ show_help() {
   echo "Options:"
   echo "  (no args)        Run all core unit test suites (719 passing tests)"
   echo "  --simulate, -s   Simulate live SMS, App notifications (GPay/PhonePe/Paytm/BHIM), & spam/filter tests"
+  echo "  --backend, -B    Headless backend test (Parser, Decision, AI Advisor, Jaeger export without emulator)"
   echo "  --all, -a        Run all test suites including collected real SMS dumps"
   echo "  --watch, -w      Run Jest in interactive watch mode"
   echo "  --collect, -c    Harvest real bank SMS from connected phone via ADB"
@@ -23,6 +24,10 @@ case "${1:-}" in
   --simulate|-s|simulate)
     shift || true
     exec "$ROOT_DIR/scripts/simulator/simulate_message.sh" "$@"
+    ;;
+  --backend|-B|backend)
+    shift || true
+    exec node "$ROOT_DIR/scripts/tools/test-backend.js" "$@"
     ;;
   --benchmark|-b|benchmark)
     echo "⚡ Running SMS parser throughput benchmark..."

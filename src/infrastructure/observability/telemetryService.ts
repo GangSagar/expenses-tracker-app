@@ -1,4 +1,13 @@
-import { Platform } from 'react-native';
+function getPlatformOS(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const rn = require('react-native');
+    if (rn?.Platform?.OS) return rn.Platform.OS;
+  } catch {
+    // Headless Node.js fallback
+  }
+  return typeof process !== 'undefined' && process.platform ? process.platform : 'android';
+}
 
 interface SpanAttribute {
   key: string;
@@ -26,10 +35,10 @@ class TelemetryService {
   private isTest: boolean =
     typeof (globalThis as any).process !== 'undefined' &&
     (globalThis as any).process?.env?.NODE_ENV === 'test';
-  private enabled: boolean = __DEV__ && !this.isTest;
+  private enabled: boolean = !this.isTest;
   private queue: RawSpan[] = [];
   private flushTimer: any = null;
-  private osType: string = Platform?.OS || 'android';
+  private osType: string = getPlatformOS();
   private primaryEndpoint: string = 'http://127.0.0.1:4318/v1/traces';
   private emulatorEndpoint: string = 'http://10.0.2.2:4318/v1/traces';
   private targetEndpoint: string = 'http://127.0.0.1:4318/v1/traces';
@@ -38,6 +47,20 @@ class TelemetryService {
     if (this.enabled) {
       this.startFlushInterval();
     }
+  }
+
+  public setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
+    if (enabled && !this.flushTimer) {
+      this.startFlushInterval();
+    } else if (!enabled && this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
+    }
+  }
+
+  public isEnabled(): boolean {
+    return this.enabled;
   }
 
   private randomHex(bytes: number): string {
@@ -92,6 +115,8 @@ class TelemetryService {
     const attributes = { ...initialAttributes };
 
     return {
+      traceId,
+      spanId,
       setAttribute: (key: string, val: any) => {
         attributes[key] = val;
       },
@@ -171,7 +196,7 @@ class TelemetryService {
     }, 2000);
   }
 
-  private async flush() {
+  public async flush(): Promise<void> {
     if (!this.enabled || this.queue.length === 0) return;
 
     const spansToExport = [...this.queue];
@@ -207,11 +232,25 @@ class TelemetryService {
       if (!res.ok && this.targetEndpoint === this.primaryEndpoint) {
         // Fallback to emulator gateway 10.0.2.2 if 127.0.0.1 fails
         this.targetEndpoint = this.emulatorEndpoint;
+        await fetch(this.targetEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }).catch(() => {});
       }
     } catch {
-      // If primary endpoint fails, switch to emulator gateway on next flush
+      // If primary endpoint fails, retry with emulator gateway
       if (this.targetEndpoint === this.primaryEndpoint) {
         this.targetEndpoint = this.emulatorEndpoint;
+        try {
+          await fetch(this.targetEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } catch {
+          // Both endpoints unavailable, drop gracefully
+        }
       }
     }
   }

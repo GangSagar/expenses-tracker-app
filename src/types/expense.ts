@@ -6,6 +6,23 @@ export type PaymentMode = typeof PAYMENT_MODES[number];
 
 export type Category = typeof CATEGORIES[number];
 
+export const DEFAULT_TAGS = ['School', 'Work', 'Family', 'Friends', 'Personal'] as const;
+export type DefaultTag = typeof DEFAULT_TAGS[number];
+
+export interface TransactionLocation {
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+  address?: string;
+  timestamp?: number;
+}
+
+export interface CategorySuggestion {
+  category: Category;
+  confidence: number;
+  evidence?: string[];
+}
+
 export interface RepaymentAllocation {
   expenseId: number;
   splitId: string;
@@ -48,6 +65,12 @@ export interface Expense {
   availableBalance?: number;
   splits?: ExpenseSplit[];
   referenceId?: string;
+  transactionId?: string;
+  tags?: string[];
+  notes?: string;
+  billImageUri?: string;
+  location?: TransactionLocation;
+  suggestedCategories?: CategorySuggestion[];
   isInvalid?: boolean;
   trashReason?: 'spam' | 'false' | 'duplicate' | 'other';
 }

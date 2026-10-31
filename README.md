@@ -13,16 +13,16 @@
 
 Detailed system specifications, architectural diagrams, engineering plans, and test methodologies are documented in the [`docs/`](./docs) directory:
 
-| Document                                         | File Link                                                       | Summary & Contents                                                                                                                                                                                                                                                   |
-| :----------------------------------------------- | :-------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Product Requirements** | [`docs/PRD.md`](./docs/PRD.md) | Product goals and requirements; implementation status is tracked separately. |
-| **Technical Requirements** | [`docs/TRD.md`](./docs/TRD.md) | Current technical contracts, native integrations, persistence, and known partial capabilities. |
-| **Runtime Architecture** | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Current architecture and runtime data flow. |
-| **Live Message Flow** | [`docs/APP_MESSAGE_LISTENER_FLOW.md`](./docs/APP_MESSAGE_LISTENER_FLOW.md) | Active SMS/notification ingestion through decision and persistence. |
-| **Implementation Roadmap** | [`docs/v2.0 - improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md`](./docs/v2.0%20-%20improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md) | Authoritative phased restructuring plan and status. |
-| **Feature Extension Guide** | [`docs/FEATURE_EXTENSION_GUIDE.md`](./docs/FEATURE_EXTENSION_GUIDE.md) | Where proposed sources and providers should enter and which use cases to reuse. |
-| **Testing Strategy** | [`docs/TESTING_STRATEGY.md`](./docs/TESTING_STRATEGY.md) | Available verification commands and release checklist. |
-| **Historical architecture diagram** | [`docs/architecture.drawio`](./docs/architecture.drawio) | Original v1 diagram; not authoritative for current runtime structure. |
+| Document                                  | File Link                                                                                                                                     | Summary & Contents                                                                             |
+| :---------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
+| **Product Requirements**            | [`docs/PRD.md`](./docs/PRD.md)                                                                                                               | Product goals and requirements; implementation status is tracked separately.                   |
+| **Technical Requirements**          | [`docs/TRD.md`](./docs/TRD.md)                                                                                                               | Current technical contracts, native integrations, persistence, and known partial capabilities. |
+| **Runtime Architecture**            | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)                                                                                             | Current architecture and runtime data flow.                                                    |
+| **Live Message Flow**               | [`docs/APP_MESSAGE_LISTENER_FLOW.md`](./docs/APP_MESSAGE_LISTENER_FLOW.md)                                                                   | Active SMS/notification ingestion through decision and persistence.                            |
+| **Implementation Roadmap**          | [`docs/v2.0 - improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md`](<./docs/v2.0%20-%20improvement_plan/ARCHITECTURE_RESTRUCTURING_PLAN.md>) | Authoritative phased restructuring plan and status.                                            |
+| **Feature Extension Guide**         | [`docs/FEATURE_EXTENSION_GUIDE.md`](./docs/FEATURE_EXTENSION_GUIDE.md)                                                                       | Where proposed sources and providers should enter and which use cases to reuse.                |
+| **Testing Strategy**                | [`docs/TESTING_STRATEGY.md`](./docs/TESTING_STRATEGY.md)                                                                                     | Available verification commands and release checklist.                                         |
+| **Historical architecture diagram** | [`docs/architecture.drawio`](./docs/architecture.drawio)                                                                                     | Original v1 diagram; not authoritative for current runtime structure.                          |
 
 ## 💡 Why Smart Expense Tracker?
 
@@ -42,6 +42,7 @@ Most expense tracking apps either:
 ## 🌟 Key Features
 
 ### 🧠 Generic, Extensible & Learning-Based Parsing Engine
+
 - **Structured parsing**: SMS and supported app notifications pass through filtering, normalization, tokenization, extraction, rules, resolvers, and confidence scoring. The parser may consult learned merchant/category mappings. `AIResolver` and its in-memory cache exist, but no inference handler/model is configured.
 - **Declarative provider rules**: Bank and merchant configuration is data-driven. A new format may still require extractor/resolver code and regression examples; support is not guaranteed by editing JSON alone.
 - **Correction learning**: Explicit merchant/category corrections are stored locally and can influence later parsing. Token-frequency learning and confidence reinforcement are not implemented.
@@ -52,6 +53,12 @@ Most expense tracking apps either:
 - Seamlessly extracts **amount**, **type** (debit / credit), **payment mode** (UPI, Card, ATM, Net Banking), **merchant name**, **bank name**, and **account number**.
 - Captures real-time push notifications from popular payment apps (Google Pay, PhonePe, Paytm, etc.).
 - Robust anti-spam filters automatically ignore OTPs, promotional SMS, cellular operator ads, and personal chats.
+
+### 🏷️ Rich Transaction Metadata & Auto-Location
+- **Tags & Labels**: Flexible tagging system (`School`, `Work`, `Family`, `Friends`, `Personal`, and custom tags) for granular grouping.
+- **Notes & Receipts**: Store freeform context and attach receipt/bill images (`billImageUri`).
+- **Transaction & Ref IDs**: Extracts UPI reference numbers, UTRs, and transaction IDs indexed directly as `transactionId` (`referenceId`).
+- **Automatic GPS Location Capture**: Native location bridge automatically acquires current coordinates when an SMS or notification arrives. Location is strictly immutable and cannot be created or altered manually.
 
 ### 💳 Accounts & Card Management
 
@@ -76,6 +83,7 @@ Most expense tracking apps either:
 - Full chronological transaction history with multi-filter search (by date range, category, payment mode, or account).
 
 ### 🔒 App Security & Privacy Lock
+
 - **4-Digit Personal Passcode**: Protect your financial ledger with an app-specific PIN. Passcodes are salted and hashed using SHA-256 for maximum security.
 - **Biometric & Device Screen Lock**: Authenticate seamlessly using your phone's Fingerprint, Face ID, or system PIN/Pattern via lifecycle-hardened `androidx.biometric.BiometricPrompt`.
 - **Recent Apps & Task Switcher Privacy**: Enforces native Android `FLAG_SECURE` (`onCreate` and `onResume`) alongside an instant JS privacy veil to completely hide sensitive transaction previews and account balances in the recent apps switcher.
@@ -235,14 +243,14 @@ src/
 └── types/               # TypeScript data models and interfaces
 ```
 
-| Layer                      | Technology                    | Key Role                                            |
-| :------------------------- | :---------------------------- | :-------------------------------------------------- |
-| **Framework**        | React Native 0.85             | High-performance cross-platform rendering           |
-| **Native Bridge**    | Kotlin                        | Event-driven Broadcast Receivers & Android Services |
-| **Parsing Engine**   | Modular Clean Architecture    | 10-stage data-driven lexical parsing & self-learning|
-| **Database**         | `react-native-quick-sqlite`   | C++ direct SQLite binding for instant local storage |
-| **State Management** | Zustand                       | Lightweight reactive state store                    |
-| **Navigation**       | React Navigation 7            | Native gesture and tab-based navigation             |
+| Layer                      | Technology                    | Key Role                                             |
+| :------------------------- | :---------------------------- | :--------------------------------------------------- |
+| **Framework**        | React Native 0.85             | High-performance cross-platform rendering            |
+| **Native Bridge**    | Kotlin                        | Event-driven Broadcast Receivers & Android Services  |
+| **Parsing Engine**   | Modular Clean Architecture    | 10-stage data-driven lexical parsing & self-learning |
+| **Database**         | `react-native-quick-sqlite` | C++ direct SQLite binding for instant local storage  |
+| **State Management** | Zustand                       | Lightweight reactive state store                     |
+| **Navigation**       | React Navigation 7            | Native gesture and tab-based navigation              |
 
 ---
 
@@ -297,6 +305,22 @@ You can simulate live SMS messages, payment app notifications (Google Pay, Phone
 ./run test -s spam personal      # Personal chat from 10-digit number (Sender filter)
 ```
 
+### ⚡ Standalone Headless Backend & Tracing Verification
+
+Verify parsing, transaction decisions, the AI Smart Budget Advisor, and Jaeger traces directly from the command line without an emulator:
+
+```bash
+# Basic test with sender and message
+./run test --backend "Dear Customer, A/c XX1234 debited for Rs 500.00 at Swiggy UPI: 987654321" HDFCBK
+
+# With tags, notes, bill attachment, and GPS coordinates
+./run test --backend "Dear Customer, A/c XX1234 debited for Rs 500.00 at Swiggy UPI: 987654321" HDFCBK \
+  --tags "Food,Work" \
+  --notes "Team dinner" \
+  --lat 12.9716 \
+  --lng 77.5946
+```
+
 ### 📱 Collecting Real Test Cases from Your Phone
 
 You can extract real bank messages from your phone and turn them into local test scenarios. **The collector copies raw `raw_message` text and does not redact account numbers, names, phone numbers, or other PII.** Treat the generated fixture as sensitive; inspect and sanitize it before sharing or committing.
@@ -304,12 +328,14 @@ You can extract real bank messages from your phone and turn them into local test
 1. Connect your phone via USB with USB Debugging enabled.
 2. In the app on your phone, go to **Settings → Backfill Ledger** to import your messages.
 3. Run the automated collector:
+
    ```bash
    npm run test:collect
    ```
 
    The collector extracts raw transaction messages from the app's local database, saves unique samples into `src/__tests__/__fixtures__/collected-real-samples.json`, and generates `src/__tests__/collected-real.test.ts`.
 4. Run tests against your real phone's scenarios:
+
    ```bash
    npm test src/__tests__/collected-real.test.ts
    ```

@@ -319,7 +319,7 @@ export function parseStructuredAsync(
 * **Engine**: SQLite 3 compiled with C++ JSI direct execution via `react-native-quick-sqlite`.
 * **Database Name**: `expense_tracker.db`
 * **Location**: App internal sandboxed storage managed by the native SQLite library; the exact path is platform/runtime-owned.
-* **Initialization and migrations**: `src/database/db.ts` runs sequential `PRAGMA user_version` migrations before exposing the connection. Current migration version is 2: version 1 establishes/validates the supported legacy baseline and support tables; version 2 adds query indexes. Each migration and version update run in one transaction. Unsupported legacy table shapes and databases newer than the app's latest version fail without being silently rewritten.
+* **Initialization and migrations**: `src/database/db.ts` runs sequential `PRAGMA user_version` migrations before exposing the connection. Current migration version is 3: version 1 establishes/validates the supported legacy baseline and support tables; version 2 adds query indexes; version 3 adds transaction metadata columns (`tags`, `notes`, `bill_image_uri`, `location`). Each migration and version update run in one transaction. Unsupported legacy table shapes and databases newer than the app's latest version fail without being silently rewritten.
 
 ### 5.2 Table Schemas
 
@@ -347,9 +347,13 @@ CREATE TABLE IF NOT EXISTS expenses (
   is_duplicate INTEGER DEFAULT 0,
   available_balance REAL,
   splits TEXT,               -- JSON serialized array of split entities
-  reference_id TEXT,         -- Bank UTR or transaction reference
+  reference_id TEXT,         -- Bank UTR, UPI reference, or transaction reference ID
   is_invalid INTEGER DEFAULT 0, -- Soft delete flag for trashed items
   trash_reason TEXT,
+  tags TEXT,                 -- JSON serialized array of user tags (e.g. ["School", "Work"])
+  notes TEXT,                -- Freeform transaction note text
+  bill_image_uri TEXT,       -- Local URI path to receipt/bill image
+  location TEXT,             -- JSON serialized TransactionLocation (immutable GPS snapshot)
   created_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
 
@@ -379,7 +383,7 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 ```
 
-The baseline also creates `classifier_state`, but the current spam-classifier adapter stores model state under the `settings` key `spam_classifier_state`; the table currently has no application reader/writer. `splits` is JSON and includes stable split IDs and exact repayment-allocation links when available. See `src/database/schema.ts` and `src/database/migrations/` for the executable schema; this excerpt is descriptive.
+The `classifier_state` table persists on-device machine learning and statistical model states, including `category_learning_model` (managed by `SQLiteCategoryLearningRepository.ts` for statistical Naive Bayes category suggestion and learning with zero regexes, outputting top category and ranked alternative suggestions capped at 3) and `tag_learning_model` (managed by `SQLiteTagLearningRepository.ts` for dynamic self-learning multi-label tag classification capped at 3 tags across entities, categories, payment channels, and message tokens). Both models belong to the unified on-device learning subsystem (`src/core/learning/`). `splits` is JSON and includes stable split IDs and exact repayment-allocation links when available. See `src/database/schema.ts` and `src/database/migrations/` for the executable schema; this excerpt is descriptive.
 
 ---
 
