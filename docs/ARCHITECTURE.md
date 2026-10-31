@@ -78,8 +78,8 @@ graph TB
 
 1. **Local Persistence**: The SQLite adapter uses `react-native-quick-sqlite`; transaction application operations and repository ports own transaction writes. Performance characteristics should be measured on target devices rather than inferred from JSI alone.
 2. **Event-Driven Native Input**: The native SMS receiver and notification listener hand supported events to the React Native `MessageModule`. The JS listener fetches queued messages on startup and serializes processing so timestamped events are not reordered.
-3. **Data-Driven Modular Parsing (SOLID & Clean Architecture)**:
-   Replaces monolithic regex functions with a 10-stage decoupled pipeline. Bank patterns, merchant aliases, token dictionaries, and category rules are managed via declarative JSON schemas (`bankRules.json`, `merchantAliases.json`, `categoryRules.json`), enabling instant onboarding of new financial institutions and UPI apps without source code modifications.
+3. **Data-Driven Modular Parsing & Universal Bank Identification (SOLID & Clean Architecture)**:
+   A 10-stage decoupled pipeline. Bank configurations, merchant aliases, token dictionaries, and category rules are managed via declarative schemas (`bankRegistry.json`, `merchantAliases.json`, `categoryRules.json`). Bank detection employs a multi-tier hierarchy: sender header matching against the unified registry (`bankRegistry.json` covering 50+ financial institutions with dedicated icon assets in `src/assets/banks/`), bank signatures/footers, sanitized body matching, and universal linguistic grammar patterns (`<Name> Bank`, `Bank of <Name>`, `<Name> Card`). Merchant extraction enforces clause termination lookaheads across `through`, `thru`, `thro`, `using`, `on`, `via`, and payment rails.
 4. **On-Device Correction Learning**:
    Explicit merchant/category corrections are recorded through `LearningEngine` in the local merchant-category repository. Parser resolvers consult those mappings. The current implementation does not include confidence decay or token-pattern frequency learning.
 5. **Offline-First Processing**:
@@ -282,11 +282,11 @@ The parser follows Clean Architecture principles with complete separation of con
 
 | Submodule | Location | Architectural Responsibility |
 | :--- | :--- | :--- |
-| **Config Tier** | `src/core/parser/config/` | Declarative bank/provider patterns, merchant aliases, category rules, and lexical keywords. Configured rules are examples of coverage, not a guarantee for all provider formats. |
+| **Config Tier** | `src/core/parser/config/` | Declarative unified bank registry (`bankRegistry.json` covering 50+ financial institutions with dedicated icon assets), merchant aliases, category rules, and lexical keywords. |
 | **Models Tier** | `src/core/parser/models/` | Strictly typed `StructuredExpense` entity, `Token` stream definitions, and `ConfidenceResult` contracts. |
 | **Normalizer Tier** | `src/core/parser/normalizer/` | Composable pipeline executing Unicode math font conversion (`0x1D400`–`0x1D7FF`), currency token unification (`INR`, `Rs.`, `₹` ➔ `INR`), keyword normalization, and whitespace cleanup. |
 | **Tokenizer Tier** | `src/core/parser/tokenizer/` | Lexical analyzer classifying character sequences into typed tokens (`AMOUNT`, `ACCOUNT`, `VPA`, `KEYWORD`, `DATE`, `REF_NUMBER`, `MERCHANT_HINT`, `WORD`, `SEPARATOR`). |
-| **Extractor Tier** | `src/core/parser/extractor/` | Targeted extraction units: `AmountExtractor`, `AccountExtractor`, `VpaExtractor`, `ReferenceExtractor`, `BalanceExtractor`, `BankExtractor`, `PaymentModeExtractor`, `RawMerchantExtractor`, unified by `EntityExtractor`. |
+| **Extractor Tier** | `src/core/parser/extractor/` | Targeted extraction units: `AmountExtractor`, `AccountExtractor`, `VpaExtractor`, `ReferenceExtractor`, `BalanceExtractor`, `BankExtractor` (multi-tier registry and structural grammar), `PaymentModeExtractor`, `RawMerchantExtractor` (lookahead clause termination for `through`/`thru`/`thro`), unified by `EntityExtractor`. |
 | **Resolver Tier** | `src/core/parser/resolver/` | Business heuristics: `MerchantResolver` (cleans UPI garbage, strips bank headers, matches alias registry), `TransactionResolver` (debit vs credit directionality priorities), and `CategoryResolver` (rule-based and learned category assignment). |
 | **Confidence Tier** | `src/core/parser/confidence/` | Parser confidence combines extraction/resolution signals and reports confirmation requirements. A separate transaction policy consumes parser evidence and classifier confidence. |
 | **Learning Tier** | `src/core/parser/learning/` | `LearningEngine` stores explicit merchant/category corrections through `ILearningRepository`; the standalone parser uses in-memory learning, while production composition selects the SQLite adapter in `src/infrastructure/persistence/sqlite/`. |

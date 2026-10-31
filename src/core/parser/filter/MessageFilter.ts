@@ -87,15 +87,15 @@ export class MessageFilter {
       return true;
     }
 
-    // Standard Indian transactional SMS header format (e.g. VM-HDFCBK, AX-ICICIB, JX-BOBSMS)
+    // Standard transactional SMS header format (e.g. VM-HDFCBK, AX-ICICIB, JX-BOBSMS)
     if (/^[A-Z]{2}-[A-Z0-9-]+$/i.test(s)) {
       return true;
     }
 
     // Check known bank sender keywords
     const upperSender = s.toUpperCase();
-    const bankRules = configManager.getBankRules();
-    for (const rule of bankRules) {
+    const bankRegistry = configManager.getBankRegistry();
+    for (const rule of bankRegistry) {
       for (const kw of rule.senderKeywords) {
         if (upperSender.includes(kw.toUpperCase())) {
           return true;

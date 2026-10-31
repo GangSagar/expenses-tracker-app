@@ -48,7 +48,7 @@ export const WALLET_REGEX =
 // Primary: text after "at / to / towards / for / transfer to / trf to"
 // Stops before "on", "Ref", "via", "UPI", "NEFT", "IMPS", "RTGS", end-of-line
 export const MERCHANT_REGEX =
-  /(?:at|(?<!linked\s+)\bto\b|towards|for|transferred?\s+to|trf\s+to)\s+([A-Za-z0-9\s&'./\-@]+?)(?:\s+on\b|\s+[Rr]ef\b|\s+via\b|\s+UPI\b|\s+NEFT\b|\s+IMPS\b|\s+RTGS\b|\bAvl\s+Bal\b|\bAvailable\s+Bal\b|\bCredit\s+Limit\b|\bAvl\s+Limit\b|\.\s|\s*\(|[.\s]*$)/i;
+  /(?:at|(?<!linked\s+)\bto\b|towards|for|transferred?\s+to|trf\s+to)\s+([A-Za-z0-9\s&'./\-@]+?)(?:\s+on\b|\s+[Rr]ef\b|\s+via\b|\s+through\b|\s+thru\b|\s+thro\b|\s+UPI\b|\s+NEFT\b|\s+IMPS\b|\s+RTGS\b|\bAvl\s+Bal\b|\bAvailable\s+Bal\b|\bCredit\s+Limit\b|\bAvl\s+Limit\b|\.\s|\s*\(|[.\s]*$)/i;
 
 // Fallback: pull the VPA handle's local-part as the merchant name
 //   e.g. "swiggy@icici" → "swiggy" | "917012345678@ybl" → skipped (pure number)

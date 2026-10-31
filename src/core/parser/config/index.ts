@@ -1,8 +1,9 @@
-import bankRulesJson from './bankRules.json';
+import bankRegistryJson from './bankRegistry.json';
 import merchantAliasesJson from './merchantAliases.json';
 import categoryRulesJson from './categoryRules.json';
 import tokenDictionaryJson from './tokenDictionary.json';
 import {
+  BankConfig,
   BankRule,
   MerchantAliasConfig,
   CategoryRuleConfig,
@@ -16,14 +17,14 @@ export * from './parserConfig';
 export class ParserConfigurationManager {
   private static instance: ParserConfigurationManager;
   private config: ParserEngineConfig;
-  private bankRules: BankRule[];
+  private bankRegistry: BankConfig[];
   private merchantAliases: MerchantAliasConfig;
   private categoryRules: CategoryRuleConfig;
   private tokenDictionary: TokenDictionaryConfig;
 
   private constructor() {
     this.config = { ...DEFAULT_PARSER_CONFIG };
-    this.bankRules = bankRulesJson as BankRule[];
+    this.bankRegistry = bankRegistryJson as BankConfig[];
     this.merchantAliases = merchantAliasesJson as MerchantAliasConfig;
     this.categoryRules = categoryRulesJson as CategoryRuleConfig;
     this.tokenDictionary = tokenDictionaryJson as TokenDictionaryConfig;
@@ -44,12 +45,16 @@ export class ParserConfigurationManager {
     this.config = { ...this.config, ...newConfig };
   }
 
-  public getBankRules(): BankRule[] {
-    return this.bankRules;
+  public getBankRegistry(): BankConfig[] {
+    return this.bankRegistry;
+  }
+
+  public getBankRules(): BankConfig[] {
+    return this.bankRegistry;
   }
 
   public addBankRule(rule: BankRule): void {
-    this.bankRules.unshift(rule);
+    this.bankRegistry.unshift(rule);
   }
 
   public getMerchantAliases(): MerchantAliasConfig {

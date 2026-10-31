@@ -211,8 +211,8 @@ export type TokenType =
 
 All bank templates, merchant cleaning patterns, and categories are decoupled into declarative JSON schemas:
 
-* **`bankRules.json`**:
-  Defines configured patterns, sender prefixes, and priority overrides for bank and payment formats. A configured rule is not a guarantee of coverage; parser tests and representative messages determine verified support.
+* **`bankRegistry.json`**:
+  Defines structured rules, sender headers, body keywords, account prefixes, balance markers, and icon mappings for 50+ financial institutions as a single country-neutral source of truth.
 * **`merchantAliases.json`**:
   Maintains canonical brand maps and noise-stripping rules:
   - Noise prefixes stripped: `VPA`, `UPI/`, `PAYTM*`, `BILLDESK/`, `POS/`, `NEFT-`, `IMPS-`.
@@ -230,12 +230,12 @@ Specialized extractors operate on the token stream and normalized text independe
 | :--------------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
 | **`AmountExtractor`**      | Extracts financial figures; enforces positive values; validates against date/account collisions; checks post-currency markers. |
 | **`AccountExtractor`**     | Identifies masked accounts (`XX1234`, `*5678`, `ending with 9012`, `Card 3456`).                                       |
-| **`BankExtractor`**        | Correlates DLT sender headers (`VM-HDFCBK` ➔ `HDFC`) and body mentions against `bankRules.json`.                        |
+| **`BankExtractor`**        | Multi-tier bank detection: evaluates sender headers and body mentions against the single authoritative bank registry (`bankRegistry.json` covering 50+ institutions with dedicated icon assets), bank signature footers, and universal structural linguistic grammar heuristics (`<Name> Bank`, `Bank of <Name>`, `<Name> Card`). |
 | **`VpaExtractor`**         | Validates UPI VPA format (`user@bank`), isolating recipient identifiers while stripping trailing bank suffixes.              |
 | **`ReferenceExtractor`**   | Extracts 12-digit UPI RRN, UTR, or bank reference numbers for multi-source deduplication.                                      |
 | **`BalanceExtractor`**     | Isolates available/running account balance reported after transaction completion.                                              |
 | **`PaymentModeExtractor`** | Disambiguates `upi`, `cc` (credit card), `dc` (debit card), `netbanking`, `atm`, `cash`.                           |
-| **`RawMerchantExtractor`** | Extracts candidate merchant strings following positional markers (`at`, `to`, `spent on`, `VPA`).                      |
+| **`RawMerchantExtractor`** | Extracts candidate merchant strings following positional markers (`at`, `to`, `spent on`, `VPA`), with payment preposition lookaheads terminating at `through`, `thru`, `thro`, `using`, `on`, `via`, and `UPI`.                      |
 
 ### 4.5 Contextual Business Resolvers (`src/core/parser/resolver/`)
 

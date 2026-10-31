@@ -44,7 +44,8 @@ Most expense tracking apps either:
 ### 🧠 Generic, Extensible & Learning-Based Parsing Engine
 
 - **Structured parsing**: SMS and supported app notifications pass through filtering, normalization, tokenization, extraction, rules, resolvers, and confidence scoring. The parser may consult learned merchant/category mappings. `AIResolver` and its in-memory cache exist, but no inference handler/model is configured.
-- **Declarative provider rules**: Bank and merchant configuration is data-driven. A new format may still require extractor/resolver code and regression examples; support is not guaranteed by editing JSON alone.
+- **Declarative provider rules & Universal Bank Engine**: Bank and merchant configuration is data-driven. Bank detection combines sender header matching against the single authoritative registry (`bankRegistry.json` covering 50+ financial institutions with dedicated icon assets in `src/assets/banks/`), bank signatures, sanitized body matching, and universal linguistic grammar patterns (`<Name> Bank`, `Bank of <Name>`, `<Name> Card`).
+- **Merchant Clause Terminators**: Strict lookahead clause termination stops extraction before prepositions (`through`, `thru`, `thro`, `using`, `on`, `via`, `UPI`) so payment rails never corrupt merchant names.
 - **Correction learning**: Explicit merchant/category corrections are stored locally and can influence later parsing. Token-frequency learning and confidence reinforcement are not implemented.
 - **One transaction decision policy**: Parser and classifier evidence feed the shared reject/review/auto-save policy before a transaction is persisted.
 

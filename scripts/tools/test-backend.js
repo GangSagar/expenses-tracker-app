@@ -16,26 +16,53 @@ const ADVISOR_DIST = path.join(ROOT_DIR, 'dist', 'services', 'advisor', 'advisor
 const TAGS_DIST = path.join(ROOT_DIR, 'dist', 'src', 'core', 'learning', 'tags', 'TagLearningEngine.js');
 const CATEGORY_DIST = path.join(ROOT_DIR, 'dist', 'src', 'core', 'learning', 'categories', 'CategoryLearningEngine.js');
 
-// Auto-compile parser, advisor & dynamic tag engine if missing
-if (!fs.existsSync(PARSER_DIST)) {
+// Helper to find latest modified time in directory recursively
+function getLatestMtime(dir) {
+  let latest = 0;
+  if (!fs.existsSync(dir)) return latest;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      latest = Math.max(latest, getLatestMtime(fullPath));
+    } else if (entry.isFile()) {
+      latest = Math.max(latest, fs.statSync(fullPath).mtimeMs);
+    }
+  }
+  return latest;
+}
+
+// Auto-compile parser, advisor & dynamic tag engine if missing or modified
+const parserSrcMtime = getLatestMtime(path.join(ROOT_DIR, 'src', 'core', 'parser'));
+const parserDistMtime = fs.existsSync(PARSER_DIST) ? fs.statSync(PARSER_DIST).mtimeMs : 0;
+if (parserSrcMtime > parserDistMtime) {
   execSync(
     'npx tsc src/core/parser/parseMessage.ts --module commonjs --target es2020 --moduleResolution node --resolveJsonModule --esModuleInterop --outDir dist --skipLibCheck',
     { cwd: ROOT_DIR, stdio: 'pipe' }
   );
 }
-if (!fs.existsSync(ADVISOR_DIST)) {
+
+const advisorSrcMtime = getLatestMtime(path.join(ROOT_DIR, 'src', 'services', 'advisor'));
+const advisorDistMtime = fs.existsSync(ADVISOR_DIST) ? fs.statSync(ADVISOR_DIST).mtimeMs : 0;
+if (advisorSrcMtime > advisorDistMtime) {
   execSync(
     'npx tsc src/services/advisor/advisorService.ts --module commonjs --target es2020 --moduleResolution node --resolveJsonModule --esModuleInterop --outDir dist --skipLibCheck',
     { cwd: ROOT_DIR, stdio: 'pipe' }
   );
 }
-if (!fs.existsSync(TAGS_DIST)) {
+
+const tagSrcMtime = getLatestMtime(path.join(ROOT_DIR, 'src', 'core', 'learning', 'tags'));
+const tagDistMtime = fs.existsSync(TAGS_DIST) ? fs.statSync(TAGS_DIST).mtimeMs : 0;
+if (tagSrcMtime > tagDistMtime) {
   execSync(
     'npx tsc src/core/learning/tags/TagLearningEngine.ts --rootDir . --module commonjs --target es2020 --moduleResolution node --resolveJsonModule --esModuleInterop --outDir dist --skipLibCheck',
     { cwd: ROOT_DIR, stdio: 'pipe' }
   );
 }
-if (!fs.existsSync(CATEGORY_DIST)) {
+
+const categorySrcMtime = getLatestMtime(path.join(ROOT_DIR, 'src', 'core', 'learning', 'categories'));
+const categoryDistMtime = fs.existsSync(CATEGORY_DIST) ? fs.statSync(CATEGORY_DIST).mtimeMs : 0;
+if (categorySrcMtime > categoryDistMtime) {
   execSync(
     'npx tsc src/core/learning/categories/CategoryLearningEngine.ts --rootDir . --module commonjs --target es2020 --moduleResolution node --resolveJsonModule --esModuleInterop --outDir dist --skipLibCheck',
     { cwd: ROOT_DIR, stdio: 'pipe' }

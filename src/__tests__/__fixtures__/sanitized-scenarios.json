@@ -213,7 +213,7 @@
       "merchant": "Poha",
       "category": "Other",
       "account": "7285",
-      "bank": null,
+      "bank": "HSBC",
       "availableBalance": 85000,
       "requiresConfirmation": false
     },

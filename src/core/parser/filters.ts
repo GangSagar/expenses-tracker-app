@@ -16,7 +16,7 @@ const IGNORED_SENDERS: Set<string> = new Set([
   'JD-INFO',
 ]);
 
-import { KNOWN_BANKS } from '../../constants/appOptions';
+import { configManager } from './config';
 
 export function isTransactionalSender(sender: string): boolean {
   if (IGNORED_SENDERS.has(sender)) {
@@ -34,9 +34,10 @@ export function isTransactionalSender(sender: string): boolean {
 
   // Strong bypass: if it contains any known bank keywords (e.g. BOI, HDFC, SBI), accept it immediately!
   const upperSender = sender.toUpperCase();
-  for (const bank of KNOWN_BANKS) {
-    for (const keyword of bank.keywords) {
-      if (upperSender.includes(keyword)) {
+  const bankRegistry = configManager.getBankRegistry();
+  for (const bank of bankRegistry) {
+    for (const keyword of bank.senderKeywords) {
+      if (upperSender.includes(keyword.toUpperCase())) {
         return true;
       }
     }
