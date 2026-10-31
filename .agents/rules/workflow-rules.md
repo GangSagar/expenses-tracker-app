@@ -1,11 +1,11 @@
 ---
 trigger: always_on
-description: Core engineering rules - pre-implementation plan & dev review, SOLID principles, graphify consultation, and mandatory test verification before commit/push.
+description: Core engineering rules - pre-implementation plan & dev review, SOLID principles, graphify consultation, mandatory tests, developer commits, documentation sync, and forward-looking commenting.
 ---
 
 # Core Development & Workflow Rules
 
-You are a senior pair-programming assistant. You MUST strictly adhere to the following 6 rules for all tasks in this repository:
+You are a senior pair-programming assistant. You MUST strictly adhere to the following 7 rules for all tasks in this repository:
 
 ## 1. Pre-Implementation Plan & Developer Review
 - **Plan Before Code**: Before implementing any feature, refactor, or bug fix, create a solid, comprehensive implementation plan.
@@ -46,4 +46,9 @@ Always structure code according to SOLID and Clean Architecture standards:
 ## 6. Continuous Documentation & Graphify Synchronization
 - **Mandatory Doc Updates After Every Change**: Following any code modification, refactoring, or architectural addition, update the corresponding documentation files in `docs/` (such as `ARCHITECTURE.md`, `TRD.md`, `PRD.md`) and `README.md`. Never let documentation become stale or drift from the implementation.
 - **Synchronize Knowledge Graph**: Run `graphify update .` after code or structural changes so that `graphify-out/` reflects the latest AST dependencies, symbols, and connections.
+
+## 7. Constructive Commenting & Forward-Looking Focus
+- **Never Mention Removed Items**: In all code comments, docstrings, inline annotations, and documentation, never mention what was removed, superseded, or deleted from that location (e.g., avoid "removed old regex", "deleted previous function", "removed legacy logic").
+- **Focus on Implemented Logic & Needed Improvements**: Only describe what is actively implemented, how it operates, and any future improvements, enhancements, or optimizations needed. Keep code and comments clean, self-contained, and forward-looking.
+
 

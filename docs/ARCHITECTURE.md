@@ -318,6 +318,22 @@ The parser follows Clean Architecture principles with complete separation of con
 * **App Lifecycle Gate (`SecurityGate.tsx`)**: Listens to React Native `AppState` transitions with synchronous initial store hydration from SQLite. Auto-locks upon cold start and when backgrounded beyond the configurable auto-lock timeout (Immediately, 30s, 1m, 5m), with hardware `BackHandler` app-minimizing protection.
 * **PIN Management UI (`LockScreen.tsx`, `PinSetupModal.tsx`)**: High-performance interactive numpad, animated dot feedback, error shake animations, biometric concurrency guards, and single-touch device authentication.
 
+#### 6. Unified On-Device Learning & Suggestion Subsystem (`src/core/learning/`)
+* **Base Learning Contracts (`src/core/learning/contracts.ts`)**: Defines generic, decoupled abstractions `ILearningModel<TFeature, TOutput>` and `IModelRepository<TData>` enabling clean swappability and testability across on-device statistical learning components.
+* **Statistical Category Suggestion Engine (`src/core/learning/categories/`)**:
+  - Implements `CategoryLearningEngine` with zero regex patterns.
+  - Employs a multinomial probabilistic likelihood model over entity names, sender IDs, payment channels, and message word tokens to calculate normalized probability distributions across standard expense categories.
+  - Suggests the primary predicted category and a ranked list of alternative category suggestions (capped at 3 candidates) with confidence scores for one-tap UI switching.
+  - Learns continuously from user category confirmations and corrections via `learn()`, updating statistical feature weights in memory and SQLite without requiring regex code changes.
+* **Contextual Tag Prediction Engine (`src/core/learning/tags/`)**:
+  - Implements `TagLearningEngine` with statistical multi-label frequency association (zero regexes).
+  - Automatically predicts contextual tags (`UPI`, `Personal`, etc., capped at 3 tags) based on merchant, category, payment mode, and message token distributions.
+  - Continuously trains from user tag edits and confirmations.
+* **SQLite Model Persistence (`src/infrastructure/learning/`)**:
+  - `SQLiteCategoryLearningRepository` and `SQLiteTagLearningRepository` serialize model states into the SQLite `classifier_state` table (`category_learning_model` and `tag_learning_model` keys), preserving learned distributions across app restarts.
+* **Extended Transaction Domain Metadata (`src/types/expense.ts`, `src/database/expenseRepo.ts`)**:
+  - Every transaction supports `tags` (string array), `notes` (user note/memo), `billImageUri` (receipt or bill attachment), `referenceId` / `transactionId` (UPI reference ID or bank reference number), and immutable automatic `location` (`{ latitude, longitude, label? }`).
+
 ---
 
 ### 2.4 Database Entity Relationship Diagram (ERD)

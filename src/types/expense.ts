@@ -17,6 +17,12 @@ export interface TransactionLocation {
   timestamp?: number;
 }
 
+export interface CategorySuggestion {
+  category: Category;
+  confidence: number;
+  evidence?: string[];
+}
+
 export interface RepaymentAllocation {
   expenseId: number;
   splitId: string;
@@ -64,6 +70,7 @@ export interface Expense {
   notes?: string;
   billImageUri?: string;
   location?: TransactionLocation;
+  suggestedCategories?: CategorySuggestion[];
   isInvalid?: boolean;
   trashReason?: 'spam' | 'false' | 'duplicate' | 'other';
 }

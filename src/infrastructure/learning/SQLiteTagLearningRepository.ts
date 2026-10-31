@@ -1,4 +1,4 @@
-import { ITagLearningRepository, TagModelData } from '../../core/tags/contracts';
+import { ITagLearningRepository, TagModelData } from '../../core/learning/tags/contracts';
 import { getDatabase } from '../../database/db';
 
 const MODEL_KEY = 'tag_learning_model';

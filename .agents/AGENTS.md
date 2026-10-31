@@ -38,3 +38,8 @@ These rules apply to all AI coding agents working in this repository:
 - After every change (feature, refactor, bugfix, or architectural update):
   - **Update Documentation**: Immediately review and update all relevant documentation in `docs/` (e.g., architecture, design specs, workflow notes) and `README.md`. Documentation must always remain synchronized with the current codebase.
   - **Update Graphify Knowledge Graph**: Run `graphify update .` to keep the AST knowledge graph (`graphify-out/`) current and accurate.
+
+## 7. Constructive Commenting & Forward-Looking Focus
+- **Never Mention Removed Items**: In all code comments, docstrings, inline annotations, and documentation, never mention what was removed, superseded, or deleted from that location (e.g., avoid "removed old regex", "deleted previous function", "removed legacy logic").
+- **Focus on Implemented Logic & Needed Improvements**: Only describe what is actively implemented, how it operates, and any future improvements, enhancements, or optimizations needed. Keep code and comments clean, self-contained, and forward-looking.
+

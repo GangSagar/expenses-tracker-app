@@ -10,15 +10,26 @@ import { IncomingMessage, processIncomingMessage } from '../messaging/messageSer
 import { processTransaction } from './transactionDecisionService';
 import { orchestrateTransaction } from './transactionOrchestrator';
 import { setMerchantMapping } from '../../core/classifier/merchantMap';
-import { defaultTagLearningEngine } from '../../core/tags';
+import { defaultCategoryLearningEngine } from '../../core/learning/categories';
+import { defaultTagLearningEngine } from '../../core/learning/tags';
 import { learningEngine, transactionStorage } from '../../app/composition';
 import { notifyTransactionSaved } from '../notifications/transactionSavedNotification';
 import { ParseExecutionContext } from '../../core/parser/ai/AIExtractionProposal';
 
-function learnCorrection(alias: string, merchant: string, category: Expense['category']) {
+function learnCorrection(alias: string, merchant: string, category: Expense['category'], paymentMode?: Expense['paymentMode']) {
   try {
     setMerchantMapping(alias, category, merchant);
     learningEngine.learn(alias, merchant, category);
+    const entity = merchant || alias;
+    const tokens = entity ? entity.toLowerCase().replace(/[^\w\s-]/g, ' ').split(/\s+/).filter(t => t.length > 1) : [];
+    defaultCategoryLearningEngine.learn(
+      {
+        entity,
+        paymentMode,
+        tokens,
+      },
+      category,
+    );
   } catch (error) {
     // Learning is a follow-up side effect; it must not hide a successful write.
     console.error('Transaction saved, but merchant/category learning failed:', error);
@@ -127,7 +138,7 @@ export function confirmReviewedTransaction(
   if (result.status === 'saved' && previousCategory !== undefined && previousCategory !== expense.category) {
     const alias = expense.alias || expense.merchant;
     if (alias && alias !== 'Unknown') {
-      learnCorrection(alias, expense.merchant, expense.category);
+      learnCorrection(alias, expense.merchant, expense.category, expense.paymentMode);
     }
   }
   return result;
@@ -167,7 +178,7 @@ export function updateTransactionUseCase(
   if (effectiveAlias && effectiveAlias !== 'Unknown' && persisted && (
     persisted.alias !== alias || persisted.merchant !== merchant || persisted.category !== category
   )) {
-    learnCorrection(effectiveAlias, merchant, category);
+    learnCorrection(effectiveAlias, merchant, category, paymentMode);
   }
   if (tags && tags.length > 0) {
     try {

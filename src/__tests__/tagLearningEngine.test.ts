@@ -1,4 +1,4 @@
-import { TagLearningEngine } from '../core/tags/TagLearningEngine';
+import { TagLearningEngine } from '../core/learning/tags/TagLearningEngine';
 
 describe('TagLearningEngine (Self-Learning Dynamic Classifier)', () => {
   let engine: TagLearningEngine;

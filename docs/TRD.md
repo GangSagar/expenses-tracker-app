@@ -383,7 +383,7 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 ```
 
-The `classifier_state` table persists on-device machine learning and statistical model state, including `tag_learning_model` managed by `SQLiteTagLearningRepository.ts` for dynamic self-learning tag classification across entities, categories, payment channels, and message tokens. `splits` is JSON and includes stable split IDs and exact repayment-allocation links when available. See `src/database/schema.ts` and `src/database/migrations/` for the executable schema; this excerpt is descriptive.
+The `classifier_state` table persists on-device machine learning and statistical model states, including `category_learning_model` (managed by `SQLiteCategoryLearningRepository.ts` for statistical Naive Bayes category suggestion and learning with zero regexes, outputting top category and ranked alternative suggestions capped at 3) and `tag_learning_model` (managed by `SQLiteTagLearningRepository.ts` for dynamic self-learning multi-label tag classification capped at 3 tags across entities, categories, payment channels, and message tokens). Both models belong to the unified on-device learning subsystem (`src/core/learning/`). `splits` is JSON and includes stable split IDs and exact repayment-allocation links when available. See `src/database/schema.ts` and `src/database/migrations/` for the executable schema; this excerpt is descriptive.
 
 ---
 

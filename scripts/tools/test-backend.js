@@ -13,7 +13,8 @@ const { performance } = require('node:perf_hooks');
 const ROOT_DIR = path.resolve(__dirname, '../..');
 const PARSER_DIST = path.join(ROOT_DIR, 'dist', 'core', 'parser', 'parseMessage.js');
 const ADVISOR_DIST = path.join(ROOT_DIR, 'dist', 'services', 'advisor', 'advisorService.js');
-const TAGS_DIST = path.join(ROOT_DIR, 'dist', 'src', 'core', 'tags', 'TagLearningEngine.js');
+const TAGS_DIST = path.join(ROOT_DIR, 'dist', 'src', 'core', 'learning', 'tags', 'TagLearningEngine.js');
+const CATEGORY_DIST = path.join(ROOT_DIR, 'dist', 'src', 'core', 'learning', 'categories', 'CategoryLearningEngine.js');
 
 // Auto-compile parser, advisor & dynamic tag engine if missing
 if (!fs.existsSync(PARSER_DIST)) {
@@ -30,7 +31,13 @@ if (!fs.existsSync(ADVISOR_DIST)) {
 }
 if (!fs.existsSync(TAGS_DIST)) {
   execSync(
-    'npx tsc src/core/tags/TagLearningEngine.ts --rootDir . --module commonjs --target es2020 --moduleResolution node --resolveJsonModule --esModuleInterop --outDir dist --skipLibCheck',
+    'npx tsc src/core/learning/tags/TagLearningEngine.ts --rootDir . --module commonjs --target es2020 --moduleResolution node --resolveJsonModule --esModuleInterop --outDir dist --skipLibCheck',
+    { cwd: ROOT_DIR, stdio: 'pipe' }
+  );
+}
+if (!fs.existsSync(CATEGORY_DIST)) {
+  execSync(
+    'npx tsc src/core/learning/categories/CategoryLearningEngine.ts --rootDir . --module commonjs --target es2020 --moduleResolution node --resolveJsonModule --esModuleInterop --outDir dist --skipLibCheck',
     { cwd: ROOT_DIR, stdio: 'pipe' }
   );
 }
@@ -38,7 +45,9 @@ if (!fs.existsSync(TAGS_DIST)) {
 const { parseStructured } = require(PARSER_DIST);
 const { generateBudgetInsights } = require(ADVISOR_DIST);
 const { TagLearningEngine } = require(TAGS_DIST);
+const { CategoryLearningEngine } = require(CATEGORY_DIST);
 const tagLearningEngine = new TagLearningEngine();
+const categoryLearningEngine = new CategoryLearningEngine();
 
 // Helper for random hex IDs
 function randomHex(bytes) {
@@ -200,7 +209,7 @@ Examples:
         lng = parseFloat(match[2]);
         locationLabel = 'Active Emulator GPS';
       }
-    } catch {}
+    } catch { }
     if (lat === null || lng === null || isNaN(lat) || isNaN(lng)) {
       lat = 12.9716;
       lng = 77.5946;
@@ -208,20 +217,42 @@ Examples:
     }
   }
 
+  // Dynamic self-learning category suggestions & tag prediction
+  const tokens = (message || '')
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, ' ')
+    .split(/\s+/)
+    .filter(t => t.length > 1);
+
+  let categorySuggestions = [];
+  let resolvedCategory = parsed?.category || 'Other';
+  let categoryConfidence = 0;
+
+  if (parsed && parsed.amount > 0) {
+    categorySuggestions = categoryLearningEngine.suggest(
+      {
+        entity: parsed.merchant || parsed.normalizedMerchant,
+        sender,
+        amount: parsed.amount,
+        paymentMode: parsed.paymentMode,
+        tokens,
+      },
+      3,
+    );
+    if (categorySuggestions.length > 0 && categorySuggestions[0].category !== 'Other') {
+      resolvedCategory = categorySuggestions[0].category;
+      categoryConfidence = categorySuggestions[0].confidence;
+    }
+  }
+
   // Dynamic self-learning auto-tagging if not specified (capped at 3 tags)
   let tagsAutoDetected = false;
   if (!tags || tags.length === 0) {
     if (parsed && parsed.amount > 0) {
-      const tokens = (message || '')
-        .toLowerCase()
-        .replace(/[^\w\s-]/g, ' ')
-        .split(/\s+/)
-        .filter(t => t.length > 1);
-
       const predictions = tagLearningEngine.predict(
         {
           entity: parsed.merchant || parsed.normalizedMerchant,
-          category: parsed.category,
+          category: resolvedCategory,
           sender,
           transactionType: parsed.transactionType || 'debit',
           paymentMode: parsed.paymentMode,
@@ -258,7 +289,14 @@ Examples:
   if (parsed && parsed.amount > 0) {
     console.log(`   • Amount:          ₹${parsed.amount.toFixed(2)}`);
     console.log(`   • Merchant:        ${parsed.merchant || 'Unknown'}`);
-    console.log(`   • Category:        ${parsed.category || 'Other'}`);
+    const catConfStr = categoryConfidence > 0 ? ` (${(categoryConfidence * 100).toFixed(1)}% match)` : '';
+    console.log(`   • Category:        ${resolvedCategory}${catConfStr}`);
+    if (categorySuggestions.length > 0) {
+      const suggestionsStr = categorySuggestions
+        .map(s => `${s.category} (${(s.confidence * 100).toFixed(1)}%)`)
+        .join(', ');
+      console.log(`   • Suggestions:     ${suggestionsStr}`);
+    }
     console.log(`   • Transaction:     ${(parsed.transactionType || 'debit').toUpperCase()}`);
     console.log(`   • Bank:            ${parsed.bank || 'Unknown'}`);
     console.log(`   • Account:         ${parsed.account ? 'XX' + parsed.account : 'N/A'}`);
@@ -307,7 +345,7 @@ Examples:
       id: 5,
       merchant: parsed.merchant || 'Simulated Merchant',
       amount: parsed.amount,
-      category: parsed.category || 'Other',
+      category: resolvedCategory,
       transactionType: parsed.transactionType || 'debit',
       timestamp: Date.now(),
       isInvalid: false,
