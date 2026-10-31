@@ -5,9 +5,9 @@
 | Metadata | Details |
 | :--- | :--- |
 | **Document Version** | 2.0 (runtime architecture) |
-| **Diagram File** | [`docs/architecture.drawio`](./architecture.drawio) is a historical v1 snapshot; the Mermaid diagrams below are current. |
+| **Diagram File** | [`docs/v1.0 - iniital_plan/architecture.drawio`](./v1.0%20-%20iniital_plan/architecture.drawio) is a historical v1 snapshot; the Mermaid diagrams below are current. |
 | **System Classification** | Offline-First Event-Driven Mobile Architecture |
-| **Last Updated** | October 2026 |
+| **Last Updated** | November 2026 |
 
 ---
 
@@ -79,7 +79,7 @@ graph TB
 1. **Local Persistence**: The SQLite adapter uses `react-native-quick-sqlite`; transaction application operations and repository ports own transaction writes. Performance characteristics should be measured on target devices rather than inferred from JSI alone.
 2. **Event-Driven Native Input**: The native SMS receiver and notification listener hand supported events to the React Native `MessageModule`. The JS listener fetches queued messages on startup and serializes processing so timestamped events are not reordered.
 3. **Data-Driven Modular Parsing & Universal Bank Identification (SOLID & Clean Architecture)**:
-   A 10-stage decoupled pipeline. Bank configurations, merchant aliases, token dictionaries, and category rules are managed via declarative schemas (`bankRegistry.json`, `merchantAliases.json`, `categoryRules.json`). Bank detection employs a multi-tier hierarchy: sender header matching against the unified registry (`bankRegistry.json` covering 50+ financial institutions with dedicated icon assets in `src/assets/banks/`), bank signatures/footers, sanitized body matching, and universal linguistic grammar patterns (`<Name> Bank`, `Bank of <Name>`, `<Name> Card`). Merchant extraction enforces clause termination lookaheads across `through`, `thru`, `thro`, `using`, `on`, `via`, and payment rails.
+   A 10-stage decoupled pipeline. Bank configurations, merchant aliases, token dictionaries, and category rules are managed via declarative schemas (`bankRegistry.json`, `merchantAliases.json`, `categoryRules.json`). Bank detection employs a multi-tier hierarchy: sender header matching against the unified registry (`bankRegistry.json` covering 50+ financial institutions with dedicated icon assets in `src/assets/banks/`), bank signatures/footers, sanitized body matching, and universal linguistic grammar patterns (`<Name> Bank`, `Bank of <Name>`, `<Name> Card`). Merchant extraction enforces clause termination lookaheads across `through`, `thru`, `thro`, `using`, `on`, `via`, and payment rails. Category classification evaluates `categoryRules.json` via regex word boundaries (`\b${keyword}\b`), eliminating false-positive substring matches. Message filtering delegates through canonical `MessageFilter` heuristics.
 4. **On-Device Correction Learning**:
    Explicit merchant/category corrections are recorded through `LearningEngine` in the local merchant-category repository. Parser resolvers consult those mappings. The current implementation does not include confidence decay or token-pattern frequency learning.
 5. **Offline-First Processing**:
@@ -93,7 +93,7 @@ graph TB
 | Application capabilities | `src/services/` | Organized by messaging, notifications, transactions, settings, security, and advisor capabilities. Two services currently read configured singleton dependencies from app composition. |
 | Concrete wiring | `src/app/composition/` | Selects parser, settings, learning, spam, security, and transaction repository adapters. |
 | Persistence and platform adapters | `src/database/`, `src/infrastructure/` | SQLite transaction operations stay in the transaction repository; settings, learning, and spam adapters live under infrastructure. |
-| Legacy presentation | `src/presentation/legacy/`, `src/hooks/` | Screens/hooks still import service singletons from app composition. Track the deferred work in the [UI replacement issue list](./UI_REPLACEMENT_ISSUES.md). |
+| Legacy presentation | `src/presentation/legacy/`, `src/hooks/` | Screens/hooks still import service singletons from app composition. Track the deferred work in the [UI replacement issue list](./v2.0%20-%20improvement_plan/v2.1/UI_REPLACEMENT_ISSUES.md). |
 | Saved-transaction notifications | `src/services/notifications/transactionSavedNotification.ts` | Localized provider currently imports React Native APIs directly; provider ownership/port is a follow-up. |
 | Local model library | `src/services/ai/modelLibraryService.ts`, `src/services/ai/modelRuntimeSelector.ts`, `src/infrastructure/ai/ModelArtifactManager.ts`, `src/presentation/legacy/screens/ModelLibraryScreen.tsx` | Verified catalog install/remove, task-slot assignment, deterministic mode, parser selector seam, and management screen are present. The catalog and adapter registry are empty until final model packages are supplied, so inference remains disabled. |
 
@@ -103,7 +103,7 @@ graph TB
 
 ### 2.1 Historical v1 class diagram (not current runtime)
 
-The following class model predates the shared application-use-case and repository boundaries. Use the current HLD above and [live message flow](./APP_MESSAGE_LISTENER_FLOW.md) for present-day call paths.
+The following class model predates the shared application-use-case and repository boundaries. Use the current HLD above and [live message flow](./v2.0%20-%20improvement_plan/v2.1/APP_MESSAGE_LISTENER_FLOW.md) for present-day call paths.
 
 ```mermaid
 classDiagram
@@ -220,7 +220,7 @@ classDiagram
 
 ### 2.2 Historical v1 processing diagram (not current runtime)
 
-This diagram is retained as a record of the earlier design. It shows AI fallback and dedup/persistence stages that do not match the current live runtime. The current parser/decision/persistence flow is documented in [live message flow](./APP_MESSAGE_LISTENER_FLOW.md).
+This diagram is retained as a record of the earlier design. It shows AI fallback and dedup/persistence stages that do not match the current live runtime. The current parser/decision/persistence flow is documented in [live message flow](./v2.0%20-%20improvement_plan/v2.1/APP_MESSAGE_LISTENER_FLOW.md).
 
 When a message arrives from either `SmsReceiver` or `NotificationListener`, it passes through a deterministic finite state pipeline:
 
