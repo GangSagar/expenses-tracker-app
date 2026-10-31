@@ -92,7 +92,8 @@ This document provides a comprehensive, chronological audit of the SpendWise rep
 | `9f94c11` | HRN Harshit | 2026-10-24 | — | Assets / UI | **feat(assets): update app icon with glossy green wallet and full-bleed Android adaptive icon**: Generated modern Android 8+ Adaptive Icon with custom background gradient and eliminated white circle backplate. |
 | `7df9c02` | HRN Harshit | 2026-10-24 | — | Governance | **chore(agents): add workspace rules for pre-implementation review, SOLID, graphify, and testing**: Established `.agents/` workspace rules governing coding agent workflows. |
 | `bfd6c10` | HRN Harshit | 2026-10-25 | — | Refactoring | **refactor(src): remove dead code and deduplicate shared logic across modules**: Removed 4 dead files, consolidated split settlement logic, extracted `accountHelpers.ts`, and cut code duplication by 50%. |
-| *Working Tree* | HRN Harshit | 2026-10-25 | — | Governance | **chore(agents): add Rule 5 (Developer-Controlled Commits) and Rule 6 (Continuous Documentation & Graphify Synchronization)**: Enforced strict commit delegation and mandatory doc/graph synchronization. |
+| `32facb8` | HRN Harshit | 2026-10-25 | — | Governance | **chore(agents): add workflow rules for developer-controlled commits and continuous documentation sync**: Enforced strict commit delegation and mandatory doc/graph synchronization. |
+| *Working Tree* | HRN Harshit | 2026-10-31 | — | Build & Deployment | **fix(scripts): add automated Android boot detection and ready verification to run_app.sh**: Resolved premature Gradle installDebug failure and emulator lock contention by polling sys.boot_completed prior to launching react-native run-android. |
 
 ---
 
