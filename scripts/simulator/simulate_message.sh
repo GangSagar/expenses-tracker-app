@@ -70,6 +70,8 @@ ensure_permissions() {
   adb -s "$dev" shell pm grant com.expensetracker android.permission.RECEIVE_SMS 2>/dev/null || true
   adb -s "$dev" shell pm grant com.expensetracker android.permission.READ_SMS 2>/dev/null || true
   adb -s "$dev" shell pm grant com.expensetracker android.permission.POST_NOTIFICATIONS 2>/dev/null || true
+  adb -s "$dev" shell pm grant com.expensetracker android.permission.ACCESS_FINE_LOCATION 2>/dev/null || true
+  adb -s "$dev" shell pm grant com.expensetracker android.permission.ACCESS_COARSE_LOCATION 2>/dev/null || true
   adb -s "$dev" reverse tcp:4318 tcp:4318 2>/dev/null || true
 }
 
@@ -99,10 +101,12 @@ deliver_message() {
     adb -s "$dev" emu sms send "$sender" "$body" 2>/dev/null || true
   fi
 
-  # 2. Broadcast backup with safe escaping
+  # 2. Broadcast backup with safe escaping and standard simulated coordinates
   local safe_sender="${sender//\'/\'\\\'\'}"
   local safe_body="${body//\'/\'\\\'\'}"
-  adb -s "$dev" shell "am broadcast -p com.expensetracker -a com.expensetracker.SIMULATE_MESSAGE --es sender '$safe_sender' --es body '$safe_body' --es source '$type'" >/dev/null 2>&1 || true
+  local sim_lat="${LATITUDE:-12.9716}"
+  local sim_lng="${LONGITUDE:-77.5946}"
+  adb -s "$dev" shell "am broadcast -p com.expensetracker -a com.expensetracker.SIMULATE_MESSAGE --es sender '$safe_sender' --es body '$safe_body' --es source '$type' --ef latitude $sim_lat --ef longitude $sim_lng" >/dev/null 2>&1 || true
 
   echo -e "   ${GREEN}✔ Delivered to device!${NC} Listening for pipeline decision..."
 
@@ -163,9 +167,9 @@ deliver_message() {
   local db_tmp="/tmp/expense_tracker_simulator.db"
   if adb -s "$dev" exec-out run-as com.expensetracker cat files/expense_tracker.db > "$db_tmp" 2>/dev/null && [ -s "$db_tmp" ]; then
     local latest_row
-    latest_row=$(sqlite3 "$db_tmp" "SELECT id, merchant, amount, category, bank, account, transaction_type, is_invalid FROM expenses ORDER BY id DESC LIMIT 1;" 2>/dev/null || true)
+    latest_row=$(sqlite3 "$db_tmp" "SELECT id, merchant, amount, category, bank, account, transaction_type, is_invalid, reference_id, tags, notes, bill_image_uri, location FROM expenses ORDER BY id DESC LIMIT 1;" 2>/dev/null || true)
     if [ -n "$latest_row" ]; then
-      IFS='|' read -r r_id r_merchant r_amount r_cat r_bank r_acct r_type r_inv <<< "$latest_row"
+      IFS='|' read -r r_id r_merchant r_amount r_cat r_bank r_acct r_type r_inv r_ref r_tags r_notes r_bill r_loc <<< "$latest_row"
       echo -e "\n${BOLD}💾 [SQLite Database Verification]:${NC}"
       echo -e "   ${GREEN}✔ Latest Persisted Row in DB (#${r_id}):${NC}"
       echo -e "   • Merchant:      ${BOLD}${r_merchant}${NC}"
@@ -176,6 +180,21 @@ deliver_message() {
         bank_str="$bank_str (A/c XX$r_acct)"
       fi
       echo -e "   • Bank / Acct:   ${BOLD}${bank_str}${NC}"
+      if [ -n "$r_ref" ] && [ "$r_ref" != "null" ]; then
+        echo -e "   • Txn / Ref ID:  ${BOLD}${r_ref}${NC}"
+      fi
+      if [ -n "$r_tags" ] && [ "$r_tags" != "null" ]; then
+        echo -e "   • Tags:          ${BOLD}${r_tags}${NC}"
+      fi
+      if [ -n "$r_notes" ] && [ "$r_notes" != "null" ]; then
+        echo -e "   • Notes:         ${BOLD}${r_notes}${NC}"
+      fi
+      if [ -n "$r_bill" ] && [ "$r_bill" != "null" ]; then
+        echo -e "   • Bill Image:    ${BOLD}${r_bill}${NC}"
+      fi
+      if [ -n "$r_loc" ] && [ "$r_loc" != "null" ]; then
+        echo -e "   • Map Location:  ${CYAN}${r_loc}${NC}"
+      fi
       local status_label="${GREEN}ACTIVE (is_invalid=0)${NC}"
       if [ "$r_inv" = "1" ]; then
         status_label="${RED}TRASHED (is_invalid=1)${NC}"

@@ -19,6 +19,10 @@ export const CREATE_EXPENSES_TABLE_SQL = `
     reference_id TEXT,
     is_invalid INTEGER DEFAULT 0,
     trash_reason TEXT,
+    tags TEXT,
+    notes TEXT,
+    bill_image_uri TEXT,
+    location TEXT,
     created_at INTEGER DEFAULT (strftime('%s', 'now'))
   );
 `;

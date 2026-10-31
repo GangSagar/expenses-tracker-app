@@ -126,6 +126,9 @@ export interface TransactionEdit {
   amount: number;
   splits?: ExpenseSplit[];
   transactionType: Expense['transactionType'];
+  tags?: string[];
+  notes?: string;
+  billImageUri?: string;
 }
 
 export function updateTransactionWithRepaymentRules(

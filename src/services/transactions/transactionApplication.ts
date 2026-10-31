@@ -10,6 +10,7 @@ import { IncomingMessage, processIncomingMessage } from '../messaging/messageSer
 import { processTransaction } from './transactionDecisionService';
 import { orchestrateTransaction } from './transactionOrchestrator';
 import { setMerchantMapping } from '../../core/classifier/merchantMap';
+import { defaultTagLearningEngine } from '../../core/tags';
 import { learningEngine, transactionStorage } from '../../app/composition';
 import { notifyTransactionSaved } from '../notifications/transactionSavedNotification';
 import { ParseExecutionContext } from '../../core/parser/ai/AIExtractionProposal';
@@ -110,7 +111,12 @@ export function createManualTransaction(expense: Omit<Expense, 'id'>) {
       message: 'Merchant or description is required.',
     };
   }
-  return persistAndNotify(expense, () => null);
+  // Enforce location immutability: manual transactions cannot set or fake map location
+  const candidate: Omit<Expense, 'id'> = {
+    ...expense,
+    location: undefined,
+  };
+  return persistAndNotify(candidate, () => null);
 }
 
 export function confirmReviewedTransaction(
@@ -138,6 +144,9 @@ export function updateTransactionUseCase(
   amount?: number,
   splits?: Expense['splits'],
   transactionType?: Expense['transactionType'],
+  tags?: string[],
+  notes?: string,
+  billImageUri?: string,
 ) {
   const persisted = transactionStorage.findById(id) || existing;
   const updates = updateTransactionWithRepaymentRules(transactionStorage, id, {
@@ -148,6 +157,9 @@ export function updateTransactionUseCase(
     amount: amount ?? persisted?.amount ?? 0,
     splits: splits as ExpenseSplit[] | undefined,
     transactionType: transactionType || persisted?.transactionType || 'debit',
+    tags: tags ?? persisted?.tags,
+    notes: notes ?? persisted?.notes,
+    billImageUri: billImageUri ?? persisted?.billImageUri,
   });
   const updatedTransaction = transactionStorage.findById(id);
   if (updatedTransaction) notifySavedBestEffort(updatedTransaction);
@@ -156,6 +168,21 @@ export function updateTransactionUseCase(
     persisted.alias !== alias || persisted.merchant !== merchant || persisted.category !== category
   )) {
     learnCorrection(effectiveAlias, merchant, category);
+  }
+  if (tags && tags.length > 0) {
+    try {
+      defaultTagLearningEngine.learn(
+        {
+          entity: merchant,
+          category,
+          paymentMode,
+          tokens: merchant.toLowerCase().replace(/[^\w\s-]/g, ' ').split(/\s+/).filter(t => t.length > 1),
+        },
+        tags,
+      );
+    } catch {
+      // Dynamic tag learning is best effort
+    }
   }
   return updates;
 }

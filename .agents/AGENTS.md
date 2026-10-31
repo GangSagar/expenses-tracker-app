@@ -7,7 +7,8 @@ These rules apply to all AI coding agents working in this repository:
   - Exact files to create, modify, or delete
   - Detailed description of logic changes, algorithms, and architectural adjustments
   - Any architectural questions, trade-offs, or decisions requiring developer review
-- Request review from the developer and obtain confirmation before executing code changes.
+- **Ask Questions on Any Doubt**: If there is any ambiguity, unclear requirement, or doubt, actively ask clarifying questions to the developer while presenting the pre-implementation plan. Never assume or make unilateral decisions on ambiguous requirements.
+- Request review from the developer and obtain confirmation before executing code changes. Only proceed with implementation once all doubts and questions are resolved and the developer confirms.
 
 ## 2. SOLID Design Principles
 - **S**ingle Responsibility: One purpose per module, class, and service.

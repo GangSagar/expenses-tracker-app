@@ -105,6 +105,9 @@ export type TransactionMutation =
       amount: number;
       splits?: Expense['splits'];
       transactionType: Expense['transactionType'];
+      tags?: string[];
+      notes?: string;
+      billImageUri?: string;
     }
   | { kind: 'invalidate'; isInvalid: boolean; splits?: Expense['splits'] | null }
   | { kind: 'delete' };

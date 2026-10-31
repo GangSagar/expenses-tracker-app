@@ -23,13 +23,36 @@ class MessageModule(reactContext: ReactApplicationContext) :
         private const val EVENT_NAME = "onMessageReceived"
         private var instance: MessageModule? = null
 
-        fun emitMessageReceived(context: Context, body: String, sender: String, source: String) {
+        fun emitMessageReceived(
+            context: Context,
+            body: String,
+            sender: String,
+            source: String,
+            latitude: Double? = null,
+            longitude: Double? = null
+        ) {
             val module = instance
             val reactContext = module?.reactApplicationContext
 
+            // Use explicitly provided coordinates if supplied; otherwise query device GPS/Network automatically
+            val loc = if (latitude != null && longitude != null) {
+                com.expensetracker.location.LocationData(latitude, longitude)
+            } else {
+                com.expensetracker.location.LocationHelper.getCurrentLocation(context)
+            }
+
             if (reactContext == null || !reactContext.hasActiveReactInstance()) {
                 Log.d("ExpenseTracker", "React context inactive. Queuing message from $sender.")
-                PendingMessageStore.saveMessage(context, body, sender, source)
+                PendingMessageStore.saveMessage(
+                    context = context,
+                    body = body,
+                    sender = sender,
+                    source = source,
+                    latitude = loc?.latitude,
+                    longitude = loc?.longitude,
+                    accuracy = loc?.accuracy,
+                    locationTimestamp = loc?.timestamp
+                )
                 return
             }
 
@@ -38,6 +61,15 @@ class MessageModule(reactContext: ReactApplicationContext) :
                 putString("body", body)
                 putString("sender", sender)
                 putString("source", source)
+                if (loc != null) {
+                    val locationMap = Arguments.createMap().apply {
+                        putDouble("latitude", loc.latitude)
+                        putDouble("longitude", loc.longitude)
+                        loc.accuracy?.let { putDouble("accuracy", it) }
+                        loc.timestamp?.let { putDouble("timestamp", it.toDouble()) }
+                    }
+                    putMap("location", locationMap)
+                }
             }
 
             reactContext

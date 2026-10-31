@@ -54,6 +54,12 @@ Most expense tracking apps either:
 - Captures real-time push notifications from popular payment apps (Google Pay, PhonePe, Paytm, etc.).
 - Robust anti-spam filters automatically ignore OTPs, promotional SMS, cellular operator ads, and personal chats.
 
+### 🏷️ Rich Transaction Metadata & Auto-Location
+- **Tags & Labels**: Flexible tagging system (`School`, `Work`, `Family`, `Friends`, `Personal`, and custom tags) for granular grouping.
+- **Notes & Receipts**: Store freeform context and attach receipt/bill images (`billImageUri`).
+- **Transaction & Ref IDs**: Extracts UPI reference numbers, UTRs, and transaction IDs indexed directly as `transactionId` (`referenceId`).
+- **Automatic GPS Location Capture**: Native location bridge automatically acquires current coordinates when an SMS or notification arrives. Location is strictly immutable and cannot be created or altered manually.
+
 ### 💳 Accounts & Card Management
 
 - Track balances across multiple bank accounts and credit cards in one unified dashboard.
@@ -297,6 +303,22 @@ You can simulate live SMS messages, payment app notifications (Google Pay, Phone
 ./run test -s spam otp           # Transaction OTP verification (OTP regex gate)
 ./run test -s spam promo         # Marketing discount / cashback offer (Spam suppressor)
 ./run test -s spam personal      # Personal chat from 10-digit number (Sender filter)
+```
+
+### ⚡ Standalone Headless Backend & Tracing Verification
+
+Verify parsing, transaction decisions, the AI Smart Budget Advisor, and Jaeger traces directly from the command line without an emulator:
+
+```bash
+# Basic test with sender and message
+./run test --backend "Dear Customer, A/c XX1234 debited for Rs 500.00 at Swiggy UPI: 987654321" HDFCBK
+
+# With tags, notes, bill attachment, and GPS coordinates
+./run test --backend "Dear Customer, A/c XX1234 debited for Rs 500.00 at Swiggy UPI: 987654321" HDFCBK \
+  --tags "Food,Work" \
+  --notes "Team dinner" \
+  --lat 12.9716 \
+  --lng 77.5946
 ```
 
 ### 📱 Collecting Real Test Cases from Your Phone

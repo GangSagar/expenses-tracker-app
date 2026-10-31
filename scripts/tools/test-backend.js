@@ -13,8 +13,9 @@ const { performance } = require('node:perf_hooks');
 const ROOT_DIR = path.resolve(__dirname, '../..');
 const PARSER_DIST = path.join(ROOT_DIR, 'dist', 'core', 'parser', 'parseMessage.js');
 const ADVISOR_DIST = path.join(ROOT_DIR, 'dist', 'services', 'advisor', 'advisorService.js');
+const TAGS_DIST = path.join(ROOT_DIR, 'dist', 'src', 'core', 'tags', 'TagLearningEngine.js');
 
-// Auto-compile parser & advisor if missing
+// Auto-compile parser, advisor & dynamic tag engine if missing
 if (!fs.existsSync(PARSER_DIST)) {
   execSync(
     'npx tsc src/core/parser/parseMessage.ts --module commonjs --target es2020 --moduleResolution node --resolveJsonModule --esModuleInterop --outDir dist --skipLibCheck',
@@ -27,9 +28,17 @@ if (!fs.existsSync(ADVISOR_DIST)) {
     { cwd: ROOT_DIR, stdio: 'pipe' }
   );
 }
+if (!fs.existsSync(TAGS_DIST)) {
+  execSync(
+    'npx tsc src/core/tags/TagLearningEngine.ts --rootDir . --module commonjs --target es2020 --moduleResolution node --resolveJsonModule --esModuleInterop --outDir dist --skipLibCheck',
+    { cwd: ROOT_DIR, stdio: 'pipe' }
+  );
+}
 
 const { parseStructured } = require(PARSER_DIST);
 const { generateBudgetInsights } = require(ADVISOR_DIST);
+const { TagLearningEngine } = require(TAGS_DIST);
+const tagLearningEngine = new TagLearningEngine();
 
 // Helper for random hex IDs
 function randomHex(bytes) {
@@ -106,6 +115,11 @@ async function run() {
   let sender = 'HDFCBK';
   let source = 'sms';
   let budget = 20000;
+  let tags = null;
+  let notes = null;
+  let bill = null;
+  let lat = null;
+  let lng = null;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -119,11 +133,16 @@ Options:
   --sender, -s <code>  Sender ID (default: HDFCBK)
   --source <type>      Source type: "sms" or "notification" (default: sms)
   --budget <number>    Monthly budget limit for AI Advisor (default: 20000)
+  --tags <list>        Comma-separated tags (e.g. "Work,School")
+  --notes <text>       Transaction note / description
+  --bill <uri>         Bill / receipt image URI
+  --lat <number>       Latitude for automatic location capture simulation
+  --lng <number>       Longitude for automatic location capture simulation
   --help, -h           Show this help message
 
 Examples:
   ./run test --backend "Dear Customer, A/c XX1234 debited for Rs 450.00 at SWIGGY"
-  ./run test --backend "Paid ₹350.00 to Starbucks on Google Pay" com.google.android.apps.nbu.paisa
+  ./run test --backend "Paid ₹350.00 to Starbucks on Google Pay" com.google.android.apps.nbu.paisa --tags "Food,Work" --notes "Meeting coffee" --lat 12.9716 --lng 77.5946
 `);
       process.exit(0);
     } else if (arg === '--msg' || arg === '-m') {
@@ -134,6 +153,16 @@ Examples:
       source = args[++i] || 'sms';
     } else if (arg === '--budget') {
       budget = parseFloat(args[++i]) || 20000;
+    } else if (arg === '--tags') {
+      tags = (args[++i] || '').split(',').map(t => t.trim()).filter(Boolean);
+    } else if (arg === '--notes') {
+      notes = args[++i] || null;
+    } else if (arg === '--bill') {
+      bill = args[++i] || null;
+    } else if (arg === '--lat') {
+      lat = parseFloat(args[++i]);
+    } else if (arg === '--lng') {
+      lng = parseFloat(args[++i]);
     } else if (!message) {
       message = arg;
     } else if (!sender || sender === 'HDFCBK') {
@@ -159,6 +188,53 @@ Examples:
   // Step 1: Parse
   const parsed = parseStructured(message, sender);
   const durationMs = performance.now() - startTime;
+
+  // Standard simulated GPS coordinates fallback
+  let locationLabel = 'Automatic GPS';
+  if (lat === null || lng === null || isNaN(lat) || isNaN(lng)) {
+    try {
+      const dump = execSync('adb shell dumpsys location 2>/dev/null', { timeout: 1200 }).toString();
+      const match = dump.match(/last location=Location\[(?:gps|fused)\s+([\d.-]+),([\d.-]+)/);
+      if (match) {
+        lat = parseFloat(match[1]);
+        lng = parseFloat(match[2]);
+        locationLabel = 'Active Emulator GPS';
+      }
+    } catch {}
+    if (lat === null || lng === null || isNaN(lat) || isNaN(lng)) {
+      lat = 12.9716;
+      lng = 77.5946;
+      locationLabel = 'Standard Simulated GPS';
+    }
+  }
+
+  // Dynamic self-learning auto-tagging if not specified (capped at 3 tags)
+  let tagsAutoDetected = false;
+  if (!tags || tags.length === 0) {
+    if (parsed && parsed.amount > 0) {
+      const tokens = (message || '')
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, ' ')
+        .split(/\s+/)
+        .filter(t => t.length > 1);
+
+      const predictions = tagLearningEngine.predict(
+        {
+          entity: parsed.merchant || parsed.normalizedMerchant,
+          category: parsed.category,
+          sender,
+          transactionType: parsed.transactionType || 'debit',
+          paymentMode: parsed.paymentMode,
+          tokens,
+        },
+        3,
+      );
+      if (predictions.length > 0) {
+        tags = predictions.map(p => p.tag);
+        tagsAutoDetected = true;
+      }
+    }
+  }
 
   // Step 2: Determine Decision
   let decision = 'reject';
@@ -188,6 +264,21 @@ Examples:
     console.log(`   • Account:         ${parsed.account ? 'XX' + parsed.account : 'N/A'}`);
     console.log(`   • Payment Mode:    ${(parsed.paymentMode || 'unknown').toUpperCase()}`);
     console.log(`   • Confidence:      ${(parsed.confidence * 100).toFixed(1)}%`);
+    const txnId = parsed.referenceNumber || parsed.referenceId || parsed.transactionId || null;
+    console.log(`   • Txn / Ref ID:    ${txnId || 'None'}`);
+    if (tags && tags.length > 0) {
+      const tagSuffix = tagsAutoDetected ? ' (Auto-detected)' : '';
+      console.log(`   • Tags:            ${tags.join(', ')}${tagSuffix}`);
+    }
+    if (notes) {
+      console.log(`   • Notes:           "${notes}"`);
+    }
+    if (bill) {
+      console.log(`   • Bill Attachment: ${bill}`);
+    }
+    if (lat !== null && lng !== null) {
+      console.log(`   • Map Location:    ${lat.toFixed(4)}, ${lng.toFixed(4)} (${locationLabel})`);
+    }
     console.log(`   • Execution Time:  ${durationMs.toFixed(3)} ms`);
   } else {
     console.log('   🛑 No transaction amount extracted from message.');
@@ -251,6 +342,13 @@ Examples:
       category: parsed ? parsed.category : 'other',
       decision,
       reason,
+      transaction_id: parsed ? (parsed.referenceNumber || parsed.referenceId || parsed.transactionId || null) : null,
+      tags: tags ? tags.join(',') : null,
+      notes,
+      has_bill: Boolean(bill),
+      has_location: lat !== null && lng !== null,
+      latitude: lat,
+      longitude: lng,
       burn_rate: insights.dailyBurnRate,
       projected_expense: insights.projectedExpense,
     }

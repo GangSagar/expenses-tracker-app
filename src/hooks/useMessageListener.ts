@@ -108,11 +108,13 @@ export function useMessageListener() {
         body: string;
         sender: string;
         source: 'sms' | 'notification';
+        location?: IncomingMessage['location'];
       }) => {
         const message: IncomingMessage = {
           body: event.body,
           sender: event.sender,
           source: event.source,
+          location: event.location,
         };
         console.log(
           `Live message received from ${message.sender} via ${message.source}`,
