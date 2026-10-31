@@ -1,6 +1,8 @@
 import { ParsedTransaction } from '../../types/expense';
 import { ClassificationResult } from '../classifier/classify';
-import { DEBIT_REGEX, CREDIT_REGEX } from '../parser/regexRules';
+
+const ACTION_KEYWORD_REGEX =
+  /\b(?:debited?|spent|paid|withdrawn|purchase|paying|sent|deducted|transferred?|trf|dr\.?|credited?|received|refund|reversed|deposited|added|cr\.?)\b/i;
 
 export interface ConfidenceFactors {
   amountDetected: boolean;
@@ -42,7 +44,7 @@ export function calculateConfidence(
     score += 0.1;
   }
   // Strong signal: an explicit debit or credit keyword is present
-  if (DEBIT_REGEX.test(parsed.rawMessage) || CREDIT_REGEX.test(parsed.rawMessage)) {
+  if (ACTION_KEYWORD_REGEX.test(parsed.rawMessage)) {
     score += 0.1;
   }
 
@@ -65,8 +67,7 @@ export function calculateConfidence(
 
   // Floor: if a debit or credit keyword was found AND we have an amount,
   // never discard — show the popup instead
-  const hasActionKeyword =
-    DEBIT_REGEX.test(parsed.rawMessage) || CREDIT_REGEX.test(parsed.rawMessage);
+  const hasActionKeyword = ACTION_KEYWORD_REGEX.test(parsed.rawMessage);
   if (parsed.amount !== null && hasActionKeyword) {
     score = Math.max(score, 0.5);
   }

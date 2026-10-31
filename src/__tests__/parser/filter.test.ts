@@ -37,8 +37,7 @@ describe('MessageFilter Module', () => {
 
   it('safely handles empty or null input without crashing', () => {
     expect(defaultMessageFilter.filter('').isTransaction).toBe(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(defaultMessageFilter.filter(null as any).isTransaction).toBe(false);
+    expect(defaultMessageFilter.filter(null as unknown as string).isTransaction).toBe(false);
   });
 
   it('validates transactional senders and rejects personal 10-digit mobile numbers', () => {
@@ -46,5 +45,14 @@ describe('MessageFilter Module', () => {
     expect(defaultMessageFilter.isTransactionalSender('JD-HDFCBK')).toBe(true);
     expect(defaultMessageFilter.isTransactionalSender('JX-BOBSMS')).toBe(true);
     expect(defaultMessageFilter.isTransactionalSender('com.phonepe.app')).toBe(true);
+    expect(defaultMessageFilter.isTransactionalSender('VM-JioBal')).toBe(false);
+    expect(defaultMessageFilter.isTransactionalSender('AD-VILBAL')).toBe(false);
+    expect(defaultMessageFilter.isTransactionalSender('JD-INFO')).toBe(false);
+  });
+
+  it('filters out upcoming bill due reminders that have not been debited', () => {
+    const dueReminder = 'Your Airtel bill of Rs 899.00 is due on 25-Oct. Pay now to avoid disconnection.';
+    const res = defaultMessageFilter.filter(dueReminder);
+    expect(res.isTransaction).toBe(false);
   });
 });

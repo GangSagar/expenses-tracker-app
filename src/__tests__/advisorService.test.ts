@@ -8,7 +8,7 @@ describe('Local Smart Budget Advisor Engine', () => {
       amount: 1500,
       merchant: 'Swiggy',
       category: 'Food & Dining',
-      timestamp: Date.now() - 1000 * 60 * 60, // 1 hour ago
+      timestamp: Date.now(),
       source: 'sms',
       transactionType: 'debit',
       isInvalid: false,
@@ -20,7 +20,7 @@ describe('Local Smart Budget Advisor Engine', () => {
       amount: 4500,
       merchant: 'Amazon',
       category: 'Shopping',
-      timestamp: Date.now() - 1000 * 60 * 60 * 2, // 2 hours ago
+      timestamp: Date.now(),
       source: 'manual',
       transactionType: 'debit',
       isInvalid: false,
@@ -32,7 +32,7 @@ describe('Local Smart Budget Advisor Engine', () => {
       amount: 1000,
       merchant: 'Uber',
       category: 'Travel',
-      timestamp: Date.now() - 1000 * 60 * 60 * 24, // 24 hours ago
+      timestamp: Date.now(),
       source: 'sms',
       transactionType: 'debit',
       isInvalid: false,

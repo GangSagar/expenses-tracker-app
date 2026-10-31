@@ -291,7 +291,7 @@ The parser follows Clean Architecture principles with complete separation of con
 | **Confidence Tier** | `src/core/parser/confidence/` | Parser confidence combines extraction/resolution signals and reports confirmation requirements. A separate transaction policy consumes parser evidence and classifier confidence. |
 | **Learning Tier** | `src/core/parser/learning/` | `LearningEngine` stores explicit merchant/category corrections through `ILearningRepository`; the standalone parser uses in-memory learning, while production composition selects the SQLite adapter in `src/infrastructure/persistence/sqlite/`. |
 | **AI Tier** | `src/core/parser/ai/` | `AIResolver` and an in-memory `AICache` define an optional inference boundary. AI is disabled by default and no inference handler/model is configured in app composition. |
-| **Filter Tier** | `src/core/parser/filter/` | Pre-parsing heuristic message filter (`MessageFilter`) rejecting non-financial alerts. |
+| **Filter Tier** | `src/core/parser/filter/` | Pre-parsing heuristic message filter (`MessageFilter`) rejecting non-financial alerts, with `src/core/parser/filters.ts` providing unified delegation. |
 | **Orchestrator** | `src/core/parser/orchestrator/` | Coordinates the 10-stage execution pipeline, assembling extracted and resolved entities into `StructuredExpense`. |
 | **Legacy Adapter** | `src/core/parser/parseMessage.ts` | Keeps `parseMessage()` for legacy callers and exposes structured synchronous and asynchronous parser entry points for ingestion. |
 

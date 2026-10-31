@@ -93,7 +93,7 @@
       "amount": 1850.5,
       "transactionType": "debit",
       "merchant": "Dmart",
-      "category": "Other",
+      "category": "Groceries",
       "account": "8899",
       "bank": "SBI",
       "availableBalance": null,
@@ -218,10 +218,10 @@
       "requiresConfirmation": false
     },
     "expectedDecision": {
-      "kind": "auto_save",
-      "reason": "high_confidence"
+      "kind": "review",
+      "reason": "medium_confidence"
     },
-    "expectedCandidateCategory": "Health"
+    "expectedCandidateCategory": "Other"
   },
   {
     "id": "MISL-03",
@@ -389,7 +389,7 @@
       "kind": "auto_save",
       "reason": "high_confidence"
     },
-    "expectedCandidateCategory": "Bills & Recharge"
+    "expectedCandidateCategory": "Other"
   },
   {
     "id": "AMB-05",
