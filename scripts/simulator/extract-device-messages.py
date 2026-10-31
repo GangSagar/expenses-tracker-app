@@ -143,7 +143,7 @@ def main():
     device_id = get_connected_device()
     messages = extract_messages(device_id)
     
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     output_dir = os.path.join(project_root, "data")
     
     json_path, csv_path, txt_path = save_exports(messages, output_dir)

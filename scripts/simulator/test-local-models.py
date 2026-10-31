@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1] / "data" / "models"
+ROOT = Path(__file__).resolve().parents[2] / "data" / "models"
 SAMPLE = "Example Bank: Your account was debited INR 450.00 at Example Cafe."
 
 

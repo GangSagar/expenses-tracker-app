@@ -6,7 +6,7 @@ set -e
 # ==============================================================================
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPTS_DIR="$ROOT_DIR/scripts"
+SCRIPTS_DIR="$ROOT_DIR/scripts/runners"
 
 # Terminal Colors
 CYAN='\033[0;36m'
@@ -66,11 +66,15 @@ case "$COMMAND" in
     exec npx react-native start "$@"
     ;;
   *)
-    # Check if a custom script matching run_<command>.sh exists in scripts/
+    # Check if a custom script matching run_<command>.sh exists in scripts/runners or subdirs
     if [ -f "$SCRIPTS_DIR/run_${COMMAND}.sh" ]; then
       exec "$SCRIPTS_DIR/run_${COMMAND}.sh" "$@"
     elif [ -f "$SCRIPTS_DIR/${COMMAND}.sh" ]; then
       exec "$SCRIPTS_DIR/${COMMAND}.sh" "$@"
+    elif [ -f "$ROOT_DIR/scripts/simulator/${COMMAND}.sh" ]; then
+      exec "$ROOT_DIR/scripts/simulator/${COMMAND}.sh" "$@"
+    elif [ -f "$ROOT_DIR/scripts/tools/${COMMAND}.sh" ]; then
+      exec "$ROOT_DIR/scripts/tools/${COMMAND}.sh" "$@"
     fi
 
     echo -e "${RED}Unknown command:${NC} $COMMAND"

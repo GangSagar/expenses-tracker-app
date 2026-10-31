@@ -4,7 +4,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 const { performance } = require('node:perf_hooks');
 
-const ROOT_DIR = path.resolve(__dirname, '..');
+const ROOT_DIR = path.resolve(__dirname, '../..');
 const DIST_ENTRY = path.join(ROOT_DIR, 'dist', 'core', 'parser', 'parseMessage.js');
 
 // Auto-compile dist if not built

@@ -78,7 +78,7 @@ def main():
             "expected": expected
         })
 
-    fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "src", "__tests__", "__fixtures__")
+    fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "..", "src", "__tests__", "__fixtures__")
     os.makedirs(fixtures_dir, exist_ok=True)
     output_fixture = os.path.join(fixtures_dir, "collected-real-samples.json")
 
@@ -89,7 +89,7 @@ def main():
     print(f"   {output_fixture}")
 
     # Generate or update test file
-    tests_dir = os.path.join(os.path.dirname(__file__), "..", "src", "__tests__")
+    tests_dir = os.path.join(os.path.dirname(__file__), "..", "..", "src", "__tests__")
     test_file_path = os.path.join(tests_dir, "collected-real.test.ts")
     
     test_content = """import { parseMessage } from '../core/parser/parseMessage';

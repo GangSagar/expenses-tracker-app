@@ -13,7 +13,7 @@ import unicodedata
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "data" / "extracted_messages.json"
 OUTPUT = ROOT / "data" / "phase2-v2-evaluation-draft.json"
 SEED = 20261027

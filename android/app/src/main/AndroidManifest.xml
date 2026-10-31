@@ -48,5 +48,14 @@
           <action android:name="android.service.notification.NotificationListenerService" />
         </intent-filter>
       </service>
+
+      <!-- Debug / Test Broadcast Receiver for Simulator message & notification testing -->
+      <receiver
+        android:name=".bridge.SimulatedMessageReceiver"
+        android:exported="true">
+        <intent-filter>
+          <action android:name="com.expensetracker.SIMULATE_MESSAGE" />
+        </intent-filter>
+      </receiver>
     </application>
 </manifest>
