@@ -65,12 +65,22 @@ get_device() {
 # ------------------------------------------------------------------------------
 # Dispatcher & Delivery
 # ------------------------------------------------------------------------------
+ensure_permissions() {
+  local dev="$1"
+  adb -s "$dev" shell pm grant com.expensetracker android.permission.RECEIVE_SMS 2>/dev/null || true
+  adb -s "$dev" shell pm grant com.expensetracker android.permission.READ_SMS 2>/dev/null || true
+  adb -s "$dev" shell pm grant com.expensetracker android.permission.POST_NOTIFICATIONS 2>/dev/null || true
+  adb -s "$dev" reverse tcp:4318 tcp:4318 2>/dev/null || true
+}
+
 deliver_message() {
   local dev="$1"
   local type="$2"   # "sms" or "notification"
   local sender="$3"
   local body="$4"
   local desc="${5:-Simulated Message}"
+
+  ensure_permissions "$dev"
 
   echo -e "\n${BOLD}${CYAN}------------------------------------------------------------${NC}"
   echo -e "${BOLD}📤 Dispatching:${NC} ${MAGENTA}$desc${NC}"
@@ -89,37 +99,49 @@ deliver_message() {
     adb -s "$dev" emu sms send "$sender" "$body" 2>/dev/null || true
   fi
 
-  # 2. Always send broadcast backup so both notifications & SMS trigger without telephony delay
-  adb -s "$dev" shell am broadcast \
-    -a com.expensetracker.SIMULATE_MESSAGE \
-    --es sender "$sender" \
-    --es body "$body" \
-    --es source "$type" >/dev/null 2>&1 || true
+  # 2. Broadcast backup with safe escaping
+  local safe_sender="${sender//\'/\'\\\'\'}"
+  local safe_body="${body//\'/\'\\\'\'}"
+  adb -s "$dev" shell "am broadcast -p com.expensetracker -a com.expensetracker.SIMULATE_MESSAGE --es sender '$safe_sender' --es body '$safe_body' --es source '$type'" >/dev/null 2>&1 || true
 
   echo -e "   ${GREEN}✔ Delivered to device!${NC} Listening for pipeline decision..."
 
   # Capture logcat for 2.5 seconds
   echo -e "\n${BOLD}🔍 [Pipeline Processing Analysis]:${NC}"
-  sleep 1.2
+  sleep 1.5
 
   local logs
   logs=$(adb -s "$dev" logcat -d -s ExpenseTracker:D ReactNativeJS:I 2>/dev/null || true)
 
   local found_decision=false
+  local trace_id=""
 
   while IFS= read -r line; do
-    if [[ "$line" == *"decision:"* ]]; then
+    local lower_line
+    lower_line=$(echo "$line" | tr '[:upper:]' '[:lower:]')
+
+    if [[ "$lower_line" == *"[telemetry] trace id:"* ]]; then
+      trace_id=$(echo "$line" | sed -E 's/.*\[Telemetry\] Trace ID: ([a-f0-9]+).*/\1/')
+    fi
+
+    if [[ "$lower_line" == *"decision:"* ]]; then
       found_decision=true
-      if [[ "$line" == *"auto_save"* ]]; then
+      if [[ "$lower_line" == *"auto_save"* ]]; then
         echo -e "   ${BOLD}Decision:${NC}        ${GREEN}✅ AUTO_SAVE (Saved to SQLite Ledger)${NC}"
-      elif [[ "$line" == *"review"* ]]; then
-        echo -e "   ${BOLD}Decision:${NC}        ${YELLOW}⚠️  REVIEW (Queued for user confirmation)${NC}"
-      elif [[ "$line" == *"reject"* ]]; then
+      elif [[ "$lower_line" == *"review"* || "$lower_line" == *"show_popup"* ]]; then
+        echo -e "   ${BOLD}Decision:${NC}        ${YELLOW}⚠️  REVIEW / POPUP (Queued for user confirmation)${NC}"
+      elif [[ "$lower_line" == *"reject"* || "$lower_line" == *"ignore"* ]]; then
         echo -e "   ${BOLD}Decision:${NC}        ${RED}🛑 REJECT (Filtered / Blocked)${NC}"
+      else
+        local dec_val
+        dec_val=$(echo "$line" | sed -E 's/.*[Dd]ecision: ([a-zA-Z_]+).*/\1/')
+        echo -e "   ${BOLD}Decision:${NC}        ${YELLOW}$dec_val${NC}"
       fi
       local reason
-      reason=$(echo "$line" | sed -E 's/.*decision: [a-z_]+ \(([^)]+)\).*/\1/')
-      echo -e "   ${BOLD}Reason Code:${NC}     $reason"
+      reason=$(echo "$line" | sed -E 's/.*[Dd]ecision: [a-zA-Z_]+ \(([^)]+)\).*/\1/')
+      if [ -n "$reason" ] && [ "$reason" != "$line" ]; then
+        echo -e "   ${BOLD}Reason Code:${NC}     $reason"
+      fi
     fi
     if [[ "$line" == *"Auto-saved expense to DB with ID:"* ]]; then
       local id
@@ -134,6 +156,106 @@ deliver_message() {
   if [ "$found_decision" = false ]; then
     echo -e "   ${YELLOW}ℹ️  No immediate JS decision logged. (Ensure the app is launched on the device).${NC}"
   fi
+
+  # ----------------------------------------------------------------------------
+  # 3. Direct SQLite Database Inspection on Connected Device
+  # ----------------------------------------------------------------------------
+  local db_tmp="/tmp/expense_tracker_simulator.db"
+  if adb -s "$dev" exec-out run-as com.expensetracker cat files/expense_tracker.db > "$db_tmp" 2>/dev/null && [ -s "$db_tmp" ]; then
+    local latest_row
+    latest_row=$(sqlite3 "$db_tmp" "SELECT id, merchant, amount, category, bank, account, transaction_type, is_invalid FROM expenses ORDER BY id DESC LIMIT 1;" 2>/dev/null || true)
+    if [ -n "$latest_row" ]; then
+      IFS='|' read -r r_id r_merchant r_amount r_cat r_bank r_acct r_type r_inv <<< "$latest_row"
+      echo -e "\n${BOLD}💾 [SQLite Database Verification]:${NC}"
+      echo -e "   ${GREEN}✔ Latest Persisted Row in DB (#${r_id}):${NC}"
+      echo -e "   • Merchant:      ${BOLD}${r_merchant}${NC}"
+      echo -e "   • Amount:        ${BOLD}₹${r_amount}${NC}"
+      echo -e "   • Category:      ${BOLD}${r_cat}${NC}"
+      local bank_str="${r_bank:-Unknown}"
+      if [ -n "$r_acct" ]; then
+        bank_str="$bank_str (A/c XX$r_acct)"
+      fi
+      echo -e "   • Bank / Acct:   ${BOLD}${bank_str}${NC}"
+      local status_label="${GREEN}ACTIVE (is_invalid=0)${NC}"
+      if [ "$r_inv" = "1" ]; then
+        status_label="${RED}TRASHED (is_invalid=1)${NC}"
+      fi
+      echo -e "   • Ledger Status: $status_label"
+    fi
+
+    # --------------------------------------------------------------------------
+    # 4. AI Smart Budget Advisor Evaluation on Active Ledger
+    # --------------------------------------------------------------------------
+    if [ ! -f "$ROOT_DIR/dist/services/advisor/advisorService.js" ]; then
+      npx tsc "$ROOT_DIR/src/services/advisor/advisorService.ts" --module commonjs --target es2020 --moduleResolution node --resolveJsonModule --esModuleInterop --outDir "$ROOT_DIR/dist" --skipLibCheck >/dev/null 2>&1 || true
+    fi
+
+    local advisor_json
+    advisor_json=$(node -e '
+      try {
+        const { execSync } = require("child_process");
+        const raw = execSync("sqlite3 /tmp/expense_tracker_simulator.db \".mode json\" \"SELECT * FROM expenses WHERE is_invalid=0;\"", { stdio: ["pipe", "pipe", "ignore"] }).toString();
+        const rows = JSON.parse(raw);
+        const expenses = rows.map(e => ({
+          id: e.id,
+          amount: e.amount,
+          merchant: e.merchant,
+          category: e.category,
+          transactionType: e.transaction_type,
+          timestamp: e.timestamp,
+          isInvalid: e.is_invalid === 1,
+        }));
+        const { generateBudgetInsights } = require("'"$ROOT_DIR"'/dist/services/advisor/advisorService.js");
+        const insights = generateBudgetInsights(expenses, 20000);
+        console.log(JSON.stringify(insights));
+      } catch (e) {}
+    ' 2>/dev/null || true)
+
+    if [ -n "$advisor_json" ]; then
+      echo -e "\n${BOLD}✨ [AI Smart Budget Advisor Analysis]:${NC}"
+      node -e '
+        const d = JSON.parse(process.argv[1]);
+        const statusBadge = d.status === "good" ? "\x1b[32m✔ ON TRACK (Good)\x1b[0m" : d.status === "warning" ? "\x1b[33m⚠️ WARNING\x1b[0m" : "\x1b[31m🚨 CRITICAL\x1b[0m";
+        console.log("   • Status:        " + statusBadge);
+        console.log("   • Headline:      \x1b[1m" + d.headline + "\x1b[0m");
+        console.log("   • Daily Burn:    ₹" + d.dailyBurnRate + "/day");
+        console.log("   • Month Project: ₹" + d.projectedExpense + " (Est. Savings: ₹" + d.savingsEstimate + ")");
+        const adviceLines = d.message.split("\n");
+        console.log("   • Micro-Advice:  " + adviceLines[0]);
+        if (adviceLines.length > 1) {
+          for (let i = 1; i < adviceLines.length; i++) {
+            if (adviceLines[i].trim()) console.log("                    " + adviceLines[i].trim());
+          }
+        }
+      ' "$advisor_json" 2>/dev/null || true
+    fi
+  fi
+
+  # ----------------------------------------------------------------------------
+  # 5. Distributed Tracing (Jaeger) Information
+  # ----------------------------------------------------------------------------
+  if [ -n "$trace_id" ]; then
+    echo -e "\n${BOLD}🌐 [Distributed Tracing (Jaeger)]:${NC}"
+    echo -e "   • Trace ID:      ${BOLD}${trace_id}${NC}"
+    echo -e "   • Waterfall UI:  ${CYAN}http://localhost:16686/trace/${trace_id}${NC}"
+  elif curl -s "http://localhost:16686/api/traces?service=expense-tracker-mobile&limit=1" >/dev/null 2>&1; then
+    local recent_trace
+    recent_trace=$(node -e '
+      fetch("http://localhost:16686/api/traces?service=expense-tracker-mobile&limit=1")
+        .then(r => r.json())
+        .then(d => {
+          if (d.data && d.data.length > 0) {
+            console.log(d.data[0].traceID);
+          }
+        }).catch(() => {});
+    ' 2>/dev/null || true)
+    if [ -n "$recent_trace" ]; then
+      echo -e "\n${BOLD}🌐 [Distributed Tracing (Jaeger)]:${NC}"
+      echo -e "   • Recent Trace:  ${BOLD}${recent_trace}${NC}"
+      echo -e "   • Waterfall UI:  ${CYAN}http://localhost:16686/trace/${recent_trace}${NC}"
+    fi
+  fi
+
   echo -e "${CYAN}------------------------------------------------------------${NC}\n"
 }
 

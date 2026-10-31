@@ -34,6 +34,7 @@ export async function processIncomingMessage(
     source: message.source,
     sender: message.sender,
   });
+  console.log(`[Telemetry] Trace ID: ${span.traceId}`);
   const normalizedSender = normalizeUnicodeText(message.sender || '');
   const normalizedBody = normalizeUnicodeText(message.body || '');
   const rejectionSignals: TransactionRejectionReason[] = [];
