@@ -21,6 +21,14 @@ import {
   deduplicateDatabase,
   insertExpense,
   getAllExpenses,
+  linkDuplicateExpense,
+  unlinkDuplicateExpense,
+  getLinkedDuplicates,
+  getLinkedDuplicateCounts,
+  LINK_DUPLICATE_EXPENSE_SQL,
+  UNLINK_DUPLICATE_EXPENSE_SQL,
+  GET_LINKED_DUPLICATES_SQL,
+  GET_LINKED_DUPLICATE_COUNTS_SQL,
 } from '../database/expenseRepo';
 import { getDatabase } from '../database/db';
 
@@ -611,5 +619,66 @@ describe('transaction metadata persistence & mapping', () => {
     expect(exp.notes).toBe('Coffee break');
     expect(exp.billImageUri).toBe('file:///bills/c1.png');
     expect(exp.location).toEqual({ latitude: 13.0827, longitude: 80.2707 });
+  });
+
+  describe('duplicate message linking operations', () => {
+    it('links a duplicate transaction to a primary transaction in SQLite', () => {
+      mockExecute.mockReturnValueOnce({ rowsAffected: 1 });
+      linkDuplicateExpense(10, 20);
+
+      expect(mockExecute).toHaveBeenCalledWith(LINK_DUPLICATE_EXPENSE_SQL, [10, 20]);
+    });
+
+    it('prevents linking a transaction to itself', () => {
+      expect(() => linkDuplicateExpense(15, 15)).toThrow(/cannot link a transaction to itself/i);
+    });
+
+    it('unlinks a duplicate transaction restoring it to independent status', () => {
+      mockExecute.mockReturnValueOnce({ rowsAffected: 1 });
+      unlinkDuplicateExpense(20);
+
+      expect(mockExecute).toHaveBeenCalledWith(UNLINK_DUPLICATE_EXPENSE_SQL, [20]);
+    });
+
+    it('queries linked duplicates for a primary transaction', () => {
+      mockExecute.mockReturnValueOnce({
+        rows: {
+          _array: [
+            {
+              id: 20,
+              amount: 250,
+              merchant: 'Starbucks',
+              category: 'Food & Dining',
+              timestamp: 1730001005,
+              source: 'sms',
+              raw_message: 'Duplicate SMS',
+              transaction_type: 'debit',
+              linked_to_id: 10,
+            },
+          ],
+        },
+      });
+
+      const dups = getLinkedDuplicates(10);
+      expect(mockExecute).toHaveBeenCalledWith(GET_LINKED_DUPLICATES_SQL, [10]);
+      expect(dups).toHaveLength(1);
+      expect(dups[0].id).toBe(20);
+      expect(dups[0].linkedToId).toBe(10);
+    });
+
+    it('queries linked duplicate counts aggregated by primary id', () => {
+      mockExecute.mockReturnValueOnce({
+        rows: {
+          _array: [
+            { linked_to_id: 10, count: 2 },
+            { linked_to_id: 45, count: 1 },
+          ],
+        },
+      });
+
+      const counts = getLinkedDuplicateCounts();
+      expect(mockExecute).toHaveBeenCalledWith(GET_LINKED_DUPLICATE_COUNTS_SQL);
+      expect(counts).toEqual({ 10: 2, 45: 1 });
+    });
   });
 });

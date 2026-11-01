@@ -7,12 +7,16 @@ import {
   deleteTransactionUseCase,
   exportTransactionSnapshot,
   invalidateTransactionUseCase,
+  linkDuplicateTransactionUseCase,
   queryAllTransactions,
+  queryLinkedDuplicates,
+  queryLinkedDuplicateCounts,
   queryWindowedTransactions,
   restoreTransactionSnapshot,
   runTransactionDeduplication,
   settleSplitContact,
   toggleSplitSettlement,
+  unlinkDuplicateTransactionUseCase,
   updateTransactionUseCase,
   updateTrashReasonUseCase,
 } from '../services/transactions/transactionApplication';
@@ -46,6 +50,10 @@ interface ExpenseState {
   invalidateExpense: (id: number, isInvalid: boolean) => boolean;
   updateTrashReason: (id: number, reason: string | null) => void;
   runDeduplication: () => number;
+  linkedDuplicateCounts: Record<number, number>;
+  linkDuplicate: (primaryId: number, duplicateId: number) => void;
+  unlinkDuplicate: (duplicateId: number) => void;
+  getLinkedDuplicates: (primaryId: number) => Expense[];
 }
 
 function applySplitUpdates(
@@ -64,13 +72,20 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   expenses: [],
   loading: false,
   pendingExpenses: [],
+  linkedDuplicateCounts: {},
 
   loadExpenses: () => {
     set({ loading: true });
     try {
       // Load last 30 days for the windowed view; screens paginate older data on demand
       const expenses = queryWindowedTransactions(30);
-      set({ expenses, loading: false });
+      let linkedDuplicateCounts: Record<number, number> = {};
+      try {
+        linkedDuplicateCounts = queryLinkedDuplicateCounts();
+      } catch (err) {
+        console.warn('Failed to query linked duplicate counts', err);
+      }
+      set({ expenses, linkedDuplicateCounts, loading: false });
     } catch (e) {
       console.error('Failed to load expenses', e);
       set({ loading: false });
@@ -247,6 +262,43 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       console.error('Failed to deduplicate database', e);
       Alert.alert('Unable to deduplicate transactions', errorMessage(e));
       return 0;
+    }
+  },
+
+  linkDuplicate: (primaryId: number, duplicateId: number) => {
+    try {
+      linkDuplicateTransactionUseCase(primaryId, duplicateId);
+      const linkedDuplicateCounts = queryLinkedDuplicateCounts();
+      // Remove duplicateId from state.expenses because it is now hidden under primaryId
+      set(state => ({
+        expenses: state.expenses.filter(e => e.id !== duplicateId),
+        linkedDuplicateCounts,
+      }));
+    } catch (e) {
+      console.error('Failed to link duplicate expense', e);
+      Alert.alert('Unable to link duplicate', errorMessage(e));
+    }
+  },
+
+  unlinkDuplicate: (duplicateId: number) => {
+    try {
+      unlinkDuplicateTransactionUseCase(duplicateId);
+      // Reload windowed expenses so the unlinked transaction automatically appears again in history
+      const expenses = queryWindowedTransactions(30);
+      const linkedDuplicateCounts = queryLinkedDuplicateCounts();
+      set({ expenses, linkedDuplicateCounts });
+    } catch (e) {
+      console.error('Failed to unlink duplicate expense', e);
+      Alert.alert('Unable to break link', errorMessage(e));
+    }
+  },
+
+  getLinkedDuplicates: (primaryId: number) => {
+    try {
+      return queryLinkedDuplicates(primaryId);
+    } catch (e) {
+      console.error('Failed to query linked duplicates', e);
+      return [];
     }
   },
 }));

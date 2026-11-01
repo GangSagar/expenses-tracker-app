@@ -19,6 +19,7 @@ import styles from '../styles/SettingsScreenStyles';
 import { useExpenseStore } from '../../../hooks/useExpenses';
 import { useSecurityStore } from '../../../hooks/useSecurityStore';
 import { securityService, settingsService, spamClassifier } from '../../../app/composition';
+import type { AlertPreferences, ReportPreferences } from '../../../core/settings/SettingsRepository';
 import PinSetupModal from '../components/PinSetupModal';
 
 import commonStyles from '../styles/commonStyles';
@@ -422,6 +423,24 @@ export default function SettingsScreen() {
   const [note, setNote] = useState('');
   const [budget, setBudget] = useState('20000');
   const [isSaving, setIsSaving] = useState(false);
+  const [reportPrefs, setReportPrefs] = useState<ReportPreferences>(() =>
+    settingsService.getReportPreferences(),
+  );
+  const [alertPrefs, setAlertPrefs] = useState<AlertPreferences>(() =>
+    settingsService.getAlertPreferences(),
+  );
+
+  const handleUpdateReportPrefs = (updates: Partial<ReportPreferences>) => {
+    const next = { ...reportPrefs, ...updates };
+    setReportPrefs(next);
+    settingsService.setReportPreferences(next);
+  };
+
+  const handleUpdateAlertPrefs = (updates: Partial<AlertPreferences>) => {
+    const next = { ...alertPrefs, ...updates };
+    setAlertPrefs(next);
+    settingsService.setAlertPreferences(next);
+  };
 
   useEffect(() => {
     checkContactsPermission();
@@ -431,6 +450,9 @@ export default function SettingsScreen() {
     // Load persisted budget limit
     const savedBudget = settingsService.getMonthlyBudgetLimit();
     setBudget(savedBudget);
+    // Load notification and report preferences
+    setReportPrefs(settingsService.getReportPreferences());
+    setAlertPrefs(settingsService.getAlertPreferences());
   }, []);
 
   useEffect(() => {
@@ -704,6 +726,120 @@ export default function SettingsScreen() {
                   maxLength={7}
                 />
               </View>
+            </View>
+          </View>
+
+          {/* Financial Reports & Smart Alerts Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Financial Reports & Smart Alerts</Text>
+
+            <Text style={styles.subheading}>Scheduled Reports (10:00 PM)</Text>
+
+            <View style={styles.item}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={styles.itemTitle}>Daily Spending Summary</Text>
+                <Text style={styles.itemDescription}>
+                  Evening summary of today's total spending and income at 10:00 PM
+                </Text>
+              </View>
+              <Switch
+                value={reportPrefs.dailyEnabled}
+                onValueChange={val => handleUpdateReportPrefs({ dailyEnabled: val })}
+                trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                thumbColor={reportPrefs.dailyEnabled ? '#1a73e8' : '#f4f3f4'}
+              />
+            </View>
+
+            <View style={styles.item}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={styles.itemTitle}>Weekly Financial Digest</Text>
+                <Text style={styles.itemDescription}>
+                  Weekly recap delivered every Sunday at 10:00 PM
+                </Text>
+              </View>
+              <Switch
+                value={reportPrefs.weeklyEnabled}
+                onValueChange={val => handleUpdateReportPrefs({ weeklyEnabled: val })}
+                trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                thumbColor={reportPrefs.weeklyEnabled ? '#1a73e8' : '#f4f3f4'}
+              />
+            </View>
+
+            <View style={styles.item}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={styles.itemTitle}>Monthly Cashflow Report</Text>
+                <Text style={styles.itemDescription}>
+                  Comprehensive breakdown on the last day of each month at 10:00 PM
+                </Text>
+              </View>
+              <Switch
+                value={reportPrefs.monthlyEnabled}
+                onValueChange={val => handleUpdateReportPrefs({ monthlyEnabled: val })}
+                trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                thumbColor={reportPrefs.monthlyEnabled ? '#1a73e8' : '#f4f3f4'}
+              />
+            </View>
+
+            <Text style={[styles.subheading, { marginTop: 16 }]}>Smart Real-Time Alerts</Text>
+
+            <View style={styles.item}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={styles.itemTitle}>Budget Threshold Warnings</Text>
+                <Text style={styles.itemDescription}>
+                  Alert when spending reaches 80%, 90%, or 100% of your monthly budget
+                </Text>
+              </View>
+              <Switch
+                value={alertPrefs.budgetAlertsEnabled}
+                onValueChange={val => handleUpdateAlertPrefs({ budgetAlertsEnabled: val })}
+                trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                thumbColor={alertPrefs.budgetAlertsEnabled ? '#1a73e8' : '#f4f3f4'}
+              />
+            </View>
+
+            <View style={styles.item}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={styles.itemTitle}>High-Value Spend Alert (≥ ₹10,000)</Text>
+                <Text style={styles.itemDescription}>
+                  Immediate notification whenever a single transaction exceeds ₹10,000
+                </Text>
+              </View>
+              <Switch
+                value={alertPrefs.highValueThreshold > 0}
+                onValueChange={val => handleUpdateAlertPrefs({ highValueThreshold: val ? 10000 : 0 })}
+                trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                thumbColor={alertPrefs.highValueThreshold > 0 ? '#1a73e8' : '#f4f3f4'}
+              />
+            </View>
+
+            <View style={styles.item}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={styles.itemTitle}>Low Bank Balance Alert (&lt; ₹2,000)</Text>
+                <Text style={styles.itemDescription}>
+                  Alert when an SMS message indicates your remaining account balance is below ₹2,000
+                </Text>
+              </View>
+              <Switch
+                value={alertPrefs.lowBalanceThreshold > 0}
+                onValueChange={val => handleUpdateAlertPrefs({ lowBalanceThreshold: val ? 2000 : 0 })}
+                trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                thumbColor={alertPrefs.lowBalanceThreshold > 0 ? '#1a73e8' : '#f4f3f4'}
+              />
+            </View>
+
+            <View style={styles.item}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={styles.itemTitle}>Duplicate Charge Detection</Text>
+                <Text style={styles.itemDescription}>
+                  Alert when an identical amount & merchant occurs within 5 minutes, offering linking
+                </Text>
+              </View>
+              <Switch
+                value={alertPrefs.duplicateAlertsEnabled}
+                onValueChange={val => handleUpdateAlertPrefs({ duplicateAlertsEnabled: val })}
+                trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                thumbColor={alertPrefs.duplicateAlertsEnabled ? '#1a73e8' : '#f4f3f4'}
+              />
             </View>
           </View>
 

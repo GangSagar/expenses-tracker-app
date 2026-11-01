@@ -2,6 +2,7 @@ import { QuickSQLiteConnection } from 'react-native-quick-sqlite';
 import { createExpenseIndexes } from './002_expense_indexes';
 import { migrateLegacySchema } from './001_legacy_schema_baseline';
 import { addTransactionMetadataColumns } from './003_add_transaction_metadata';
+import { addLinkedDuplicateColumn } from './004_add_linked_duplicate_column';
 
 export interface DatabaseMigration {
   version: number;
@@ -13,6 +14,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
   { version: 1, name: 'legacy-schema-baseline', up: migrateLegacySchema },
   { version: 2, name: 'expense-query-indexes', up: createExpenseIndexes },
   { version: 3, name: 'transaction-metadata-fields', up: addTransactionMetadataColumns },
+  { version: 4, name: 'linked-duplicate-field', up: addLinkedDuplicateColumn },
 ];
 
 export function runMigrations(database: QuickSQLiteConnection): void {

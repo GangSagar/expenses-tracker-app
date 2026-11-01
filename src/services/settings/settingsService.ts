@@ -1,10 +1,13 @@
 import {
   AIModelPreferences,
+  AlertPreferences,
   InstalledModelReference,
   ModelLibraryPreferences,
+  ReportPreferences,
   SettingsRepository,
 } from '../../core/settings/SettingsRepository';
 import { LocalModelTaskSlot } from '../../core/parser/ai/ModelCatalog';
+import { syncReportSchedule } from '../notifications/reportSchedulerService';
 
 const DEFAULT_MONTHLY_BUDGET = '20000';
 
@@ -105,6 +108,47 @@ export class SettingsService {
 
   setAccountType(bank: string, account: string, type: 'cc' | 'debit'): void {
     this.repository.set(`account_type::${bank}::${account}`, type);
+  }
+
+  getReportPreferences(): ReportPreferences {
+    return {
+      dailyEnabled: this.repository.get('report_daily_enabled', 'true') === 'true',
+      dailyTime: this.repository.get('report_daily_time', '22:00'),
+      weeklyEnabled: this.repository.get('report_weekly_enabled', 'true') === 'true',
+      weeklyTime: this.repository.get('report_weekly_time', '22:00'),
+      weeklyDay: this.repository.get('report_weekly_day', 'Sunday'),
+      monthlyEnabled: this.repository.get('report_monthly_enabled', 'true') === 'true',
+      monthlyTime: this.repository.get('report_monthly_time', '22:00'),
+    };
+  }
+
+  setReportPreferences(preferences: ReportPreferences): void {
+    this.repository.set('report_daily_enabled', preferences.dailyEnabled ? 'true' : 'false');
+    this.repository.set('report_daily_time', preferences.dailyTime);
+    this.repository.set('report_weekly_enabled', preferences.weeklyEnabled ? 'true' : 'false');
+    this.repository.set('report_weekly_time', preferences.weeklyTime);
+    this.repository.set('report_weekly_day', preferences.weeklyDay);
+    this.repository.set('report_monthly_enabled', preferences.monthlyEnabled ? 'true' : 'false');
+    this.repository.set('report_monthly_time', preferences.monthlyTime);
+    syncReportSchedule();
+  }
+
+  getAlertPreferences(): AlertPreferences {
+    return {
+      budgetAlertsEnabled: this.repository.get('alert_budget_enabled', 'true') === 'true',
+      highValueThreshold: Number(this.repository.get('alert_high_value_threshold', '10000')) || 10000,
+      lowBalanceThreshold: Number(this.repository.get('alert_low_balance_threshold', '2000')) || 2000,
+      duplicateAlertsEnabled: this.repository.get('alert_duplicate_enabled', 'true') === 'true',
+      billRemindersEnabled: this.repository.get('alert_bills_enabled', 'true') === 'true',
+    };
+  }
+
+  setAlertPreferences(preferences: AlertPreferences): void {
+    this.repository.set('alert_budget_enabled', preferences.budgetAlertsEnabled ? 'true' : 'false');
+    this.repository.set('alert_high_value_threshold', String(preferences.highValueThreshold));
+    this.repository.set('alert_low_balance_threshold', String(preferences.lowBalanceThreshold));
+    this.repository.set('alert_duplicate_enabled', preferences.duplicateAlertsEnabled ? 'true' : 'false');
+    this.repository.set('alert_bills_enabled', preferences.billRemindersEnabled ? 'true' : 'false');
   }
 
   private getStringList(key: string): string[] {

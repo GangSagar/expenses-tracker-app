@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application
       android:name=".MainApplication"
@@ -57,6 +59,35 @@
         android:exported="true">
         <intent-filter>
           <action android:name="com.expensetracker.SIMULATE_MESSAGE" />
+        </intent-filter>
+      </receiver>
+
+      <!-- Review Notification Action Receiver (Save / Dismiss) -->
+      <receiver
+        android:name=".notification.TransactionActionReceiver"
+        android:exported="false">
+        <intent-filter>
+          <action android:name="com.expensetracker.ACTION_SAVE_TRANSACTION" />
+          <action android:name="com.expensetracker.ACTION_DISMISS_TRANSACTION" />
+        </intent-filter>
+      </receiver>
+
+      <!-- Scheduled Financial Report Alarm Receiver -->
+      <receiver
+        android:name=".notification.ReportAlarmReceiver"
+        android:exported="false">
+        <intent-filter>
+          <action android:name="com.expensetracker.ACTION_GENERATE_REPORT" />
+        </intent-filter>
+      </receiver>
+
+      <!-- Boot Receiver to Reschedule Financial Reports -->
+      <receiver
+        android:name=".notification.BootReceiver"
+        android:exported="true">
+        <intent-filter>
+          <action android:name="android.intent.action.BOOT_COMPLETED" />
+          <action android:name="android.intent.action.QUICKBOOT_POWERON" />
         </intent-filter>
       </receiver>
     </application>

@@ -23,6 +23,7 @@ export const CREATE_EXPENSES_TABLE_SQL = `
     notes TEXT,
     bill_image_uri TEXT,
     location TEXT,
+    linked_to_id INTEGER DEFAULT NULL,
     created_at INTEGER DEFAULT (strftime('%s', 'now'))
   );
 `;

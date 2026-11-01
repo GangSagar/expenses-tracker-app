@@ -80,6 +80,12 @@ export default function EditTransactionModal({
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const [activeSplitIndex, setActiveSplitIndex] = useState<number | null>(null);
 
+  // Duplicate Linking States
+  const { expenses, getLinkedDuplicates, linkDuplicate, unlinkDuplicate } = useExpenseStore();
+  const [linkedDuplicates, setLinkedDuplicates] = useState<Expense[]>([]);
+  const [linkPickerVisible, setLinkPickerVisible] = useState(false);
+  const [linkSearchQuery, setLinkSearchQuery] = useState('');
+
   const requestContactsPermission = async () => {
     if (Platform.OS === 'android') {
       try {
@@ -175,6 +181,46 @@ export default function EditTransactionModal({
       }
     }
   }, [expense, visible, isAddMode]);
+
+  useEffect(() => {
+    if (visible && expense?.id) {
+      try {
+        const dups = getLinkedDuplicates(expense.id);
+        setLinkedDuplicates(dups);
+      } catch {
+        setLinkedDuplicates([]);
+      }
+    } else {
+      setLinkedDuplicates([]);
+    }
+  }, [visible, expense?.id, getLinkedDuplicates]);
+
+  const handleBreakLink = (duplicateId: number) => {
+    Alert.alert(
+      'Break Link',
+      'Are you sure you want to unlink this message? It will automatically be displayed again in the transaction history.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Break Link',
+          style: 'destructive',
+          onPress: () => {
+            unlinkDuplicate(duplicateId);
+            if (expense?.id) {
+              setLinkedDuplicates(getLinkedDuplicates(expense.id));
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleSelectDuplicateToLink = (targetExpense: Expense) => {
+    if (!expense?.id || !targetExpense.id) return;
+    linkDuplicate(expense.id, targetExpense.id);
+    setLinkPickerVisible(false);
+    setLinkedDuplicates(getLinkedDuplicates(expense.id));
+  };
 
   if (!visible) return null;
 
@@ -522,6 +568,60 @@ export default function EditTransactionModal({
                 </View>
               </View>
             )}
+
+            {!isAddMode && Boolean(expense?.id) && (
+              <View style={styles.linkedSection}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.label}>Linked Duplicate Messages</Text>
+                  <TouchableOpacity
+                    style={styles.linkMoreBtn}
+                    onPress={() => {
+                      setLinkSearchQuery('');
+                      setLinkPickerVisible(true);
+                    }}
+                  >
+                    <Text style={styles.linkMoreText}>+ Link Duplicate...</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {linkedDuplicates.length > 0 ? (
+                  <View style={styles.linkedListContainer}>
+                    {linkedDuplicates.map(dup => (
+                      <View key={dup.id} style={styles.linkedItemCard}>
+                        <View style={styles.linkedItemTop}>
+                          <Text style={styles.linkedItemAmount}>
+                            {dup.transactionType === 'credit' ? '↙' : '↗'} ₹{Number(dup.amount).toFixed(2)}
+                          </Text>
+                          <Text style={styles.linkedItemDate}>
+                            {new Date(dup.timestamp).toLocaleDateString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                            })}
+                          </Text>
+                        </View>
+                        <Text style={styles.linkedItemMerchant}>
+                          {dup.merchant} • {dup.category}
+                        </Text>
+                        {Boolean(dup.rawMessage) && (
+                          <Text style={styles.linkedItemRaw} numberOfLines={2}>
+                            {dup.rawMessage}
+                          </Text>
+                        )}
+                        <TouchableOpacity
+                          style={styles.breakLinkBtn}
+                          onPress={() => dup.id && handleBreakLink(dup.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.breakLinkText}>Break Link (Show in History)</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={styles.noLinkedText}>No duplicate messages currently linked.</Text>
+                )}
+              </View>
+            )}
           </ScrollView>
 
           {!isAddMode && expense && (
@@ -610,6 +710,68 @@ export default function EditTransactionModal({
               ListEmptyComponent={
                 <View style={styles.contactEmpty}>
                   <Text style={styles.contactEmptyText}>No contacts found</Text>
+                </View>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Link Duplicate Picker Modal */}
+      <Modal
+        visible={linkPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLinkPickerVisible(false)}
+      >
+        <View style={styles.contactModalOverlay}>
+          <View style={styles.contactModalBox}>
+            <View style={styles.contactModalHeader}>
+              <Text style={styles.contactModalTitle}>Link a Duplicate Message</Text>
+              <TouchableOpacity onPress={() => setLinkPickerVisible(false)}>
+                <Text style={styles.contactCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.contactSearchInput}
+              placeholder="Search by merchant or amount..."
+              placeholderTextColor="#9aa0a6"
+              value={linkSearchQuery}
+              onChangeText={setLinkSearchQuery}
+            />
+            <FlatList
+              data={expenses.filter(
+                e =>
+                  Boolean(e.id) &&
+                  e.id !== expense?.id &&
+                  !e.linkedToId &&
+                  !linkedDuplicates.some(ld => ld.id === e.id) &&
+                  (!linkSearchQuery ||
+                    e.merchant?.toLowerCase().includes(linkSearchQuery.toLowerCase()) ||
+                    String(e.amount).includes(linkSearchQuery)),
+              )}
+              keyExtractor={item => String(item.id)}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.contactItem}
+                  onPress={() => handleSelectDuplicateToLink(item)}
+                >
+                  <View style={styles.contactAvatar}>
+                    <Text style={styles.contactAvatarText}>
+                      {item.transactionType === 'credit' ? '↙' : '↗'}
+                    </Text>
+                  </View>
+                  <View style={styles.contactItemDetails}>
+                    <Text style={styles.contactName}>{item.merchant} • ₹{item.amount}</Text>
+                    <Text style={styles.contactPhone}>
+                      {item.category} • {new Date(item.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View style={styles.contactEmpty}>
+                  <Text style={styles.contactEmptyText}>No eligible transactions to link</Text>
                 </View>
               }
             />
@@ -1042,5 +1204,89 @@ const styles = StyleSheet.create({
   contactEmptyText: {
     fontSize: 14,
     color: '#9aa0a6',
+  },
+  contactItemDetails: {
+    flex: 1,
+  },
+  linkedSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f3f4',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  linkMoreBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: '#e8f0fe',
+  },
+  linkMoreText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1a73e8',
+  },
+  linkedListContainer: {
+    gap: 8,
+  },
+  linkedItemCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e8eaed',
+    padding: 10,
+    marginBottom: 8,
+  },
+  linkedItemTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  linkedItemAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#202124',
+  },
+  linkedItemDate: {
+    fontSize: 12,
+    color: '#5f6368',
+  },
+  linkedItemMerchant: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#3c4043',
+    marginTop: 2,
+  },
+  linkedItemRaw: {
+    fontSize: 11,
+    color: '#80868b',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  breakLinkBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    backgroundColor: '#fce8e6',
+    borderWidth: 1,
+    borderColor: '#fad2cf',
+  },
+  breakLinkText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#c5221f',
+  },
+  noLinkedText: {
+    fontSize: 12,
+    color: '#80868b',
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });

@@ -153,8 +153,17 @@ export interface TransactionMaintenanceRepository {
   getAllDedupRecords(): DedupRecord[];
 }
 
+/** Operations for linking and unlinking duplicate transactions without deleting data. */
+export interface DuplicateLinkingRepository {
+  linkDuplicate(primaryId: number, duplicateId: number): void;
+  unlinkDuplicate(duplicateId: number): void;
+  getLinkedDuplicates(primaryId: number): Expense[];
+  getLinkedDuplicateCounts(): Record<number, number>;
+}
+
 /** Full storage capability injected by the composition module. */
 export type TransactionStorage = TransactionRepository
   & ExpenseQueryRepository
   & TransactionBackupRepository
-  & TransactionMaintenanceRepository;
+  & TransactionMaintenanceRepository
+  & DuplicateLinkingRepository;

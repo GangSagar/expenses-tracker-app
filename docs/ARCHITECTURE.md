@@ -342,6 +342,19 @@ The parser follows Clean Architecture principles with complete separation of con
 * **Thematic Header Background Scenes**: Dedicated 350x500 visual compositions representing conceptual activity or financial setting for each category, serving as the card header artwork.
 * **Color Harmonization**: `CATEGORY_THEMES` provides matching `primary`, `secondary`, and `cardBg` tokens to tie the card header artwork and body container together smoothly. Exposed via `getCategoryIcon()`, `getCategoryBg()`, `getCategoryTheme()`, and `getCategoryColor()`.
 
+#### 8. Native Notification Architecture & Scheduled Reports (`android/app/.../notification/`, `src/services/notifications/`)
+* **Dedicated Notification Channels**: Android notification manager creates three high-priority channels: `transactions` (real-time transaction status), `reports` (scheduled financial digests), and `alerts` (smart budget, high-value spend, and balance warnings).
+* **Directional Status & Category Artwork**: Saved notifications indicate cashflow direction (`↗` for debit/expense, `↙` for credit/income), paired with category-specific bitmap emblems (`ic_cat_exp_*`, `ic_cat_inc_*`).
+* **Expandable BigTextStyle Subtext Isolation**: Account numbers, payment rails, and reference IDs are strictly confined to `BigTextStyle` expandable views, keeping collapsed notification shade compact.
+* **Direct Background Transaction Confirmation (`TransactionActionReceiver.kt`)**: When a transaction requires review, the expandable notification features an inline "Save" action button. Activating it writes directly to the local SQLite database from a native `BroadcastReceiver` without launching the React Native JS runtime or bringing the app to foreground.
+* **Scheduled Financial Reports & AlarmManager**: `ReportScheduler.kt` and `ReportAlarmReceiver.kt` schedule Daily, Weekly (Sunday), and Monthly reports at 10:00 PM (`22:00`). Upon firing, native receivers query the SQLite database for period spend, income, and top categories to post a summary digest. `BootReceiver.kt` reschedules active reports upon device reboot.
+* **Smart Real-Time Alerts**: Evaluates budget threshold boundaries (80%, 90%, 100%), high-value spend (≥ ₹10,000), low bank balance (< ₹2,000), and short-window identical charges.
+
+#### 9. Duplicate Transaction Linking Subsystem (`src/database/expenseRepo.ts`, `src/core/transactions/contracts.ts`)
+* **Non-Destructive Duplicate Preservation**: Duplicate transactions are never deleted or purged. Instead, duplicates store their parent transaction ID in `linked_to_id`.
+* **Ledger Filtering**: Main history queries (`GET_ALL_EXPENSES_SQL`, `GET_WINDOWED_EXPENSES_SQL`, `GET_EXPENSES_BY_CATEGORY_SQL`) automatically filter out child records with `AND (linked_to_id IS NULL OR linked_to_id = 0)`.
+* **Bidirectional Management**: Parent transaction cards display a `🔗 X Linked Duplicate(s)` badge. Inside the transaction modal, users can inspect linked messages, unlink ("Break Link") to instantly restore them to the main ledger, or link additional transactions via a searchable picker.
+
 ---
 
 ### 2.4 Database Entity Relationship Diagram (ERD)
@@ -368,6 +381,7 @@ erDiagram
         string reference_id
         int is_invalid
         string trash_reason
+        int linked_to_id FK
         int created_at
     }
 

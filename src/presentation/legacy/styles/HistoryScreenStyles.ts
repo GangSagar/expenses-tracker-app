@@ -342,6 +342,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#c5221f',
   },
+  linkedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8f0fe',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#aecbfa',
+  },
+  linkedBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#1a73e8',
+  },
   amount: {
     fontSize: 15,
     fontWeight: '700',

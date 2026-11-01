@@ -80,6 +80,7 @@ export interface Expense {
   billImageUri?: string;
   location?: TransactionLocation;
   suggestedCategories?: CategorySuggestion[];
+  linkedToId?: number | null;
   isInvalid?: boolean;
   trashReason?: 'spam' | 'false' | 'duplicate' | 'other';
 }

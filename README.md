@@ -92,6 +92,20 @@ Most expense tracking apps either:
 - **Configurable Auto-Lock**: Choose when the app locks upon entering the background (Immediately, 30s, 1m, or 5m).
 - **Background Ingestion Guard**: While the UI remains safely locked, background SMS and notification listeners continue safely capturing incoming transactions.
 
+### 🔔 Native Interactive Notifications & Scheduled Reports
+
+- **Directional Cashflow Alerts**: Push alerts display amounts formatted with clear cashflow indicators (`↗` for debits/expenses, `↙` for credits/income) and category icon emblems.
+- **Expandable Detail Isolation**: Bank name, masked account number, payment mode, and reference numbers are tucked into the expandable view, maintaining a clean notification shade.
+- **Background Review Action**: Review alerts feature an inline "Save" action button in the notification shade, committing directly to the SQLite ledger via a native Android BroadcastReceiver without needing to open the app.
+- **Scheduled Financial Reports**: Daily, Weekly (Sunday), and Monthly digests scheduled via native `AlarmManager` for **10:00 PM (`22:00`)**, summarizing period spending, income, and top categories.
+- **Smart Real-Time Alerts**: Proactive notifications for 80%, 90%, and 100% budget threshold crossings, high-value transactions (≥ ₹10,000), low bank balance warnings (< ₹2,000), and short-window duplicate charges.
+
+### 🔗 Duplicate Transaction Linking & Management
+
+- **Non-Destructive Storage**: Potential duplicate charges are never deleted from your financial records.
+- **Linked Grouping**: Duplicate messages link directly beneath the primary transaction and are cleanly hidden from the main transaction ledger.
+- **Full User Control**: Inspect linked duplicates, unlink ("Break Link") with a single tap to instantly restore them to the main history, or link additional transactions manually via a dedicated search picker.
+
 ### ⚡ Ultra-Low Battery & Resource Footprint
 
 - Built with event-driven native Android broadcast receivers (`SmsReceiver` and `NotificationListenerService`).

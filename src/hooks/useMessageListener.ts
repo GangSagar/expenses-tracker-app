@@ -1,7 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { NativeEventEmitter, NativeModules, AppState } from 'react-native';
+import { NativeEventEmitter, NativeModules } from 'react-native';
 import { IncomingMessage } from '../services/messaging/messageService';
 import { ingestLiveMessage } from '../services/transactions/transactionApplication';
+import { notifyTransactionReview } from '../services/notifications/transactionReviewNotification';
+import { evaluateTransactionAlerts } from '../services/notifications/alertNotificationService';
+import { settingsService } from '../app/composition';
 import { useExpenseStore } from './useExpenses';
 
 const { MessageModule } = NativeModules;
@@ -25,15 +28,6 @@ export function useMessageListener() {
         const { candidate, decision } = orchestrated;
         console.log(`Message from ${message.sender} decision: ${decision.kind} (${decision.reason})`);
 
-        const displayMerchant = candidate?.merchant && candidate.merchant !== 'Unknown'
-          ? candidate.merchant
-          : 'Unknown';
-        const notifyBackground = (title: string, body: string) => {
-          if (AppState.currentState === 'background' || AppState.currentState === 'inactive') {
-            MessageModule.showExpenseNotification(title, body);
-          }
-        };
-
         switch (decision.kind) {
           case 'auto_save': {
             if (!candidate) return;
@@ -42,8 +36,33 @@ export function useMessageListener() {
             if (saved.status === 'saved') {
               console.log(`Auto-saved expense to DB with ID: ${saved.transaction.id}`);
               addExpense(saved.transaction, saved.repaymentUpdates);
+              try {
+                const preferences = settingsService.getAlertPreferences();
+                const monthlyBudget = Number(settingsService.getMonthlyBudgetLimit()) || 20000;
+                const now = new Date();
+                const monthlyTotal = useExpenseStore.getState().expenses
+                  .filter(e => {
+                    const d = new Date(e.timestamp);
+                    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && e.transactionType === 'debit';
+                  })
+                  .reduce((sum, e) => sum + e.amount, 0) + saved.transaction.amount;
+
+                evaluateTransactionAlerts(saved.transaction, {
+                  preferences,
+                  monthlyTotal,
+                  monthlyBudget,
+                });
+              } catch (err) {
+                console.warn('Failed to evaluate transaction alerts', err);
+              }
             } else if (saved.status === 'possible_duplicate') {
-              notifyBackground('Possible Duplicate Transaction', `₹${candidate.amount} at ${displayMerchant}. Tap to review.`);
+              const preferences = settingsService.getAlertPreferences();
+              evaluateTransactionAlerts(candidate as any, {
+                preferences,
+                monthlyTotal: 0,
+                monthlyBudget: 0,
+                isPossibleDuplicate: true,
+              });
               queuePendingExpense(candidate);
             } else if (saved.status === 'duplicate') {
               console.log('Expense was not saved because it matched an existing transaction.');
@@ -54,7 +73,7 @@ export function useMessageListener() {
           }
           case 'review': {
             if (!candidate) return;
-            notifyBackground('New Pending Transaction', `₹${candidate.amount} at ${displayMerchant}. Tap to approve.`);
+            notifyTransactionReview(candidate);
             queuePendingExpense(candidate);
             break;
           }
@@ -125,9 +144,23 @@ export function useMessageListener() {
       },
     );
 
+    // 3. Listen for transactions confirmed and saved directly from review notifications
+    const notificationSaveListener = messageEmitter.addListener(
+      'onTransactionSavedFromNotification',
+      (event: { transactionJson: string }) => {
+        try {
+          const tx = JSON.parse(event.transactionJson);
+          addExpense(tx);
+        } catch (e) {
+          console.error('Failed to parse saved transaction from notification:', e);
+        }
+      },
+    );
+
     return () => {
       isMounted = false;
       listenerRef.current?.remove();
+      notificationSaveListener.remove();
     };
   }, [addExpense, queuePendingExpense]);
 }

@@ -206,6 +206,18 @@ export function deleteTransactionUseCase(id: number) {
   return deleteTransaction(transactionStorage, id);
 }
 
+export const linkDuplicateTransactionUseCase = (primaryId: number, duplicateId: number) =>
+  transactionStorage.linkDuplicate(primaryId, duplicateId);
+
+export const unlinkDuplicateTransactionUseCase = (duplicateId: number) =>
+  transactionStorage.unlinkDuplicate(duplicateId);
+
+export const queryLinkedDuplicates = (primaryId: number) =>
+  transactionStorage.getLinkedDuplicates(primaryId);
+
+export const queryLinkedDuplicateCounts = () =>
+  transactionStorage.getLinkedDuplicateCounts();
+
 export const queryAllTransactions = (limit?: number, offset?: number) =>
   transactionStorage.getAllExpenses(limit, offset);
 export const queryWindowedTransactions = (days?: number) =>

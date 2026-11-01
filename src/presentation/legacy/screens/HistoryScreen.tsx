@@ -34,7 +34,7 @@ const SOURCES = ['All', 'sms', 'notification', 'manual'];
 const TYPES = ['All', 'debit', 'credit'];
 
 export default function HistoryScreen() {
-  const { expenses, loadExpenses, updateExpense } = useExpenseStore();
+  const { expenses, loadExpenses, updateExpense, linkedDuplicateCounts } = useExpenseStore();
   
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -620,6 +620,13 @@ export default function HistoryScreen() {
                 {item.isInvalid && item.trashReason && (
                   <View style={styles.trashReasonBadge}>
                     <Text style={styles.trashReasonText}>Tag: {item.trashReason.toUpperCase()}</Text>
+                  </View>
+                )}
+                {Boolean(item.id && linkedDuplicateCounts?.[item.id]) && (
+                  <View style={styles.linkedBadge}>
+                    <Text style={styles.linkedBadgeText}>
+                      🔗 {linkedDuplicateCounts[item.id]} Linked Duplicate{linkedDuplicateCounts[item.id] > 1 ? 's' : ''}
+                    </Text>
                   </View>
                 )}
               </View>
