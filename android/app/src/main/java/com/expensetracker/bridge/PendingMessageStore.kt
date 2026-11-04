@@ -14,7 +14,16 @@ object PendingMessageStore {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    fun saveMessage(context: Context, body: String, sender: String, source: String) {
+    fun saveMessage(
+        context: Context,
+        body: String,
+        sender: String,
+        source: String,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        accuracy: Double? = null,
+        locationTimestamp: Long? = null
+    ) {
         try {
             val prefs = getPrefs(context)
             val currentMessagesStr = prefs.getString(KEY_MESSAGES, "[]")
@@ -24,6 +33,15 @@ object PendingMessageStore {
                 put("body", body)
                 put("sender", sender)
                 put("source", source)
+                if (latitude != null && longitude != null) {
+                    val locObj = JSONObject().apply {
+                        put("latitude", latitude)
+                        put("longitude", longitude)
+                        accuracy?.let { put("accuracy", it) }
+                        locationTimestamp?.let { put("timestamp", it) }
+                    }
+                    put("location", locObj)
+                }
             }
             
             messagesArray.put(newMessage)

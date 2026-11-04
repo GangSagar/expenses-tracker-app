@@ -29,6 +29,7 @@ scripts/
 │
 ├── tools/                         # QA, verification & development tools
 │   ├── parse-cli.js               # Standalone high-speed parser & benchmark
+│   ├── test-backend.js            # Headless backend pipeline, AI Advisor & Jaeger verification
 │   ├── check-import-boundaries.js # Architectural boundary lint check
 │   └── verify_balance.mjs         # Balance calculation verification
 │
@@ -69,7 +70,23 @@ All scripts can be executed directly or via the project root command runner: `./
 ./run test -s allow com.example.banking
 ```
 
-### 2. Application Build & Launch (`./run app`)
+### 2. Standalone Backend & AI Advisor Testing (`./run test --backend`)
+Test SMS/notification parsing, transaction decisions, AI Budget Advisor, and Jaeger distributed traces without requiring an Android emulator or UI:
+```bash
+# Test a genuine bank SMS headlessly
+./run test --backend "Dear Customer, A/c XX1234 debited for Rs 450.00 at SWIGGY - HDFC Bank"
+
+# Test a payment app notification headlessly
+./run test --backend "Paid ₹350.00 to Starbucks on Google Pay" com.google.android.apps.nbu.paisa
+
+# Test spam filter rejection headlessly
+./run test --backend "Instant loan of Rs 5 Lakhs approved! Click to claim." LOANS
+
+# View the exported waterfall trace in Jaeger Web UI:
+# http://localhost:16686
+```
+
+### 3. Application Build & Launch (`./run app`)
 ```bash
 # Build and launch on Android emulator/device
 ./run app --android

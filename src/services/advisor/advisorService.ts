@@ -25,17 +25,29 @@ let _cache: AdvisorCache | null = null;
 export function generateBudgetInsights(
   expenses: Expense[],
   monthlyBudget: number,
+  telemetryTracer?: { traceSync: <T>(name: string, attrs: Record<string, any>, fn: () => T) => T },
 ): BudgetInsight {
-  const now = new Date();
-  const cacheKey = `${now.getFullYear()}-${now.getMonth()}-${
-    expenses.length
-  }-${monthlyBudget}`;
-  if (_cache && _cache.key === cacheKey) {
-    return _cache.result;
+  const compute = () => {
+    const now = new Date();
+    const cacheKey = `${now.getFullYear()}-${now.getMonth()}-${
+      expenses.length
+    }-${monthlyBudget}`;
+    if (_cache && _cache.key === cacheKey) {
+      return _cache.result;
+    }
+    const result = _computeBudgetInsights(expenses, monthlyBudget);
+    _cache = { key: cacheKey, result };
+    return result;
+  };
+
+  if (telemetryTracer) {
+    return telemetryTracer.traceSync(
+      'advisor.generateBudgetInsights',
+      { expensesCount: expenses.length, monthlyBudget },
+      compute,
+    );
   }
-  const result = _computeBudgetInsights(expenses, monthlyBudget);
-  _cache = { key: cacheKey, result };
-  return result;
+  return compute();
 }
 
 function _computeBudgetInsights(

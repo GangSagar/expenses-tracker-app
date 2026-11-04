@@ -42,6 +42,8 @@ export interface StructuredExpense {
   category: Category;
   timestamp: number;
   referenceNumber?: string | null;
+  referenceId?: string | null;
+  transactionId?: string | null;
   availableBalance?: number | null;
   confidence: number;
   confidenceBreakdown: ConfidenceBreakdown;
@@ -92,7 +94,7 @@ export function toParsedTransaction(expense: StructuredExpense): ParsedTransacti
     source: expense.source,
     timestamp: expense.timestamp,
     availableBalance: expense.availableBalance ?? undefined,
-    referenceId: expense.referenceNumber ?? undefined,
+    referenceId: expense.referenceId ?? expense.referenceNumber ?? undefined,
   };
 }
 
@@ -102,6 +104,7 @@ export function toParsedTransaction(expense: StructuredExpense): ParsedTransacti
 export function toExpenseModel(expense: StructuredExpense): Expense {
   const baseType = toBaseTransactionType(expense.transactionType);
   const baseMode = toBasePaymentMode(expense.paymentMode);
+  const resolvedRef = expense.transactionId ?? expense.referenceId ?? expense.referenceNumber ?? undefined;
 
   return {
     amount: expense.amount,
@@ -117,7 +120,8 @@ export function toExpenseModel(expense: StructuredExpense): Expense {
     bank: expense.bank,
     paymentMode: baseMode,
     availableBalance: expense.availableBalance ?? undefined,
-    referenceId: expense.referenceNumber ?? undefined,
+    referenceId: resolvedRef,
+    transactionId: resolvedRef,
     isInvalid: expense.requiresConfirmation ? false : undefined,
   };
 }

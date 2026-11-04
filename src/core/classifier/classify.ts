@@ -1,17 +1,21 @@
 import { Category } from '../../types/expense';
-import { categoryRules } from './rules';
 import { getMerchantMapping } from './merchantMap';
+import { configManager } from '../parser/config';
 
 export interface ClassificationResult {
   category: Category;
   matchedVia: 'merchant_map' | 'keyword' | 'default';
 }
 
+/**
+ * Classifies an expense category based on learned user preferences,
+ * registered merchant rules, and keyword heuristics.
+ */
 export function classify(
   merchantAlias: string | null,
   rawMessage: string,
 ): ClassificationResult {
-  // 1. Try exact merchant map first (user corrections)
+  // 1. Check exact user preference mappings from database / memory
   if (merchantAlias) {
     const mapped = getMerchantMapping(merchantAlias);
     if (mapped) {
@@ -19,17 +23,29 @@ export function classify(
     }
   }
 
-  // 2. Keyword/substring match against category rules
-  const searchText = `${merchantAlias || ''} ${rawMessage}`.toLowerCase();
+  const categoryRules = configManager.getCategoryRules();
+  const searchTarget = `${merchantAlias || ''} ${rawMessage}`.toUpperCase();
 
-  for (const rule of categoryRules) {
-    for (const keyword of rule.keywords) {
-      if (searchText.includes(keyword)) {
-        return { category: rule.category, matchedVia: 'keyword' };
+  // 2. Exact or word-boundary merchant rule match
+  for (const [merchName, cat] of Object.entries(categoryRules.merchantCategories)) {
+    const escaped = merchName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+    if (regex.test(searchTarget)) {
+      return { category: cat as Category, matchedVia: 'keyword' };
+    }
+  }
+
+  // 3. Keyword heuristic on message content
+  for (const [categoryName, keywords] of Object.entries(categoryRules.keywordCategories)) {
+    for (const kw of keywords) {
+      const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+      if (regex.test(searchTarget)) {
+        return { category: categoryName as Category, matchedVia: 'keyword' };
       }
     }
   }
 
-  // 3. Default to "Other"
-  return { category: 'Other', matchedVia: 'default' };
+  // 4. Default fallback category
+  return { category: (categoryRules.defaultCategory || 'Other') as Category, matchedVia: 'default' };
 }

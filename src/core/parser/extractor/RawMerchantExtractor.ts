@@ -12,7 +12,7 @@ export class RawMerchantExtractor {
 
     // 2. High-signal directional targets (e.g. "Dr. to 8543851508@ybl", "Cr. to harshithrn@ybl", "paid to Uber", "spent at STARBUCKS")
     const directionalMatch = cleanMessage.match(
-      /\b(?:credited|debited|spent|paid|transferred|transfer|trf|Cr\.?|Dr\.?)\s+(?:to|at|towards)\s+([A-Za-z0-9\s&'./\-@]+?)(?:\s+from\b|\s+using\b|\s+on\b|\s+[Rr]ef\b|\s+via\b|\s+UPI\b|\s+NEFT\b|\s+IMPS\b|\s+RTGS\b|\bAvl\s+Bal\b|\bAvailable\s+Bal\b|\bCredit\s+Limit\b|\bAvl\s+Limit\b|\.\s|\s*\(|[.\s]*$)/i
+      /\b(?:credited|debited|spent|paid|transferred|transfer|trf|Cr\.?|Dr\.?)\s+(?:to|at|towards)\s+([A-Za-z0-9\s&'./\-@]+?)(?:\s+from\b|\s+using\b|\s+on\b|\s+[Rr]ef\b|\s+via\b|\s+through\b|\s+thru\b|\s+thro\b|\s+UPI\b|\s+NEFT\b|\s+IMPS\b|\s+RTGS\b|\bAvl\s+Bal\b|\bAvailable\s+Bal\b|\bCredit\s+Limit\b|\bAvl\s+Limit\b|\.\s|\s*\(|[.\s]*$)/i
     );
     if (directionalMatch) {
       const name = this.cleanCandidate(directionalMatch[1]);
@@ -23,7 +23,7 @@ export class RawMerchantExtractor {
 
     // 3. Explicit "at/to/towards <merchant>"
     const prepositionMatch = cleanMessage.match(
-      /\b(?:at|(?<!linked\s+)\bto\b|towards)\s+([A-Za-z0-9\s&'./\-@]+?)(?:\s+-\s+[A-Za-z\s]+$|\s+from\b|\s+using\b|\s+on\b|\s+ref\b|\s+via\b|\s+upi\b|\s+neft\b|\s+imps\b|\s+rtgs\b|\bavl\s+bal\b|\bavailable\s+bal\b|\.\s|\s*\(|[.\s]*$)/i
+      /\b(?:at|(?<!linked\s+)\bto\b|towards)\s+([A-Za-z0-9\s&'./\-@]+?)(?:\s+-\s+[A-Za-z\s]+$|\s+from\b|\s+using\b|\s+on\b|\s+ref\b|\s+via\b|\s+through\b|\s+thru\b|\s+thro\b|\s+upi\b|\s+neft\b|\s+imps\b|\s+rtgs\b|\bavl\s+bal\b|\bavailable\s+bal\b|\.\s|\s*\(|[.\s]*$)/i
     );
     if (prepositionMatch) {
       const name = this.cleanCandidate(prepositionMatch[1]);
@@ -34,7 +34,7 @@ export class RawMerchantExtractor {
 
     // 3b. Fallback "for <merchant>" (ensuring it is not an amount like "for Rs. 500")
     const forMatch = cleanMessage.match(
-      /\bfor\s+(?!(?:Rs\.?|INR|₹|\d))\s*([A-Za-z0-9\s&'./\-@]+?)(?:\s+-\s+[A-Za-z\s]+$|\s+from\b|\s+using\b|\s+on\b|\s+ref\b|\s+via\b|\s+upi\b|\s+neft\b|\s+imps\b|\s+rtgs\b|\bavl\s+bal\b|\bavailable\s+bal\b|\.\s|\s*\(|[.\s]*$)/i
+      /\bfor\s+(?!(?:Rs\.?|INR|₹|\d))\s*([A-Za-z0-9\s&'./\-@]+?)(?:\s+-\s+[A-Za-z\s]+$|\s+from\b|\s+using\b|\s+on\b|\s+ref\b|\s+via\b|\s+through\b|\s+thru\b|\s+thro\b|\s+upi\b|\s+neft\b|\s+imps\b|\s+rtgs\b|\bavl\s+bal\b|\bavailable\s+bal\b|\.\s|\s*\(|[.\s]*$)/i
     );
     if (forMatch) {
       const name = this.cleanCandidate(forMatch[1]);
@@ -45,7 +45,7 @@ export class RawMerchantExtractor {
 
     // 4. Receiver/Payee label
     const receiverMatch = cleanMessage.match(
-      /\b(?:receiver|reciever|payee)\s*[:\-]?\s*([A-Za-z0-9\s&'./\-@]+?)(?:\s+from\b|\s+using\b|\s+on\b|\s+[Rr]ef\b|\s+via\b|\s+UPI\b|\s+NEFT\b|\s+IMPS\b|\s+RTGS\b|\bAvl\s+Bal\b|\bAvailable\s+Bal\b|\.\s|\s*\(|[.\s]*$)/i
+      /\b(?:receiver|reciever|payee)\s*[:-]?\s*([A-Za-z0-9\s&'./\-@]+?)(?:\s+from\b|\s+using\b|\s+on\b|\s+[Rr]ef\b|\s+via\b|\s+through\b|\s+thru\b|\s+thro\b|\s+UPI\b|\s+NEFT\b|\s+IMPS\b|\s+RTGS\b|\bAvl\s+Bal\b|\bAvailable\s+Bal\b|\.\s|\s*\(|[.\s]*$)/i
     );
     if (receiverMatch) {
       const name = this.cleanCandidate(receiverMatch[1]);
@@ -73,7 +73,7 @@ export class RawMerchantExtractor {
     }
 
     // 7. Check for "on <merchant>" where merchant is not a date (e.g. "on TECHMASH SOLUTI")
-    const onMatch = cleanMessage.match(/\bon\s+([A-Za-z0-9\s&'./\-@]+?)(?:\s+using\b|\s+on\b|\s+[Rr]ef\b|\s+via\b|\s+UPI\b|\s+NEFT\b|\s+IMPS\b|\s+RTGS\b|\bAvl\s+Bal\b|\bAvailable\s+Bal\b|\bCredit\s+Limit\b|\bAvl\s+Limit\b|\.\s|\s*\(|[.\s]*$)/i);
+    const onMatch = cleanMessage.match(/\bon\s+([A-Za-z0-9\s&'./\-@]+?)(?:\s+using\b|\s+on\b|\s+[Rr]ef\b|\s+via\b|\s+through\b|\s+thru\b|\s+thro\b|\s+UPI\b|\s+NEFT\b|\s+IMPS\b|\s+RTGS\b|\bAvl\s+Bal\b|\bAvailable\s+Bal\b|\bCredit\s+Limit\b|\bAvl\s+Limit\b|\.\s|\s*\(|[.\s]*$)/i);
     if (onMatch) {
       const name = this.cleanCandidate(onMatch[1]);
       const isDate = /^\d{1,2}[-/.]\w+[-/.]\d{2,4}$/i.test(name) ||
@@ -128,13 +128,13 @@ export class RawMerchantExtractor {
 
     // Remove honorifics
     cleaned = cleaned.replace(/\b(?:Mr|Mrs|Ms|Shri|Smt)\.?\s+/gi, '');
-    cleaned = cleaned.replace(/\b(?:S\/O|D\/O|W\/O|SO|DO|WO)\s+[A-Za-z0-9\s&'./\-]+$/i, '');
+    cleaned = cleaned.replace(/\b(?:S\/O|D\/O|W\/O|SO|DO|WO)\s+[A-Za-z0-9\s&'./-]+$/i, '');
 
     // Collapse multiple spaces
     cleaned = cleaned.replace(/\s+/g, ' ').trim();
 
     // Remove trailing junk
-    cleaned = cleaned.replace(/\s+(?:from|using|on|ref|at|for|via)$/i, '').trim();
+    cleaned = cleaned.replace(/\s+(?:from|using|on|ref|at|for|via|through|thru|thro)$/i, '').trim();
 
     return cleaned;
   }

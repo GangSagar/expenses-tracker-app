@@ -10,7 +10,7 @@ import {
 import { Category } from '../../../types/expense';
 import { useExpenseStore } from '../../../hooks/useExpenses';
 import { confirmReviewedTransaction } from '../../../services/transactions/transactionApplication';
-import { CATEGORIES } from '../../../constants/appOptions';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../../../constants/appOptions';
 import { formatAmount } from '../../../utils/formatHelpers';
 
 export default function CategoryPopup() {
@@ -169,7 +169,10 @@ export default function CategoryPopup() {
             showsHorizontalScrollIndicator={false} 
             contentContainerStyle={styles.categoryScroll}
           >
-            {CATEGORIES.map(category => {
+            {(pendingExpense?.transactionType === 'credit'
+              ? INCOME_CATEGORIES
+              : EXPENSE_CATEGORIES
+            ).map(category => {
               const isActive = selectedCategory === category;
               return (
                 <TouchableOpacity

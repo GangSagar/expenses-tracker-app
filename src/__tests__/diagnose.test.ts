@@ -1,7 +1,6 @@
 import { parseMessage } from '../core/parser/parseMessage';
 import { isTransactionMessage, isTransactionalSender } from '../core/parser/filters';
 import { spamClassifier } from '../app/composition';
-import { detectBank } from '../core/parser/bankMap';
 
 describe('Backend SMS Diagnostics CLI', () => {
   it('diagnoses message processing', () => {
@@ -13,7 +12,6 @@ describe('Backend SMS Diagnostics CLI', () => {
     const isTxSender = isTransactionalSender(sender);
     const isTxMsg = isTransactionMessage(rawMsg);
     const spam = spamClassifier.isSpam(rawMsg);
-    const bank = detectBank(sender, rawMsg);
     const parsed = parseMessage(rawMsg, sender, 'sms');
 
     console.log('\n============================================================');
@@ -25,7 +23,7 @@ describe('Backend SMS Diagnostics CLI', () => {
     console.log(`1. Transaction Sender:  ${isTxSender ? '✅ YES' : '❌ NO'}`);
     console.log(`2. Passed Content Filter: ${isTxMsg ? '✅ YES' : '❌ NO (Matched block pattern)'}`);
     console.log(`3. Spam Classifier:     ${!spam ? '✅ NOT SPAM' : '❌ FLAGGED AS SPAM'}`);
-    console.log(`4. Detected Bank:       ${bank || '❓ Unknown'}`);
+    console.log(`4. Detected Bank:       ${parsed.bank || '❓ Unknown'}`);
     console.log('------------------------------------------------------------');
     console.log('📊 PARSED EXTRACTED DATA:');
     console.log(`   • Amount:            ${parsed.amount !== null ? `₹${parsed.amount.toFixed(2)}` : '❌ Not Found'}`);
@@ -68,7 +66,7 @@ describe('Backend SMS Diagnostics CLI', () => {
                   endTimeUnixNano: endTimeNs,
                   attributes: [
                     { key: 'sender', value: { stringValue: sender } },
-                    { key: 'bank', value: { stringValue: bank || 'unknown' } },
+                    { key: 'bank', value: { stringValue: parsed.bank || 'unknown' } },
                     { key: 'amount', value: { doubleValue: parsed.amount || 0 } },
                     { key: 'type', value: { stringValue: parsed.transactionType || 'unknown' } },
                     { key: 'mode', value: { stringValue: parsed.paymentMode || 'unknown' } },

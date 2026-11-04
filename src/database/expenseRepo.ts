@@ -1,4 +1,4 @@
-import { Expense, Category } from '../types/expense';
+import { Expense, Category, TransactionLocation } from '../types/expense';
 import { QuickSQLiteConnection } from 'react-native-quick-sqlite';
 import { getDatabase } from './db';
 import { telemetry } from '../infrastructure/observability/telemetryService';
@@ -21,13 +21,15 @@ export const INSERT_EXPENSE_SQL = `
   INSERT INTO expenses (
     amount, merchant, alias, category, confidence, timestamp, source, 
     raw_message, transaction_type, account, bank, payment_mode, 
-    is_duplicate, available_balance, splits, reference_id, is_invalid, trash_reason
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    is_duplicate, available_balance, splits, reference_id, is_invalid, trash_reason,
+    tags, notes, bill_image_uri, location, linked_to_id
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
 export const UPDATE_EXPENSE_WITH_AMOUNT_SQL = `
   UPDATE expenses 
-  SET merchant = ?, category = ?, bank = ?, payment_mode = ?, amount = ?, splits = ?, transaction_type = COALESCE(?, transaction_type)
+  SET merchant = ?, category = ?, bank = ?, payment_mode = ?, amount = ?, splits = ?, transaction_type = COALESCE(?, transaction_type),
+      tags = COALESCE(?, tags), notes = COALESCE(?, notes), bill_image_uri = COALESCE(?, bill_image_uri)
   WHERE id = ?
 `;
 
@@ -54,27 +56,43 @@ export const GET_EXPENSE_BY_ID_SQL = `
 `;
 
 export const GET_ALL_EXPENSES_SQL = `
-  SELECT * FROM expenses WHERE is_duplicate = 0 ORDER BY timestamp DESC LIMIT ? OFFSET ?
+  SELECT * FROM expenses WHERE is_duplicate = 0 AND (linked_to_id IS NULL OR linked_to_id = 0) ORDER BY timestamp DESC LIMIT ? OFFSET ?
 `;
 
 export const GET_WINDOWED_EXPENSES_SQL = `
-  SELECT * FROM expenses WHERE is_duplicate = 0 AND timestamp >= ? ORDER BY timestamp DESC
+  SELECT * FROM expenses WHERE is_duplicate = 0 AND (linked_to_id IS NULL OR linked_to_id = 0) AND timestamp >= ? ORDER BY timestamp DESC
 `;
 
 /** Full ledger slice for repayment planning; independent of UI pagination/windowing. */
 export const GET_EXPENSES_WITH_SPLITS_SQL = `
   SELECT * FROM expenses
-  WHERE is_duplicate = 0 AND splits IS NOT NULL
+  WHERE is_duplicate = 0 AND (linked_to_id IS NULL OR linked_to_id = 0) AND splits IS NOT NULL
   ORDER BY timestamp ASC
 `;
 
 export const GET_EXPENSES_BY_CATEGORY_SQL = `
-  SELECT * FROM expenses WHERE category = ? AND is_duplicate = 0 ORDER BY timestamp DESC
+  SELECT * FROM expenses WHERE category = ? AND is_duplicate = 0 AND (linked_to_id IS NULL OR linked_to_id = 0) ORDER BY timestamp DESC
 `;
 
 export const GET_MONTHLY_TOTAL_SQL = `
   SELECT COALESCE(SUM(amount), 0) as total FROM expenses
-  WHERE timestamp >= ? AND timestamp < ? AND transaction_type = 'debit' AND is_duplicate = 0
+  WHERE timestamp >= ? AND timestamp < ? AND transaction_type = 'debit' AND is_duplicate = 0 AND (linked_to_id IS NULL OR linked_to_id = 0)
+`;
+
+export const GET_LINKED_DUPLICATES_SQL = `
+  SELECT * FROM expenses WHERE linked_to_id = ? ORDER BY timestamp DESC
+`;
+
+export const LINK_DUPLICATE_EXPENSE_SQL = `
+  UPDATE expenses SET linked_to_id = ? WHERE id = ?
+`;
+
+export const UNLINK_DUPLICATE_EXPENSE_SQL = `
+  UPDATE expenses SET linked_to_id = NULL WHERE id = ?
+`;
+
+export const GET_LINKED_DUPLICATE_COUNTS_SQL = `
+  SELECT linked_to_id, COUNT(*) as count FROM expenses WHERE linked_to_id IS NOT NULL AND linked_to_id > 0 GROUP BY linked_to_id
 `;
 
 export const SAVE_MERCHANT_CATEGORY_SQL = `
@@ -173,9 +191,14 @@ function getInsertExpenseParams(expense: Omit<Expense, 'id'>): unknown[] {
     expense.isDuplicate ? 1 : 0,
     expense.availableBalance !== undefined ? expense.availableBalance : null,
     expense.splits ? JSON.stringify(expense.splits) : null,
-    expense.referenceId || null,
+    expense.referenceId || expense.transactionId || null,
     expense.isInvalid ? 1 : 0,
     expense.trashReason || null,
+    expense.tags ? JSON.stringify(expense.tags) : null,
+    expense.notes || null,
+    expense.billImageUri || null,
+    expense.location ? JSON.stringify(expense.location) : null,
+    expense.linkedToId !== undefined ? expense.linkedToId : null,
   ];
 }
 
@@ -258,6 +281,9 @@ export function mutateExpenseWithSplitUpdatesAtomically(
         mutation.amount,
         mutation.splits ? JSON.stringify(mutation.splits) : null,
         mutation.transactionType,
+        mutation.tags ? JSON.stringify(mutation.tags) : null,
+        mutation.notes || null,
+        mutation.billImageUri || null,
         id,
       ]);
     } else if (mutation.kind === 'invalidate') {
@@ -342,6 +368,45 @@ export function getExpensesByCategory(category: Category): Expense[] {
     const db = getDatabase();
     const result = db.execute(GET_EXPENSES_BY_CATEGORY_SQL, [category]);
     return mapRows(result.rows?._array || []);
+  });
+}
+
+export function getLinkedDuplicates(primaryId: number): Expense[] {
+  return telemetry.traceSync('db.getLinkedDuplicates', { primaryId }, () => {
+    const db = getDatabase();
+    const result = db.execute(GET_LINKED_DUPLICATES_SQL, [primaryId]);
+    return mapRows(result.rows?._array || []);
+  });
+}
+
+export function linkDuplicateExpense(primaryId: number, duplicateId: number): void {
+  if (primaryId === duplicateId) {
+    throw new Error('Cannot link a transaction to itself');
+  }
+  telemetry.traceSync('db.linkDuplicateExpense', { primaryId, duplicateId }, () => {
+    const db = getDatabase();
+    db.execute(LINK_DUPLICATE_EXPENSE_SQL, [primaryId, duplicateId]);
+  });
+}
+
+export function unlinkDuplicateExpense(duplicateId: number): void {
+  telemetry.traceSync('db.unlinkDuplicateExpense', { duplicateId }, () => {
+    const db = getDatabase();
+    db.execute(UNLINK_DUPLICATE_EXPENSE_SQL, [duplicateId]);
+  });
+}
+
+export function getLinkedDuplicateCounts(): Record<number, number> {
+  return telemetry.traceSync('db.getLinkedDuplicateCounts', {}, () => {
+    const db = getDatabase();
+    const result = db.execute(GET_LINKED_DUPLICATE_COUNTS_SQL);
+    const map: Record<number, number> = {};
+    (result.rows?._array || []).forEach((row: any) => {
+      if (row.linked_to_id) {
+        map[Number(row.linked_to_id)] = Number(row.count) || 0;
+      }
+    });
+    return map;
   });
 }
 
@@ -570,6 +635,24 @@ function mapRows(rows: any[]): Expense[] {
       }
     }
 
+    let tags: string[] | undefined = undefined;
+    if (row.tags) {
+      try {
+        tags = JSON.parse(row.tags);
+      } catch (e) {
+        console.error('Failed to parse tags JSON', e);
+      }
+    }
+
+    let location: TransactionLocation | undefined = undefined;
+    if (row.location) {
+      try {
+        location = JSON.parse(row.location);
+      } catch (e) {
+        console.error('Failed to parse location JSON', e);
+      }
+    }
+
     return {
       id: row.id,
       amount: Number(row.amount) || 0,
@@ -591,6 +674,15 @@ function mapRows(rows: any[]): Expense[] {
           : undefined,
       splits: splits,
       referenceId: row.reference_id || undefined,
+      transactionId: row.reference_id || undefined,
+      tags,
+      notes: row.notes || undefined,
+      billImageUri: row.bill_image_uri || undefined,
+      location,
+      linkedToId:
+        row.linked_to_id !== null && row.linked_to_id !== undefined
+          ? Number(row.linked_to_id)
+          : undefined,
       isInvalid: row.is_invalid === 1,
       trashReason: row.trash_reason || undefined,
     };

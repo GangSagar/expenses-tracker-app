@@ -160,6 +160,31 @@ describe('saveExpense', () => {
     );
   });
 
+  it('enforces location immutability by stripping location on manual transaction creation', () => {
+    repository.insertExpense.mockReturnValue(65);
+    const transaction = {
+      amount: 18,
+      merchant: 'Tea Shop',
+      category: 'Food & Dining' as const,
+      confidence: 1,
+      timestamp: 30,
+      source: 'manual' as const,
+      rawMessage: '',
+      transactionType: 'debit' as const,
+      location: { latitude: 12.9716, longitude: 77.5946 },
+    };
+
+    const result = createManualTransaction(transaction);
+
+    expect(result.status).toBe('saved');
+    if (result.status === 'saved') {
+      expect(result.transaction.location).toBeUndefined();
+    }
+    expect(repository.insertExpense).toHaveBeenCalledWith(
+      expect.not.objectContaining({ location: expect.anything() }),
+    );
+  });
+
   it('notifies once for each successfully imported row', async () => {
     repository.insertExpense.mockReturnValue(62);
     const transaction = {

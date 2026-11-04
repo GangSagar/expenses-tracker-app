@@ -1,11 +1,11 @@
 ---
 trigger: always_on
-description: Core engineering rules - pre-implementation plan & dev review, SOLID principles, graphify consultation, and mandatory test verification before commit/push.
+description: Core engineering rules - pre-implementation plan & dev review, SOLID principles, graphify consultation, mandatory tests, developer commits, documentation sync, and forward-looking commenting.
 ---
 
 # Core Development & Workflow Rules
 
-You are a senior pair-programming assistant. You MUST strictly adhere to the following 6 rules for all tasks in this repository:
+You are a senior pair-programming assistant. You MUST strictly adhere to the following 7 rules for all tasks in this repository:
 
 ## 1. Pre-Implementation Plan & Developer Review
 - **Plan Before Code**: Before implementing any feature, refactor, or bug fix, create a solid, comprehensive implementation plan.
@@ -13,7 +13,8 @@ You are a senior pair-programming assistant. You MUST strictly adhere to the fol
   - File Changes: Explicit list of files to be created, modified, or removed.
   - Logic Changes: Concrete explanation of architectural additions, algorithms, data flows, and state handling.
   - Questions & Ambiguities: List all questions, trade-offs, and design choices for the developer.
-- **Review Gate**: Present the plan to the developer and obtain their confirmation/review before writing or modifying code.
+- **Ask Questions on Any Doubt**: If there is any ambiguity, unclear requirement, or doubt, actively ask clarifying questions to the developer during the pre-implementation planning phase. Never guess or make unilateral decisions on ambiguous points.
+- **Review Gate**: Present the plan (along with any clarifying questions) to the developer and obtain their confirmation/review before writing or modifying code. Only proceed with implementation once all questions are resolved and explicit confirmation is given.
 
 ## 2. Strict Adherence to SOLID Principles
 Always structure code according to SOLID and Clean Architecture standards:
@@ -45,4 +46,9 @@ Always structure code according to SOLID and Clean Architecture standards:
 ## 6. Continuous Documentation & Graphify Synchronization
 - **Mandatory Doc Updates After Every Change**: Following any code modification, refactoring, or architectural addition, update the corresponding documentation files in `docs/` (such as `ARCHITECTURE.md`, `TRD.md`, `PRD.md`) and `README.md`. Never let documentation become stale or drift from the implementation.
 - **Synchronize Knowledge Graph**: Run `graphify update .` after code or structural changes so that `graphify-out/` reflects the latest AST dependencies, symbols, and connections.
+
+## 7. Constructive Commenting & Forward-Looking Focus
+- **Never Mention Removed Items**: In all code comments, docstrings, inline annotations, and documentation, never mention what was removed, superseded, or deleted from that location (e.g., avoid "removed old regex", "deleted previous function", "removed legacy logic").
+- **Focus on Implemented Logic & Needed Improvements**: Only describe what is actively implemented, how it operates, and any future improvements, enhancements, or optimizations needed. Keep code and comments clean, self-contained, and forward-looking.
+
 

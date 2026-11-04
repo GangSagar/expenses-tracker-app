@@ -1,10 +1,36 @@
 export type TransactionType = 'debit' | 'credit';
 export type TransactionSource = 'sms' | 'notification' | 'manual';
-import { CATEGORIES, PAYMENT_MODES } from '../constants/appOptions';
+import {
+  CATEGORIES,
+  EXPENSE_CATEGORIES,
+  INCOME_CATEGORIES,
+  ExpenseCategory,
+  IncomeCategory,
+  PAYMENT_MODES,
+} from '../constants/appOptions';
 
 export type PaymentMode = typeof PAYMENT_MODES[number];
 
 export type Category = typeof CATEGORIES[number];
+export type { ExpenseCategory, IncomeCategory };
+export { EXPENSE_CATEGORIES, INCOME_CATEGORIES };
+
+export const DEFAULT_TAGS = ['School', 'Work', 'Family', 'Friends', 'Personal'] as const;
+export type DefaultTag = typeof DEFAULT_TAGS[number];
+
+export interface TransactionLocation {
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+  address?: string;
+  timestamp?: number;
+}
+
+export interface CategorySuggestion {
+  category: Category;
+  confidence: number;
+  evidence?: string[];
+}
 
 export interface RepaymentAllocation {
   expenseId: number;
@@ -48,6 +74,13 @@ export interface Expense {
   availableBalance?: number;
   splits?: ExpenseSplit[];
   referenceId?: string;
+  transactionId?: string;
+  tags?: string[];
+  notes?: string;
+  billImageUri?: string;
+  location?: TransactionLocation;
+  suggestedCategories?: CategorySuggestion[];
+  linkedToId?: number | null;
   isInvalid?: boolean;
   trashReason?: 'spam' | 'false' | 'duplicate' | 'other';
 }

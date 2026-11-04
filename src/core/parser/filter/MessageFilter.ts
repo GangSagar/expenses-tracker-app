@@ -21,7 +21,15 @@ export class MessageFilter {
     /\bapply\s+now\s+for\b/i,
     /\bdiscount\s+coupon\b/i,
     /\blimited\s+period\s+offer\b/i,
+    /\b(?:lucky\s+)?lottery\s+(?:prize|voucher)\b/i,
+    /\bwon\s+a\s+(?:lucky\s+)?(?:lottery|prize)\b/i,
   ];
+
+  private static readonly IGNORED_SENDERS: Set<string> = new Set([
+    'VM-JioBal',
+    'AD-VILBAL',
+    'JD-INFO',
+  ]);
 
   public filter(rawMessage: string, _sender: string = ''): FilterResult {
     if (!rawMessage || typeof rawMessage !== 'string' || rawMessage.trim().length === 0) {
@@ -53,7 +61,7 @@ export class MessageFilter {
 
     // 4. Check for pure balance enquiry messages (contains balance, but NO debit or credit action)
     const hasBalance = /\b(?:available\s+balance|avl\s+bal|avl\s+limit|balance\s+in\s+a\/c)\b/i.test(text);
-    const hasDebit = /\b(?:debited?|spent|paid|purchase|withdrawn|deducted|transfer(?:red)?|trf|dr\.?|due|sent)\b/i.test(text);
+    const hasDebit = /\b(?:debited?|spent|paid|purchase|withdrawn|deducted|transfer(?:red)?|trf|dr\.?|sent)\b/i.test(text);
     const hasCredit = /\b(?:credited?|received|refund(?:ed)?|reversed?|deposited|added|cashback|cr\.?)\b/i.test(text);
 
     if (hasBalance && !hasDebit && !hasCredit) {
@@ -72,6 +80,10 @@ export class MessageFilter {
     if (!sender) return false;
     const s = sender.trim();
 
+    if (MessageFilter.IGNORED_SENDERS.has(s)) {
+      return false;
+    }
+
     // 10-digit phone numbers are personal messages
     if (/^\d{10}$/.test(s)) {
       return false;
@@ -87,15 +99,15 @@ export class MessageFilter {
       return true;
     }
 
-    // Standard Indian transactional SMS header format (e.g. VM-HDFCBK, AX-ICICIB, JX-BOBSMS)
+    // Standard transactional SMS header format (e.g. VM-HDFCBK, AX-ICICIB, JX-BOBSMS)
     if (/^[A-Z]{2}-[A-Z0-9-]+$/i.test(s)) {
       return true;
     }
 
     // Check known bank sender keywords
     const upperSender = s.toUpperCase();
-    const bankRules = configManager.getBankRules();
-    for (const rule of bankRules) {
+    const bankRegistry = configManager.getBankRegistry();
+    for (const rule of bankRegistry) {
       for (const kw of rule.senderKeywords) {
         if (upperSender.includes(kw.toUpperCase())) {
           return true;

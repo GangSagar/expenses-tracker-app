@@ -10,14 +10,26 @@ import { IncomingMessage, processIncomingMessage } from '../messaging/messageSer
 import { processTransaction } from './transactionDecisionService';
 import { orchestrateTransaction } from './transactionOrchestrator';
 import { setMerchantMapping } from '../../core/classifier/merchantMap';
+import { defaultCategoryLearningEngine } from '../../core/learning/categories';
+import { defaultTagLearningEngine } from '../../core/learning/tags';
 import { learningEngine, transactionStorage } from '../../app/composition';
 import { notifyTransactionSaved } from '../notifications/transactionSavedNotification';
 import { ParseExecutionContext } from '../../core/parser/ai/AIExtractionProposal';
 
-function learnCorrection(alias: string, merchant: string, category: Expense['category']) {
+function learnCorrection(alias: string, merchant: string, category: Expense['category'], paymentMode?: Expense['paymentMode']) {
   try {
     setMerchantMapping(alias, category, merchant);
     learningEngine.learn(alias, merchant, category);
+    const entity = merchant || alias;
+    const tokens = entity ? entity.toLowerCase().replace(/[^\w\s-]/g, ' ').split(/\s+/).filter(t => t.length > 1) : [];
+    defaultCategoryLearningEngine.learn(
+      {
+        entity,
+        paymentMode,
+        tokens,
+      },
+      category,
+    );
   } catch (error) {
     // Learning is a follow-up side effect; it must not hide a successful write.
     console.error('Transaction saved, but merchant/category learning failed:', error);
@@ -35,8 +47,15 @@ function persistAndNotify(
   candidate: TransactionCandidate,
   match: () => ReturnType<typeof findDuplicate> | boolean,
   allowPossibleDuplicate = false,
+  linkDefiniteDuplicate = false,
 ) {
-  const result = persistAcceptedTransaction(candidate, transactionStorage, match, allowPossibleDuplicate);
+  const result = persistAcceptedTransaction(
+    candidate,
+    transactionStorage,
+    match,
+    allowPossibleDuplicate,
+    linkDefiniteDuplicate,
+  );
   if (result.status === 'saved') notifySavedBestEffort(result.transaction);
   return result;
 }
@@ -55,7 +74,7 @@ export async function ingestLiveMessage(message: IncomingMessage) {
   if (decision.kind !== 'auto_save' || !candidate) {
     return { candidate, decision, persistence: null };
   }
-  const persistence = persistAndNotify(candidate, () => duplicateLookup(candidate));
+  const persistence = persistAndNotify(candidate, () => duplicateLookup(candidate), false, true);
   return { candidate, decision, persistence };
 }
 
@@ -110,7 +129,12 @@ export function createManualTransaction(expense: Omit<Expense, 'id'>) {
       message: 'Merchant or description is required.',
     };
   }
-  return persistAndNotify(expense, () => null);
+  // Enforce location immutability: manual transactions cannot set or fake map location
+  const candidate: Omit<Expense, 'id'> = {
+    ...expense,
+    location: undefined,
+  };
+  return persistAndNotify(candidate, () => null);
 }
 
 export function confirmReviewedTransaction(
@@ -121,7 +145,7 @@ export function confirmReviewedTransaction(
   if (result.status === 'saved' && previousCategory !== undefined && previousCategory !== expense.category) {
     const alias = expense.alias || expense.merchant;
     if (alias && alias !== 'Unknown') {
-      learnCorrection(alias, expense.merchant, expense.category);
+      learnCorrection(alias, expense.merchant, expense.category, expense.paymentMode);
     }
   }
   return result;
@@ -138,6 +162,9 @@ export function updateTransactionUseCase(
   amount?: number,
   splits?: Expense['splits'],
   transactionType?: Expense['transactionType'],
+  tags?: string[],
+  notes?: string,
+  billImageUri?: string,
 ) {
   const persisted = transactionStorage.findById(id) || existing;
   const updates = updateTransactionWithRepaymentRules(transactionStorage, id, {
@@ -148,6 +175,9 @@ export function updateTransactionUseCase(
     amount: amount ?? persisted?.amount ?? 0,
     splits: splits as ExpenseSplit[] | undefined,
     transactionType: transactionType || persisted?.transactionType || 'debit',
+    tags: tags ?? persisted?.tags,
+    notes: notes ?? persisted?.notes,
+    billImageUri: billImageUri ?? persisted?.billImageUri,
   });
   const updatedTransaction = transactionStorage.findById(id);
   if (updatedTransaction) notifySavedBestEffort(updatedTransaction);
@@ -155,7 +185,22 @@ export function updateTransactionUseCase(
   if (effectiveAlias && effectiveAlias !== 'Unknown' && persisted && (
     persisted.alias !== alias || persisted.merchant !== merchant || persisted.category !== category
   )) {
-    learnCorrection(effectiveAlias, merchant, category);
+    learnCorrection(effectiveAlias, merchant, category, paymentMode);
+  }
+  if (tags && tags.length > 0) {
+    try {
+      defaultTagLearningEngine.learn(
+        {
+          entity: merchant,
+          category,
+          paymentMode,
+          tokens: merchant.toLowerCase().replace(/[^\w\s-]/g, ' ').split(/\s+/).filter(t => t.length > 1),
+        },
+        tags,
+      );
+    } catch {
+      // Dynamic tag learning is best effort
+    }
   }
   return updates;
 }
@@ -167,6 +212,18 @@ export function invalidateTransactionUseCase(id: number, invalid: boolean) {
 export function deleteTransactionUseCase(id: number) {
   return deleteTransaction(transactionStorage, id);
 }
+
+export const linkDuplicateTransactionUseCase = (primaryId: number, duplicateId: number) =>
+  transactionStorage.linkDuplicate(primaryId, duplicateId);
+
+export const unlinkDuplicateTransactionUseCase = (duplicateId: number) =>
+  transactionStorage.unlinkDuplicate(duplicateId);
+
+export const queryLinkedDuplicates = (primaryId: number) =>
+  transactionStorage.getLinkedDuplicates(primaryId);
+
+export const queryLinkedDuplicateCounts = () =>
+  transactionStorage.getLinkedDuplicateCounts();
 
 export const queryAllTransactions = (limit?: number, offset?: number) =>
   transactionStorage.getAllExpenses(limit, offset);

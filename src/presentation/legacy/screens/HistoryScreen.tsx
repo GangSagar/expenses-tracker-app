@@ -16,6 +16,7 @@ import EditTransactionModal from '../components/EditTransactionModal';
 import CalendarModal from '../components/CalendarModal';
 import { getGroupedSections } from '../../../utils/dateHelpers';
 import { formatAmount } from '../../../utils/formatHelpers';
+import { getExpenseById } from '../../../database/expenseRepo';
 import commonStyles from '../styles/commonStyles';
 import styles from '../styles/HistoryScreenStyles';
 
@@ -28,13 +29,14 @@ const formatTime = (timestamp: number) => {
   });
 };
 
-const CATEGORIES: (Category | 'All')[] = ['All', ...APP_CATEGORIES];
+const CATEGORIES: (Category | 'All')[] = Array.from(new Set(['All', ...APP_CATEGORIES]));
 
 const SOURCES = ['All', 'sms', 'notification', 'manual'];
 const TYPES = ['All', 'debit', 'credit'];
 
-export default function HistoryScreen() {
-  const { expenses, loadExpenses, updateExpense } = useExpenseStore();
+export default function HistoryScreen({ route }: any) {
+  const { expenses, loadExpenses, updateExpense, linkedDuplicateCounts } = useExpenseStore();
+  const targetTransactionId = route?.params?.transactionId;
   
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -74,6 +76,16 @@ export default function HistoryScreen() {
   useEffect(() => {
     loadExpenses();
   }, [loadExpenses]);
+
+  useEffect(() => {
+    if (targetTransactionId) {
+      const match = expenses.find(e => e.id === targetTransactionId) || getExpenseById(targetTransactionId);
+      if (match) {
+        setEditingExpense(match);
+        setModalVisible(true);
+      }
+    }
+  }, [targetTransactionId, expenses]);
 
   // Filtered Expenses
   const filteredExpenses = useMemo(() => {
@@ -620,6 +632,13 @@ export default function HistoryScreen() {
                 {item.isInvalid && item.trashReason && (
                   <View style={styles.trashReasonBadge}>
                     <Text style={styles.trashReasonText}>Tag: {item.trashReason.toUpperCase()}</Text>
+                  </View>
+                )}
+                {Boolean(item.id && linkedDuplicateCounts?.[item.id]) && (
+                  <View style={styles.linkedBadge}>
+                    <Text style={styles.linkedBadgeText}>
+                      🔗 {linkedDuplicateCounts[item.id]} Linked Duplicate{linkedDuplicateCounts[item.id] > 1 ? 's' : ''}
+                    </Text>
                   </View>
                 )}
               </View>

@@ -24,6 +24,8 @@ class SimulatedMessageReceiver : BroadcastReceiver() {
 
         val rawSender = intent.getStringExtra(EXTRA_SENDER) ?: "SIMULATED_SENDER"
         val rawSource = intent.getStringExtra(EXTRA_SOURCE) ?: if (rawSender.contains('.')) "notification" else "sms"
+        val lat = extractDoubleExtra(intent, EXTRA_LATITUDE)
+        val lng = extractDoubleExtra(intent, EXTRA_LONGITUDE)
 
         Log.d("ExpenseTracker", "SimulatedMessageReceiver: Received $rawSource message from $rawSender: $body")
 
@@ -31,8 +33,19 @@ class SimulatedMessageReceiver : BroadcastReceiver() {
             context = context,
             body = body,
             sender = rawSender,
-            source = rawSource
+            source = rawSource,
+            latitude = lat,
+            longitude = lng
         )
+    }
+
+    private fun extractDoubleExtra(intent: Intent, key: String): Double? {
+        if (!intent.hasExtra(key)) return null
+        return when (val v = intent.extras?.get(key)) {
+            is Number -> v.toDouble()
+            is String -> v.toDoubleOrNull()
+            else -> null
+        }
     }
 
     companion object {
@@ -40,6 +53,8 @@ class SimulatedMessageReceiver : BroadcastReceiver() {
         const val EXTRA_BODY = "body"
         const val EXTRA_SENDER = "sender"
         const val EXTRA_SOURCE = "source"
+        const val EXTRA_LATITUDE = "latitude"
+        const val EXTRA_LONGITUDE = "longitude"
     }
 }
 

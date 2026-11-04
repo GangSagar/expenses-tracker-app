@@ -14,7 +14,10 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.expensetracker.notification.NotificationHelper
+import com.expensetracker.notification.ReportScheduler
 
 class MessageModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
@@ -23,13 +26,57 @@ class MessageModule(reactContext: ReactApplicationContext) :
         private const val EVENT_NAME = "onMessageReceived"
         private var instance: MessageModule? = null
 
-        fun emitMessageReceived(context: Context, body: String, sender: String, source: String) {
+        fun emitMessageReceived(
+            context: Context,
+            body: String,
+            sender: String,
+            source: String,
+            latitude: Double? = null,
+            longitude: Double? = null
+        ) {
             val module = instance
             val reactContext = module?.reactApplicationContext
 
-            if (reactContext == null || !reactContext.hasActiveReactInstance()) {
-                Log.d("ExpenseTracker", "React context inactive. Queuing message from $sender.")
-                PendingMessageStore.saveMessage(context, body, sender, source)
+            // Use explicitly provided coordinates if supplied; otherwise query device GPS/Network automatically
+            val loc = if (latitude != null && longitude != null) {
+                com.expensetracker.location.LocationData(latitude, longitude)
+            } else {
+                com.expensetracker.location.LocationHelper.getCurrentLocation(context)
+            }
+
+            val isForeground = reactContext != null &&
+                    reactContext.hasActiveReactInstance() &&
+                    reactContext.lifecycleState == com.facebook.react.common.LifecycleState.RESUMED
+
+            if (!isForeground) {
+                Log.d("ExpenseTracker", "App not in foreground. Starting MessageHeadlessService for $sender.")
+                try {
+                    val headlessIntent = Intent(context, MessageHeadlessService::class.java).apply {
+                        putExtra("body", body)
+                        putExtra("sender", sender)
+                        putExtra("source", source)
+                        if (loc != null) {
+                            putExtra("latitude", loc.latitude)
+                            putExtra("longitude", loc.longitude)
+                            loc.accuracy?.let { putExtra("accuracy", it) }
+                            loc.timestamp?.let { putExtra("locationTimestamp", it.toDouble()) }
+                        }
+                    }
+                    com.facebook.react.HeadlessJsTaskService.acquireWakeLockNow(context)
+                    context.startService(headlessIntent)
+                } catch (e: Exception) {
+                    Log.e("ExpenseTracker", "Failed to start headless task service; saving to pending queue", e)
+                    PendingMessageStore.saveMessage(
+                        context = context,
+                        body = body,
+                        sender = sender,
+                        source = source,
+                        latitude = loc?.latitude,
+                        longitude = loc?.longitude,
+                        accuracy = loc?.accuracy,
+                        locationTimestamp = loc?.timestamp
+                    )
+                }
                 return
             }
 
@@ -38,11 +85,58 @@ class MessageModule(reactContext: ReactApplicationContext) :
                 putString("body", body)
                 putString("sender", sender)
                 putString("source", source)
+                if (loc != null) {
+                    val locationMap = Arguments.createMap().apply {
+                        putDouble("latitude", loc.latitude)
+                        putDouble("longitude", loc.longitude)
+                        loc.accuracy?.let { putDouble("accuracy", it) }
+                        loc.timestamp?.let { putDouble("timestamp", it.toDouble()) }
+                    }
+                    putMap("location", locationMap)
+                }
             }
 
             reactContext
                 .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
                 .emit(EVENT_NAME, params)
+        }
+
+        fun handleNewIntent(intent: Intent?) {
+            intent ?: return
+            val action = intent.getStringExtra("NOTIFICATION_ACTION") ?: return
+            val reportType = intent.getStringExtra("REPORT_TYPE")
+            val transactionId = intent.getIntExtra("TRANSACTION_ID", -1)
+            val candidateJson = intent.getStringExtra("CANDIDATE_JSON")
+            val alertType = intent.getStringExtra("ALERT_TYPE")
+
+            val map = Arguments.createMap().apply {
+                putString("action", action)
+                if (reportType != null) putString("reportType", reportType)
+                if (transactionId != -1) putInt("transactionId", transactionId)
+                if (candidateJson != null) putString("candidateJson", candidateJson)
+                if (alertType != null) putString("alertType", alertType)
+            }
+
+            val module = instance
+            val reactContext = module?.reactApplicationContext
+            if (reactContext != null && reactContext.hasActiveReactInstance()) {
+                reactContext
+                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                    .emit("onNotificationAction", map)
+            }
+        }
+
+        fun emitTransactionSavedFromNotification(context: Context, jsonString: String) {
+            val module = instance
+            val reactContext = module?.reactApplicationContext
+            if (reactContext != null && reactContext.hasActiveReactInstance()) {
+                val params = Arguments.createMap().apply {
+                    putString("transactionJson", jsonString)
+                }
+                reactContext
+                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                    .emit("onTransactionSavedFromNotification", params)
+            }
         }
     }
 
@@ -101,39 +195,134 @@ class MessageModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun showExpenseNotification(title: String, message: String) {
         val context = reactApplicationContext ?: return
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "expense_tracker_channel"
-
-        // Create the NotificationChannel, but only on API 26+ because
-        // the NotificationChannel class is new and not in the support library
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Expense Tracker Alerts"
-            val descriptionText = "Notifications for saved transactions and expense alerts"
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel(channelId, name, importance).apply {
-                description = descriptionText
-            }
-            // Register the channel with the system
-            notificationManager.createNotificationChannel(channel)
-        }
-
-        // Create an explicit intent for an Activity in your app
-        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        val pendingIntent: PendingIntent = PendingIntent.getActivity(
-            context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        NotificationHelper.showSavedNotification(
+            context = context,
+            id = System.currentTimeMillis().toInt(),
+            title = title,
+            message = message
         )
+    }
 
-        val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(context.resources.getIdentifier("ic_launcher", "mipmap", context.packageName))
-            .setContentTitle(title)
-            .setContentText(message)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
+    @ReactMethod
+    fun showSavedNotification(options: ReadableMap) {
+        val context = reactApplicationContext ?: return
+        val id = if (options.hasKey("id")) options.getInt("id") else System.currentTimeMillis().toInt()
+        val title = if (options.hasKey("title")) options.getString("title") ?: "Transaction Saved" else "Transaction Saved"
+        val message = if (options.hasKey("message")) options.getString("message") ?: "" else ""
+        val subtext = if (options.hasKey("subtext")) options.getString("subtext") else null
+        val categorySlug = if (options.hasKey("categorySlug")) options.getString("categorySlug") else null
+        val transactionType = if (options.hasKey("transactionType")) options.getString("transactionType") else "debit"
 
-        notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
+        NotificationHelper.showSavedNotification(
+            context = context,
+            id = id,
+            title = title,
+            message = message,
+            subtext = subtext,
+            categorySlug = categorySlug,
+            transactionType = transactionType
+        )
+    }
+
+    @ReactMethod
+    fun showReviewNotification(options: ReadableMap) {
+        val context = reactApplicationContext ?: return
+        val id = if (options.hasKey("id")) options.getInt("id") else System.currentTimeMillis().toInt()
+        val title = if (options.hasKey("title")) options.getString("title") ?: "Review Needed" else "Review Needed"
+        val message = if (options.hasKey("message")) options.getString("message") ?: "" else ""
+        val details = if (options.hasKey("details")) options.getString("details") ?: message else message
+        val candidateJson = if (options.hasKey("candidateJson")) options.getString("candidateJson") ?: "{}" else "{}"
+        val categorySlug = if (options.hasKey("categorySlug")) options.getString("categorySlug") else null
+        val transactionType = if (options.hasKey("transactionType")) options.getString("transactionType") else "debit"
+
+        NotificationHelper.showReviewNotification(
+            context = context,
+            id = id,
+            title = title,
+            message = message,
+            details = details,
+            candidateJson = candidateJson,
+            categorySlug = categorySlug,
+            transactionType = transactionType
+        )
+    }
+
+    @ReactMethod
+    fun showReportNotification(options: ReadableMap) {
+        val context = reactApplicationContext ?: return
+        val id = if (options.hasKey("id")) options.getInt("id") else 9001
+        val title = if (options.hasKey("title")) options.getString("title") ?: "Expense Report" else "Expense Report"
+        val summary = if (options.hasKey("summary")) options.getString("summary") ?: "" else ""
+        val details = if (options.hasKey("details")) options.getString("details") ?: summary else summary
+        val reportType = if (options.hasKey("reportType")) options.getString("reportType") ?: "daily" else "daily"
+
+        NotificationHelper.showReportNotification(
+            context = context,
+            id = id,
+            title = title,
+            summary = summary,
+            details = details,
+            reportType = reportType
+        )
+    }
+
+    @ReactMethod
+    fun showAlertNotification(options: ReadableMap) {
+        val context = reactApplicationContext ?: return
+        val id = if (options.hasKey("id")) options.getInt("id") else System.currentTimeMillis().toInt()
+        val title = if (options.hasKey("title")) options.getString("title") ?: "Alert" else "Alert"
+        val message = if (options.hasKey("message")) options.getString("message") ?: "" else ""
+        val details = if (options.hasKey("details")) options.getString("details") else null
+        val alertType = if (options.hasKey("alertType")) options.getString("alertType") ?: "general" else "general"
+
+        NotificationHelper.showAlertNotification(
+            context = context,
+            id = id,
+            title = title,
+            message = message,
+            details = details,
+            alertType = alertType
+        )
+    }
+
+    @ReactMethod
+    fun scheduleFinancialReports() {
+        val context = reactApplicationContext ?: return
+        ReportScheduler.scheduleAll(context)
+    }
+
+    @ReactMethod
+    fun getInitialNotificationAction(promise: Promise) {
+        val activity = reactApplicationContext.currentActivity
+        val currentIntent = activity?.intent
+        val action = currentIntent?.getStringExtra("NOTIFICATION_ACTION")
+        val reportType = currentIntent?.getStringExtra("REPORT_TYPE")
+        val transactionId = currentIntent?.getIntExtra("TRANSACTION_ID", -1) ?: -1
+        val candidateJson = currentIntent?.getStringExtra("CANDIDATE_JSON")
+        val alertType = currentIntent?.getStringExtra("ALERT_TYPE")
+
+        val map = Arguments.createMap()
+        if (action != null) {
+            map.putString("action", action)
+            if (reportType != null) {
+                map.putString("reportType", reportType)
+            }
+            if (transactionId != -1) {
+                map.putInt("transactionId", transactionId)
+            }
+            if (candidateJson != null) {
+                map.putString("candidateJson", candidateJson)
+            }
+            if (alertType != null) {
+                map.putString("alertType", alertType)
+            }
+            currentIntent.removeExtra("NOTIFICATION_ACTION")
+            currentIntent.removeExtra("REPORT_TYPE")
+            currentIntent.removeExtra("TRANSACTION_ID")
+            currentIntent.removeExtra("CANDIDATE_JSON")
+            currentIntent.removeExtra("ALERT_TYPE")
+        }
+        promise.resolve(map)
     }
 
     @ReactMethod

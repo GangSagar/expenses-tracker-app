@@ -1,6 +1,7 @@
 import { Category, Expense } from '../types/expense';
 import { SplitSettlementUpdate } from '../core/transactions/repaymentPlanner';
 import {
+  DuplicateLinkingRepository,
   ExpenseQueryRepository,
   PersistedTransaction,
   TransactionBackupRepository,
@@ -19,14 +20,18 @@ import {
   getExpenseById,
   getExpensesByCategory,
   getExpensesWithSplits,
+  getLinkedDuplicates,
+  getLinkedDuplicateCounts,
   getMonthlyTotal,
   getWindowedExpenses,
   insertExpense,
   insertExpenseWithRepayment,
   getAllDedupRecords,
   getDedupCandidates,
+  linkDuplicateExpense,
   mutateExpenseWithSplitUpdatesAtomically,
   restoreExpenseSnapshot,
+  unlinkDuplicateExpense,
   updateSplitExpensesAtomically,
   updateTrashReason,
 } from './expenseRepo';
@@ -34,7 +39,8 @@ import {
 type ExpenseRepositoryPort = TransactionRepository
   & ExpenseQueryRepository
   & TransactionBackupRepository
-  & TransactionMaintenanceRepository;
+  & TransactionMaintenanceRepository
+  & DuplicateLinkingRepository;
 
 function persisted(expense: Expense, id: number): PersistedTransaction {
   if (!Number.isInteger(id) || id <= 0) {
@@ -124,5 +130,21 @@ export class SQLiteTransactionRepository implements ExpenseRepositoryPort {
 
   getAllDedupRecords(): DedupRecord[] {
     return getAllDedupRecords();
+  }
+
+  linkDuplicate(primaryId: number, duplicateId: number): void {
+    linkDuplicateExpense(primaryId, duplicateId);
+  }
+
+  unlinkDuplicate(duplicateId: number): void {
+    unlinkDuplicateExpense(duplicateId);
+  }
+
+  getLinkedDuplicates(primaryId: number): Expense[] {
+    return getLinkedDuplicates(primaryId);
+  }
+
+  getLinkedDuplicateCounts(): Record<number, number> {
+    return getLinkedDuplicateCounts();
   }
 }

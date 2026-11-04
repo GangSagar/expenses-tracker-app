@@ -1,0 +1,441 @@
+[
+  {
+    "id": "sbi",
+    "name": "SBI",
+    "code": "SBIN",
+    "icon": "sbi",
+    "senderKeywords": ["SBI", "SBIIN", "SBIPSG", "SBICRD", "SBISMS"],
+    "bodyKeywords": ["STATE BANK OF INDIA", "SBI UPI", "SBI CARD", "SBI"],
+    "accountPrefixes": ["A/C", "ACCT", "ACCOUNT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE", "BAL"]
+  },
+  {
+    "id": "hdfc",
+    "name": "HDFC",
+    "code": "HDFC",
+    "icon": "hdfc",
+    "senderKeywords": ["HDFC", "HDFCBK", "HDFCCC", "HDFCAL"],
+    "bodyKeywords": ["HDFC BANK", "HDFC BANK CARD", "HDFC", "HDFCBK"],
+    "accountPrefixes": ["A/C", "ACCT", "CARD XX", "CARD"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE", "LIMIT"]
+  },
+  {
+    "id": "icici",
+    "name": "ICICI",
+    "code": "ICIC",
+    "icon": "icici",
+    "senderKeywords": ["ICICI", "ICICIB", "ICICIC", "ICICIS"],
+    "bodyKeywords": ["ICICI BANK", "ICICI BANK CARD", "ICICI CARD", "ICICI"],
+    "accountPrefixes": ["ACC", "ACCT", "CARD XX", "ACCOUNT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE", "AVL LIMIT"]
+  },
+  {
+    "id": "axis",
+    "name": "Axis",
+    "code": "UTIB",
+    "icon": "axis",
+    "senderKeywords": ["AXIS", "AXISBK", "AXISBN", "AXISCD"],
+    "bodyKeywords": ["AXIS BANK", "AXIS BANK CARD", "AXIS"],
+    "accountPrefixes": ["A/C", "ACCT", "CARD"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE", "BAL"]
+  },
+  {
+    "id": "kotak",
+    "name": "Kotak",
+    "code": "KKBK",
+    "icon": "kotak",
+    "senderKeywords": ["KOTAK", "KOTAKB", "KMBL"],
+    "bodyKeywords": ["KOTAK MAHINDRA BANK", "KOTAK BANK", "KOTAK"],
+    "accountPrefixes": ["A/C", "ACCT", "CRD"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BAL", "BAL"]
+  },
+  {
+    "id": "yes",
+    "name": "Yes Bank",
+    "code": "YESB",
+    "icon": "yes",
+    "senderKeywords": ["YES", "YESBNK", "YESB"],
+    "bodyKeywords": ["YES BANK", "YES BANK CARD", "YES SEC"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "indusind",
+    "name": "IndusInd",
+    "code": "INDB",
+    "icon": "indusind",
+    "senderKeywords": ["INDUS", "INDUSB", "INDB"],
+    "bodyKeywords": ["INDUSIND BANK", "INDUSIND"],
+    "accountPrefixes": ["A/C", "ACCT", "CARD"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "idfc",
+    "name": "IDFC",
+    "code": "IDFB",
+    "icon": "idfc",
+    "senderKeywords": ["IDFC", "IDFCFB", "IDFCBK", "IDFB"],
+    "bodyKeywords": ["IDFC FIRST BANK", "IDFC FIRST", "IDFC BANK", "IDFC"],
+    "accountPrefixes": ["A/C", "ACCT", "CARD"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE", "LIMIT"]
+  },
+  {
+    "id": "aubank",
+    "name": "AU Bank",
+    "code": "AUBL",
+    "icon": "aubank",
+    "senderKeywords": ["AUBANK", "AUFIN", "AUSFB", "AUBL"],
+    "bodyKeywords": ["AU SMALL FINANCE BANK", "AU BANK"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "canara",
+    "name": "Canara",
+    "code": "CNRB",
+    "icon": "canara",
+    "senderKeywords": ["CANARA", "CANBNK", "CNRB"],
+    "bodyKeywords": ["CANARA BANK", "CANARA"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "bob",
+    "name": "Bank of Baroda",
+    "code": "BARB",
+    "icon": "bob",
+    "senderKeywords": ["BOB", "BOBSMS", "BOBTXN", "BARB"],
+    "bodyKeywords": ["BANK OF BARODA", "BOB UPI", "- BOB", "-BOB", "BARB0"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVLBAL", "AVL BAL", "AVAILABLE BAL"]
+  },
+  {
+    "id": "pnb",
+    "name": "PNB",
+    "code": "PUNB",
+    "icon": "pnb",
+    "senderKeywords": ["PNB", "PNBSMS", "PUNBNK", "PUNB"],
+    "bodyKeywords": ["PUNJAB NATIONAL BANK", "PNB"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "union",
+    "name": "Union Bank",
+    "code": "UBIN",
+    "icon": "union",
+    "senderKeywords": ["UNION", "UNIONB", "UBISMS", "UBIN"],
+    "bodyKeywords": ["UNION BANK OF INDIA", "UNION BANK", "UBI"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "psb",
+    "name": "Punjab and Sind Bank",
+    "code": "PSIB",
+    "icon": "psb",
+    "senderKeywords": ["PSB", "PSBANK", "PUNSIND", "PSIB"],
+    "bodyKeywords": ["PUNJAB AND SIND BANK", "PUNJAB & SIND BANK", "P&S BANK", "P&S", "PSB UPI", "-P&SB", "-PUNJAB&SIND BANK"],
+    "accountPrefixes": ["A/C NO.", "A/C NO", "A/C", "ACCT"],
+    "balanceKeywords": ["CLR BAL", "AVL BAL", "BAL"]
+  },
+  {
+    "id": "boi",
+    "name": "Bank of India",
+    "code": "BKID",
+    "icon": "boi",
+    "senderKeywords": ["BOI", "BOIIND", "BOITXN", "BKID"],
+    "bodyKeywords": ["BANK OF INDIA", "-BOI", "- BOI", "BOI -", "BOI"],
+    "accountPrefixes": ["A/C", "AC", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "paytm",
+    "name": "Paytm Payments Bank",
+    "code": "PYTM",
+    "icon": "paytm",
+    "senderKeywords": ["PAYTM", "PYTM"],
+    "bodyKeywords": ["PAYTM PAYMENTS BANK", "PAYTM WALLET", "PAYTM BANK"],
+    "accountPrefixes": ["WALLET", "A/C"],
+    "balanceKeywords": ["PAYTM WALLET BAL", "WALLET BAL"]
+  },
+  {
+    "id": "federal",
+    "name": "Federal Bank",
+    "code": "FDRL",
+    "icon": "federal",
+    "senderKeywords": ["FEDBNK", "FEDBANK", "FEDERAL", "FDRL", "FEDBK"],
+    "bodyKeywords": ["FEDERAL BANK", "FEDERAL"],
+    "accountPrefixes": ["A/C", "ACCT"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE BALANCE"]
+  },
+  {
+    "id": "rbl",
+    "name": "RBL Bank",
+    "code": "RATN",
+    "icon": "rbl",
+    "senderKeywords": ["RBLBNK", "RBLCRD", "RATNAKAR", "RATN", "RBL"],
+    "bodyKeywords": ["RBL BANK"],
+    "accountPrefixes": ["A/C", "ACCT", "CARD"],
+    "balanceKeywords": ["AVL BAL", "AVAILABLE LIMIT"]
+  },
+  {
+    "id": "hsbc",
+    "name": "HSBC",
+    "code": "HSBC",
+    "icon": "hsbc",
+    "senderKeywords": ["HSBC", "HSBCIN", "HSBCBK", "HSBCCD"],
+    "bodyKeywords": ["HSBC", "HSBC BANK", "HSBC CARD"],
+    "accountPrefixes": ["A/C", "ACCT", "CARD"],
+    "balanceKeywords": ["AVAILABLE LIMIT", "AVL LIMIT", "LIMIT"]
+  },
+  {
+    "id": "scb",
+    "name": "Standard Chartered",
+    "code": "SCBL",
+    "icon": "scb",
+    "senderKeywords": ["STANDARD CHARTERED", "STANCHAR", "SCB", "SCBL"],
+    "bodyKeywords": ["STANDARD CHARTERED", "STANCHAR"]
+  },
+  {
+    "id": "dbs",
+    "name": "DBS Bank",
+    "code": "DBSS",
+    "icon": "dbs",
+    "senderKeywords": ["DBS BANK", "DBS", "DBSS", "DIGIBANK"],
+    "bodyKeywords": ["DBS BANK", "DBS", "DIGIBANK"]
+  },
+  {
+    "id": "citi",
+    "name": "Citibank",
+    "code": "CITI",
+    "icon": "citi",
+    "senderKeywords": ["CITIBANK", "CITI", "CITIBK"],
+    "bodyKeywords": ["CITIBANK", "CITI"]
+  },
+  {
+    "id": "barclays",
+    "name": "Barclays",
+    "code": "BARC",
+    "icon": "barclays",
+    "senderKeywords": ["BARCLAYS", "BARCLAYS BANK", "BARC"],
+    "bodyKeywords": ["BARCLAYS", "BARCLAYS BANK"]
+  },
+  {
+    "id": "deutsche",
+    "name": "Deutsche Bank",
+    "code": "DEUT",
+    "icon": "deutsche",
+    "senderKeywords": ["DEUTSCHE BANK", "DEUTSCHE", "DEUT"],
+    "bodyKeywords": ["DEUTSCHE BANK", "DEUTSCHE"]
+  },
+  {
+    "id": "bandhan",
+    "name": "Bandhan Bank",
+    "code": "BDBL",
+    "icon": "bandhan",
+    "senderKeywords": ["BANDHAN BANK", "BANDHAN", "BDBL"],
+    "bodyKeywords": ["BANDHAN BANK", "BANDHAN"]
+  },
+  {
+    "id": "karnataka",
+    "name": "Karnataka Bank",
+    "code": "KARB",
+    "icon": "karnataka",
+    "senderKeywords": ["KARNATAKA BANK", "KBL", "KARB", "KBLBNK"],
+    "bodyKeywords": ["KARNATAKA BANK", "KBL BANK"]
+  },
+  {
+    "id": "kvb",
+    "name": "Karur Vysya Bank",
+    "code": "KVBL",
+    "icon": "kvb",
+    "senderKeywords": ["KARUR VYSYA BANK", "KVB", "KVBL"],
+    "bodyKeywords": ["KARUR VYSYA BANK", "KVB"]
+  },
+  {
+    "id": "sib",
+    "name": "South Indian Bank",
+    "code": "SIBL",
+    "icon": "sib",
+    "senderKeywords": ["SOUTH INDIAN BANK", "SIB", "SIBL"],
+    "bodyKeywords": ["SOUTH INDIAN BANK", "SIB"]
+  },
+  {
+    "id": "cub",
+    "name": "City Union Bank",
+    "code": "CIUB",
+    "icon": "cub",
+    "senderKeywords": ["CITY UNION BANK", "CUB", "CIUB"],
+    "bodyKeywords": ["CITY UNION BANK", "CUB"]
+  },
+  {
+    "id": "csb",
+    "name": "CSB Bank",
+    "code": "CSBK",
+    "icon": "csb",
+    "senderKeywords": ["CSB BANK", "CATHOLIC SYRIAN", "CSBK"],
+    "bodyKeywords": ["CSB BANK"]
+  },
+  {
+    "id": "dhanlaxmi",
+    "name": "Dhanlaxmi Bank",
+    "code": "DLXB",
+    "icon": "dhanlaxmi",
+    "senderKeywords": ["DHANLAXMI BANK", "DHANLAKSHMI", "DLXB"],
+    "bodyKeywords": ["DHANLAXMI BANK"]
+  },
+  {
+    "id": "tmb",
+    "name": "Tamilnad Mercantile Bank",
+    "code": "TMBL",
+    "icon": "tmb",
+    "senderKeywords": ["TAMILNAD MERCANTILE BANK", "TMB", "TMBL"],
+    "bodyKeywords": ["TAMILNAD MERCANTILE BANK", "TMB"]
+  },
+  {
+    "id": "jkbank",
+    "name": "J&K Bank",
+    "code": "JAKA",
+    "icon": "jkbank",
+    "senderKeywords": ["JAMMU & KASHMIR BANK", "J&K BANK", "JAKBANK", "JAKA"],
+    "bodyKeywords": ["JAMMU & KASHMIR BANK", "J&K BANK"]
+  },
+  {
+    "id": "nainital",
+    "name": "Nainital Bank",
+    "code": "NAIN",
+    "icon": "nainital",
+    "senderKeywords": ["NAINITAL BANK", "NTBL", "NAIN"],
+    "bodyKeywords": ["NAINITAL BANK"]
+  },
+  {
+    "id": "equitas",
+    "name": "Equitas Small Finance Bank",
+    "code": "ESFB",
+    "icon": "equitas",
+    "senderKeywords": ["EQUITAS SMALL FINANCE BANK", "EQUITAS BANK", "ESFB"],
+    "bodyKeywords": ["EQUITAS SMALL FINANCE BANK", "EQUITAS BANK"]
+  },
+  {
+    "id": "ujjivan",
+    "name": "Ujjivan Small Finance Bank",
+    "code": "UJVN",
+    "icon": "ujjivan",
+    "senderKeywords": ["UJJIVAN SMALL FINANCE BANK", "UJJIVAN", "UJVN"],
+    "bodyKeywords": ["UJJIVAN SMALL FINANCE BANK", "UJJIVAN"]
+  },
+  {
+    "id": "suryoday",
+    "name": "Suryoday Small Finance Bank",
+    "code": "SURY",
+    "icon": "suryoday",
+    "senderKeywords": ["SURYODAY SMALL FINANCE BANK", "SURYODAY", "SURY"],
+    "bodyKeywords": ["SURYODAY SMALL FINANCE BANK", "SURYODAY"]
+  },
+  {
+    "id": "jana",
+    "name": "Jana Small Finance Bank",
+    "code": "JSFB",
+    "icon": "jana",
+    "senderKeywords": ["JANA SMALL FINANCE BANK", "JANA BANK", "JSFB"],
+    "bodyKeywords": ["JANA SMALL FINANCE BANK", "JANA BANK"]
+  },
+  {
+    "id": "utkarsh",
+    "name": "Utkarsh Small Finance Bank",
+    "code": "UTKS",
+    "icon": "utkarsh",
+    "senderKeywords": ["UTKARSH SMALL FINANCE BANK", "UTKARSH", "UTKS"],
+    "bodyKeywords": ["UTKARSH SMALL FINANCE BANK", "UTKARSH"]
+  },
+  {
+    "id": "esaf",
+    "name": "ESAF Small Finance Bank",
+    "code": "ESAF",
+    "icon": "esaf",
+    "senderKeywords": ["ESAF SMALL FINANCE BANK", "ESAF BANK", "ESAF"],
+    "bodyKeywords": ["ESAF SMALL FINANCE BANK", "ESAF BANK"]
+  },
+  {
+    "id": "fino",
+    "name": "Fino Payments Bank",
+    "code": "FINO",
+    "icon": "fino",
+    "senderKeywords": ["FINO PAYMENTS BANK", "FINO BANK", "FINO"],
+    "bodyKeywords": ["FINO PAYMENTS BANK", "FINO BANK"]
+  },
+  {
+    "id": "ippb",
+    "name": "India Post Payments Bank",
+    "code": "IPOS",
+    "icon": "ippb",
+    "senderKeywords": ["INDIA POST PAYMENTS BANK", "IPPB", "IPOS"],
+    "bodyKeywords": ["INDIA POST PAYMENTS BANK", "IPPB"]
+  },
+  {
+    "id": "airtel",
+    "name": "Airtel Payments Bank",
+    "code": "AIRP",
+    "icon": "airtel",
+    "senderKeywords": ["AIRTEL PAYMENTS BANK", "AIRTEL BANK", "AIRP"],
+    "bodyKeywords": ["AIRTEL PAYMENTS BANK", "AIRTEL BANK"]
+  },
+  {
+    "id": "jio",
+    "name": "Jio Payments Bank",
+    "code": "JIOB",
+    "icon": "jio",
+    "senderKeywords": ["JIO PAYMENTS BANK", "JIO BANK", "JIOB"],
+    "bodyKeywords": ["JIO PAYMENTS BANK", "JIO BANK"]
+  },
+  {
+    "id": "nsdl",
+    "name": "NSDL Payments Bank",
+    "code": "NSDL",
+    "icon": "nsdl",
+    "senderKeywords": ["NSDL PAYMENTS BANK", "NSDL BANK", "NSDL"],
+    "bodyKeywords": ["NSDL PAYMENTS BANK", "NSDL BANK"]
+  },
+  {
+    "id": "iob",
+    "name": "Indian Overseas Bank",
+    "code": "IOBA",
+    "icon": "iob",
+    "senderKeywords": ["INDIAN OVERSEAS BANK", "IOB", "IOBA"],
+    "bodyKeywords": ["INDIAN OVERSEAS BANK", "IOB"]
+  },
+  {
+    "id": "indianbank",
+    "name": "Indian Bank",
+    "code": "IDIB",
+    "icon": "indianbank",
+    "senderKeywords": ["INDIAN BANK", "IDIB", "INDBNK"],
+    "bodyKeywords": ["INDIAN BANK"]
+  },
+  {
+    "id": "uco",
+    "name": "UCO Bank",
+    "code": "UCBA",
+    "icon": "uco",
+    "senderKeywords": ["UCO BANK", "UCO", "UCBA"],
+    "bodyKeywords": ["UCO BANK", "UCO"]
+  },
+  {
+    "id": "maharashtra",
+    "name": "Bank of Maharashtra",
+    "code": "MAHB",
+    "icon": "maharashtra",
+    "senderKeywords": ["BANK OF MAHARASHTRA", "MAHABANK", "MAHB", "BOM"],
+    "bodyKeywords": ["BANK OF MAHARASHTRA", "MAHABANK"]
+  },
+  {
+    "id": "cbi",
+    "name": "Central Bank of India",
+    "code": "CBIN",
+    "icon": "cbi",
+    "senderKeywords": ["CENTRAL BANK OF INDIA", "CENTRAL BANK", "CBIN", "CBISMS"],
+    "bodyKeywords": ["CENTRAL BANK OF INDIA", "CENTRAL BANK"]
+  }
+]
+

@@ -1,4 +1,4 @@
-import { TransactionSource } from '../../types/expense';
+import { TransactionSource, TransactionLocation } from '../../types/expense';
 import { StructuredExpense } from '../../core/parser/models';
 import {
   isTransactionalSender,
@@ -15,6 +15,7 @@ export interface IncomingMessage {
   source: TransactionSource;
   packageName?: string;
   timestamp?: number;
+  location?: TransactionLocation;
 }
 
 /** Facts collected at the input boundary; this module does not choose an outcome. */
@@ -34,6 +35,7 @@ export async function processIncomingMessage(
     source: message.source,
     sender: message.sender,
   });
+  console.log(`[Telemetry] Trace ID: ${span.traceId}`);
   const normalizedSender = normalizeUnicodeText(message.sender || '');
   const normalizedBody = normalizeUnicodeText(message.body || '');
   const rejectionSignals: TransactionRejectionReason[] = [];

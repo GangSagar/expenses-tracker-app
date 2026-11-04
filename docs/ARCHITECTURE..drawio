@@ -1,0 +1,26 @@
+<mxfile host="65bd71144e" pageGroups="1" collapsedPageGroups="[&quot;LLD&quot;]">
+    <diagram id="TvC0ncXz6t6zz2TEj4Ff" name="HLD">
+        <mxGraphModel dx="1356" dy="903" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="zME8H5-SXwf1WHvMzuQB" name="Backend" group="LLD">
+        <mxGraphModel dx="1356" dy="903" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="pthB8aJTcxEwh1F-wKHx-0"/>
+                <mxCell id="pthB8aJTcxEwh1F-wKHx-1" parent="pthB8aJTcxEwh1F-wKHx-0"/>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="aDg4rLFLJ8-gs3zs3hb9" name="Frontend" group="LLD">
+        <mxGraphModel dx="1356" dy="903" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="wBpTeJ9iyCVExCRAJfoB-0"/>
+                <mxCell id="wBpTeJ9iyCVExCRAJfoB-1" parent="wBpTeJ9iyCVExCRAJfoB-0"/>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

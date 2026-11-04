@@ -599,6 +599,16 @@ const styles = StyleSheet.create({
   timeoutChipTextActive: {
     color: '#ffffff',
   },
+  subheading: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1a73e8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
 });
 
 export default styles;

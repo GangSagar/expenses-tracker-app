@@ -19,6 +19,16 @@ import {
   DELETE_EXPENSE_SQL,
   deleteTransactionsForAccount,
   deduplicateDatabase,
+  insertExpense,
+  getAllExpenses,
+  linkDuplicateExpense,
+  unlinkDuplicateExpense,
+  getLinkedDuplicates,
+  getLinkedDuplicateCounts,
+  LINK_DUPLICATE_EXPENSE_SQL,
+  UNLINK_DUPLICATE_EXPENSE_SQL,
+  GET_LINKED_DUPLICATES_SQL,
+  GET_LINKED_DUPLICATE_COUNTS_SQL,
 } from '../database/expenseRepo';
 import { getDatabase } from '../database/db';
 
@@ -533,5 +543,142 @@ describe('clearAllExpenses', () => {
       CLEAR_ALL_MERCHANT_CATEGORIES_SQL,
       'ROLLBACK',
     ]);
+  });
+});
+
+describe('transaction metadata persistence & mapping', () => {
+  let mockExecute: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockExecute = getDatabase().execute as jest.Mock;
+  });
+
+  it('persists tags, notes, bill image, transactionId, and map location', () => {
+    mockExecute.mockReturnValueOnce({ insertId: 42 });
+
+    const id = insertExpense({
+      amount: 450,
+      merchant: 'Swiggy',
+      category: 'Food & Dining',
+      confidence: 0.95,
+      timestamp: 1730000000,
+      source: 'sms',
+      rawMessage: 'Rs 450 debited at Swiggy UPI: 987654321',
+      transactionType: 'debit',
+      transactionId: '987654321',
+      tags: ['Food', 'Work'],
+      notes: 'Team lunch',
+      billImageUri: 'file:///storage/bills/bill_42.jpg',
+      location: { latitude: 12.9716, longitude: 77.5946, accuracy: 5.0 },
+    });
+
+    expect(id).toBe(42);
+    expect(mockExecute).toHaveBeenCalledWith(
+      INSERT_EXPENSE_SQL,
+      expect.arrayContaining([
+        '987654321',
+        JSON.stringify(['Food', 'Work']),
+        'Team lunch',
+        'file:///storage/bills/bill_42.jpg',
+        JSON.stringify({ latitude: 12.9716, longitude: 77.5946, accuracy: 5.0 }),
+      ])
+    );
+  });
+
+  it('deserializes metadata and aliases transactionId to referenceId', () => {
+    mockExecute.mockReturnValueOnce({
+      rows: {
+        _array: [
+          {
+            id: 10,
+            amount: 250,
+            merchant: 'Starbucks',
+            category: 'Food & Dining',
+            confidence: 0.9,
+            timestamp: 1730001000,
+            source: 'notification',
+            raw_message: 'Paid 250 to Starbucks',
+            transaction_type: 'debit',
+            reference_id: 'UPI-112233',
+            tags: JSON.stringify(['Work', 'Personal']),
+            notes: 'Coffee break',
+            bill_image_uri: 'file:///bills/c1.png',
+            location: JSON.stringify({ latitude: 13.0827, longitude: 80.2707 }),
+          },
+        ],
+      },
+    });
+
+    const expenses = getAllExpenses();
+    expect(expenses).toHaveLength(1);
+    const exp = expenses[0];
+    expect(exp.referenceId).toBe('UPI-112233');
+    expect(exp.transactionId).toBe('UPI-112233');
+    expect(exp.tags).toEqual(['Work', 'Personal']);
+    expect(exp.notes).toBe('Coffee break');
+    expect(exp.billImageUri).toBe('file:///bills/c1.png');
+    expect(exp.location).toEqual({ latitude: 13.0827, longitude: 80.2707 });
+  });
+
+  describe('duplicate message linking operations', () => {
+    it('links a duplicate transaction to a primary transaction in SQLite', () => {
+      mockExecute.mockReturnValueOnce({ rowsAffected: 1 });
+      linkDuplicateExpense(10, 20);
+
+      expect(mockExecute).toHaveBeenCalledWith(LINK_DUPLICATE_EXPENSE_SQL, [10, 20]);
+    });
+
+    it('prevents linking a transaction to itself', () => {
+      expect(() => linkDuplicateExpense(15, 15)).toThrow(/cannot link a transaction to itself/i);
+    });
+
+    it('unlinks a duplicate transaction restoring it to independent status', () => {
+      mockExecute.mockReturnValueOnce({ rowsAffected: 1 });
+      unlinkDuplicateExpense(20);
+
+      expect(mockExecute).toHaveBeenCalledWith(UNLINK_DUPLICATE_EXPENSE_SQL, [20]);
+    });
+
+    it('queries linked duplicates for a primary transaction', () => {
+      mockExecute.mockReturnValueOnce({
+        rows: {
+          _array: [
+            {
+              id: 20,
+              amount: 250,
+              merchant: 'Starbucks',
+              category: 'Food & Dining',
+              timestamp: 1730001005,
+              source: 'sms',
+              raw_message: 'Duplicate SMS',
+              transaction_type: 'debit',
+              linked_to_id: 10,
+            },
+          ],
+        },
+      });
+
+      const dups = getLinkedDuplicates(10);
+      expect(mockExecute).toHaveBeenCalledWith(GET_LINKED_DUPLICATES_SQL, [10]);
+      expect(dups).toHaveLength(1);
+      expect(dups[0].id).toBe(20);
+      expect(dups[0].linkedToId).toBe(10);
+    });
+
+    it('queries linked duplicate counts aggregated by primary id', () => {
+      mockExecute.mockReturnValueOnce({
+        rows: {
+          _array: [
+            { linked_to_id: 10, count: 2 },
+            { linked_to_id: 45, count: 1 },
+          ],
+        },
+      });
+
+      const counts = getLinkedDuplicateCounts();
+      expect(mockExecute).toHaveBeenCalledWith(GET_LINKED_DUPLICATE_COUNTS_SQL);
+      expect(counts).toEqual({ 10: 2, 45: 1 });
+    });
   });
 });

@@ -1,11 +1,17 @@
 import { useEffect, useRef } from 'react';
-import { NativeEventEmitter, NativeModules, AppState } from 'react-native';
+import { NativeEventEmitter, NativeModules } from 'react-native';
 import { IncomingMessage } from '../services/messaging/messageService';
-import { ingestLiveMessage } from '../services/transactions/transactionApplication';
+import { handleIncomingMessage } from '../services/messaging/incomingMessageHandler';
 import { useExpenseStore } from './useExpenses';
 
 const { MessageModule } = NativeModules;
 const messageEmitter = new NativeEventEmitter(MessageModule);
+
+const SMS_NOTIFICATION_PACKAGES = new Set([
+  'com.google.android.apps.messaging',
+  'com.samsung.android.messaging',
+  'com.android.mms',
+]);
 
 export function useMessageListener() {
   const addExpense = useExpenseStore(state => state.addExpense);
@@ -20,46 +26,21 @@ export function useMessageListener() {
     const processMessage = async (message: IncomingMessage) => {
       if (!isMounted) return;
       try {
-        const orchestrated = await ingestLiveMessage(message);
+        const result = await handleIncomingMessage(message);
         if (!isMounted) return;
-        const { candidate, decision } = orchestrated;
-        console.log(`Message from ${message.sender} decision: ${decision.kind} (${decision.reason})`);
 
-        const displayMerchant = candidate?.merchant && candidate.merchant !== 'Unknown'
-          ? candidate.merchant
-          : 'Unknown';
-        const notifyBackground = (title: string, body: string) => {
-          if (AppState.currentState === 'background' || AppState.currentState === 'inactive') {
-            MessageModule.showExpenseNotification(title, body);
-          }
-        };
-
-        switch (decision.kind) {
-          case 'auto_save': {
-            if (!candidate) return;
-            const saved = orchestrated.persistence;
-            if (!saved) return;
-            if (saved.status === 'saved') {
-              console.log(`Auto-saved expense to DB with ID: ${saved.transaction.id}`);
-              addExpense(saved.transaction, saved.repaymentUpdates);
-            } else if (saved.status === 'possible_duplicate') {
-              notifyBackground('Possible Duplicate Transaction', `₹${candidate.amount} at ${displayMerchant}. Tap to review.`);
-              queuePendingExpense(candidate);
-            } else if (saved.status === 'duplicate') {
-              console.log('Expense was not saved because it matched an existing transaction.');
-            } else {
-              console.error('Transaction decision was auto-save, but persistence failed:', saved.message);
-            }
+        switch (result.kind) {
+          case 'saved':
+            addExpense(result.transaction, result.repaymentUpdates);
             break;
-          }
-          case 'review': {
-            if (!candidate) return;
-            notifyBackground('New Pending Transaction', `₹${candidate.amount} at ${displayMerchant}. Tap to approve.`);
-            queuePendingExpense(candidate);
+          case 'duplicate':
+            addExpense(result.transaction, []);
             break;
-          }
+          case 'review':
+            queuePendingExpense(result.candidate);
+            break;
           case 'reject':
-            console.log(`Rejected transaction: ${decision.reason}`);
+            console.log(`Rejected transaction: ${result.reason}`);
             break;
         }
       } catch (error) {
@@ -69,7 +50,49 @@ export function useMessageListener() {
 
     // Async parser enrichment must not reorder incoming repayment credits.
     let processingQueue = Promise.resolve();
+    const recentSmsBodies = new Map<string, number>();
+    const recentEventSignatures = new Map<string, number>();
+
     const enqueueMessage = (message: IncomingMessage) => {
+      const bodyClean = message.body.trim();
+      const now = Date.now();
+
+      // Suppress duplicate OS echo from default SMS apps if the native SMS was already received
+      if (
+        message.source === 'notification' &&
+        SMS_NOTIFICATION_PACKAGES.has(message.sender)
+      ) {
+        const lastSmsTime = recentSmsBodies.get(bodyClean);
+        if (lastSmsTime && now - lastSmsTime < 5000) {
+          console.log(`Suppressed SMS notification echo from ${message.sender}`);
+          return;
+        }
+      }
+
+      if (message.source === 'sms') {
+        recentSmsBodies.set(bodyClean, now);
+      }
+
+      // Suppress exact duplicate broadcast pulses within 400ms (e.g. multi-receiver echoes)
+      const eventSig = `${message.source}::${message.sender}::${bodyClean}`;
+      const lastSeen = recentEventSignatures.get(eventSig);
+      if (lastSeen && now - lastSeen < 400) {
+        return;
+      }
+      recentEventSignatures.set(eventSig, now);
+
+      // Clean old entries
+      if (recentEventSignatures.size > 50) {
+        for (const [k, v] of recentEventSignatures.entries()) {
+          if (now - v > 10000) recentEventSignatures.delete(k);
+        }
+      }
+      if (recentSmsBodies.size > 50) {
+        for (const [k, v] of recentSmsBodies.entries()) {
+          if (now - v > 10000) recentSmsBodies.delete(k);
+        }
+      }
+
       processingQueue = processingQueue.then(() => processMessage(message));
     };
     let releasePendingQueue: () => void = () => {};
@@ -108,11 +131,13 @@ export function useMessageListener() {
         body: string;
         sender: string;
         source: 'sms' | 'notification';
+        location?: IncomingMessage['location'];
       }) => {
         const message: IncomingMessage = {
           body: event.body,
           sender: event.sender,
           source: event.source,
+          location: event.location,
         };
         console.log(
           `Live message received from ${message.sender} via ${message.source}`,
@@ -123,9 +148,23 @@ export function useMessageListener() {
       },
     );
 
+    // 3. Listen for transactions confirmed and saved directly from review notifications
+    const notificationSaveListener = messageEmitter.addListener(
+      'onTransactionSavedFromNotification',
+      (event: { transactionJson: string }) => {
+        try {
+          const tx = JSON.parse(event.transactionJson);
+          addExpense(tx);
+        } catch (e) {
+          console.error('Failed to parse saved transaction from notification:', e);
+        }
+      },
+    );
+
     return () => {
       isMounted = false;
       listenerRef.current?.remove();
+      notificationSaveListener.remove();
     };
   }, [addExpense, queuePendingExpense]);
 }

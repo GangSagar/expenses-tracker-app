@@ -2,14 +2,19 @@
  * Configuration interfaces and defaults for the Expense Parser Engine.
  */
 
-export interface BankRule {
+export interface BankConfig {
   id: string;
   name: string;
+  code?: string;
+  icon?: string;
   senderKeywords: string[];
   bodyKeywords: string[];
   accountPrefixes?: string[];
   balanceKeywords?: string[];
 }
+
+export type BankRule = BankConfig;
+export type BankRegistryEntry = BankConfig;
 
 export interface MerchantAliasConfig {
   aliases: Record<string, string>;

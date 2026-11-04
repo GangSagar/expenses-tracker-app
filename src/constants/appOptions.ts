@@ -1,4 +1,4 @@
-export const CATEGORIES = [
+export const EXPENSE_CATEGORIES = [
   'Food & Dining',
   'Travel',
   'Shopping',
@@ -14,25 +14,36 @@ export const CATEGORIES = [
   'Other',
 ] as const;
 
+export const INCOME_CATEGORIES = [
+  'Bank Deposit',
+  'Business',
+  'Interest',
+  'A/C Transfer',
+  'Bill Payment',
+  'Credit',
+  'Investment',
+  'Loan',
+  'Recharge',
+  'Refund',
+  'Reimbursement',
+  'Rewards',
+  'Salary',
+  'Other',
+] as const;
+
+export const CATEGORIES = [
+  ...EXPENSE_CATEGORIES,
+  ...INCOME_CATEGORIES,
+] as const;
+
+export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
+export type IncomeCategory = typeof INCOME_CATEGORIES[number];
+export type Category = ExpenseCategory | IncomeCategory;
+
 export const PAYMENT_MODES = [
   'upi',
   'cc',
   'wallet',
   'cash',
   'unknown',
-] as const;
-
-export const KNOWN_BANKS = [
-  { name: 'HDFC', keywords: ['HDFC'] },
-  { name: 'ICICI', keywords: ['ICICI'] },
-  { name: 'SBI', keywords: ['SBI'] },
-  { name: 'Axis', keywords: ['AXIS'] },
-  { name: 'Kotak', keywords: ['KOTAK'] },
-  { name: 'Bank of India', keywords: ['BOI', 'BANK OF INDIA'] },
-  { name: 'Bank of Baroda', keywords: ['BOB', 'BANK OF BARODA'] },
-  { name: 'PNB', keywords: ['PNB'] },
-  { name: 'Punjab and Sind Bank', keywords: ['PSB', 'PUNJAB AND SIND', 'PUNJAB AND SIND BANK'] },
-  { name: 'Yes Bank', keywords: ['YES'] },
-  { name: 'IndusInd', keywords: ['INDUS'] },
-  { name: 'Paytm Payments Bank', keywords: ['PAYTM'] },
 ] as const;

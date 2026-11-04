@@ -96,6 +96,29 @@ describe('Entity Extractor Modules', () => {
       // Sender is empty, recipient has @axisbank, but user account bank is BOB!
       expect(bankExtractor.extract('', bobMsg)).toBe('Bank of Baroda');
     });
+
+    it('identifies registered banks from sender header or body', () => {
+      const hsbcMsg = defaultNormalizer.normalize(
+        'HSBC: Rs 25.0 spent on your HSBC Credit Card ending 7285 at INSTANT RETAIL INDIA LIMITED on 29 Sep 2026 through UPI: 663842600301.'
+      );
+      expect(bankExtractor.extract('D-HSBCIN-S', hsbcMsg)).toBe('HSBC');
+      // Even without sender header
+      expect(bankExtractor.extract('', hsbcMsg)).toBe('HSBC');
+
+      const kblMsg = defaultNormalizer.normalize('Rs 500 debited from A/C 1234');
+      expect(bankExtractor.extract('AX-KBLBNK-S', kblMsg)).toBe('Karnataka Bank');
+    });
+
+    it('extracts banks dynamically from universal linguistic grammar patterns', () => {
+      const chaseMsg = defaultNormalizer.normalize('USD 45.00 spent on Chase Bank debit card ending 1234 at WALMART');
+      expect(bankExtractor.extract('', chaseMsg)).toBe('Chase Bank');
+
+      const mercuryMsg = defaultNormalizer.normalize('USD 250 paid using Mercury Card ending 9876');
+      expect(bankExtractor.extract('', mercuryMsg)).toBe('Mercury');
+
+      const irelandMsg = defaultNormalizer.normalize('EUR 10.00 debited from Bank of Ireland account');
+      expect(bankExtractor.extract('', irelandMsg)).toBe('Bank of Ireland');
+    });
   });
 
   describe('PaymentModeExtractor', () => {
@@ -117,6 +140,18 @@ describe('Entity Extractor Modules', () => {
 
       const msg3 = defaultNormalizer.normalize('UPI/CR/534765332543/GANGA SAGAR/BARB/7930010000');
       expect(rawMerchantExtractor.extract(msg3)).toBe('GANGA SAGAR');
+    });
+
+    it('stops merchant candidate extraction before through, thru, or thro payment prepositions', () => {
+      const msg = defaultNormalizer.normalize(
+        'HSBC: Rs 25.0 spent on your HSBC Credit Card ending 7285 at INSTANT RETAIL INDIA LIMITED on 29 Sep 2026 through UPI: 663842600301. Trxn. not done by you? Call 18002673456.'
+      );
+      expect(rawMerchantExtractor.extract(msg)).toBe('INSTANT RETAIL INDIA LIMITED');
+
+      const msgThru = defaultNormalizer.normalize(
+        'Rs 100 spent at BLUE TOKAI COFFEE thru UPI ref 12345'
+      );
+      expect(rawMerchantExtractor.extract(msgThru)).toBe('BLUE TOKAI COFFEE');
     });
   });
 

@@ -10,6 +10,10 @@ jest.mock('../database/expenseRepo', () => ({
   getAllDedupRecords: jest.fn(),
   restoreExpenseSnapshot: jest.fn(),
   mutateExpenseWithSplitUpdatesAtomically: jest.fn(),
+  linkDuplicateExpense: jest.fn(),
+  unlinkDuplicateExpense: jest.fn(),
+  getLinkedDuplicates: jest.fn(),
+  getLinkedDuplicateCounts: jest.fn(),
 }));
 
 const mockedRepo = expenseRepo as jest.Mocked<typeof expenseRepo>;
@@ -74,5 +78,26 @@ describe('SQLiteTransactionRepository', () => {
     const repository = new SQLiteTransactionRepository();
     expect(repository.getDedupCandidates(dedupCandidate)).toBe(rows);
     expect(repository.getAllDedupRecords()).toBe(rows);
+  });
+
+  it('delegates duplicate linking, unlinking, and queries to expense repository functions', () => {
+    const repository = new SQLiteTransactionRepository();
+    const dups = [{ id: 2, amount: 10, merchant: 'Coffee' }] as any;
+    const counts = { 1: 3 };
+
+    mockedRepo.getLinkedDuplicates.mockReturnValue(dups);
+    mockedRepo.getLinkedDuplicateCounts.mockReturnValue(counts);
+
+    repository.linkDuplicate(1, 2);
+    expect(mockedRepo.linkDuplicateExpense).toHaveBeenCalledWith(1, 2);
+
+    repository.unlinkDuplicate(2);
+    expect(mockedRepo.unlinkDuplicateExpense).toHaveBeenCalledWith(2);
+
+    expect(repository.getLinkedDuplicates(1)).toBe(dups);
+    expect(mockedRepo.getLinkedDuplicates).toHaveBeenCalledWith(1);
+
+    expect(repository.getLinkedDuplicateCounts()).toBe(counts);
+    expect(mockedRepo.getLinkedDuplicateCounts).toHaveBeenCalled();
   });
 });

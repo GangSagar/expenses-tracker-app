@@ -30,15 +30,15 @@
       "amount": 25000,
       "transactionType": "credit",
       "merchant": "Salary",
-      "category": "Other",
+      "category": "Salary",
       "account": "1234",
       "bank": "HDFC",
       "availableBalance": null,
       "requiresConfirmation": false
     },
     "expectedDecision": {
-      "kind": "review",
-      "reason": "medium_confidence"
+      "kind": "auto_save",
+      "reason": "high_confidence"
     }
   },
   {
@@ -93,7 +93,7 @@
       "amount": 1850.5,
       "transactionType": "debit",
       "merchant": "Dmart",
-      "category": "Other",
+      "category": "Groceries",
       "account": "8899",
       "bank": "SBI",
       "availableBalance": null,
@@ -213,15 +213,15 @@
       "merchant": "Poha",
       "category": "Other",
       "account": "7285",
-      "bank": null,
+      "bank": "HSBC",
       "availableBalance": 85000,
       "requiresConfirmation": false
     },
     "expectedDecision": {
-      "kind": "auto_save",
-      "reason": "high_confidence"
+      "kind": "review",
+      "reason": "medium_confidence"
     },
-    "expectedCandidateCategory": "Health"
+    "expectedCandidateCategory": "Other"
   },
   {
     "id": "MISL-03",
@@ -276,15 +276,15 @@
       "amount": 450,
       "transactionType": "credit",
       "merchant": "Unknown",
-      "category": "Other",
+      "category": "Refund",
       "account": "1234",
       "bank": "HDFC",
       "availableBalance": null,
-      "requiresConfirmation": true
+      "requiresConfirmation": false
     },
     "expectedDecision": {
-      "kind": "review",
-      "reason": "parser_requires_confirmation"
+      "kind": "auto_save",
+      "reason": "high_confidence"
     },
     "expectedCandidateCategory": "Food & Dining",
     "expectedExtendedTransactionType": "refund"
@@ -389,7 +389,7 @@
       "kind": "auto_save",
       "reason": "high_confidence"
     },
-    "expectedCandidateCategory": "Bills & Recharge"
+    "expectedCandidateCategory": "Other"
   },
   {
     "id": "AMB-05",

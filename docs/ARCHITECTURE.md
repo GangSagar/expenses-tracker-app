@@ -5,9 +5,9 @@
 | Metadata | Details |
 | :--- | :--- |
 | **Document Version** | 2.0 (runtime architecture) |
-| **Diagram File** | [`docs/architecture.drawio`](./architecture.drawio) is a historical v1 snapshot; the Mermaid diagrams below are current. |
+| **Diagram File** | [`docs/v1.0 - iniital_plan/architecture.drawio`](./v1.0%20-%20iniital_plan/architecture.drawio) is a historical v1 snapshot; the Mermaid diagrams below are current. |
 | **System Classification** | Offline-First Event-Driven Mobile Architecture |
-| **Last Updated** | October 2026 |
+| **Last Updated** | November 2026 |
 
 ---
 
@@ -78,12 +78,23 @@ graph TB
 
 1. **Local Persistence**: The SQLite adapter uses `react-native-quick-sqlite`; transaction application operations and repository ports own transaction writes. Performance characteristics should be measured on target devices rather than inferred from JSI alone.
 2. **Event-Driven Native Input**: The native SMS receiver and notification listener hand supported events to the React Native `MessageModule`. The JS listener fetches queued messages on startup and serializes processing so timestamped events are not reordered.
-3. **Data-Driven Modular Parsing (SOLID & Clean Architecture)**:
-   Replaces monolithic regex functions with a 10-stage decoupled pipeline. Bank patterns, merchant aliases, token dictionaries, and category rules are managed via declarative JSON schemas (`bankRules.json`, `merchantAliases.json`, `categoryRules.json`), enabling instant onboarding of new financial institutions and UPI apps without source code modifications.
-4. **On-Device Correction Learning**:
+3. **Data-Driven Modular Parsing & Universal Bank Identification (SOLID & Clean Architecture)**:
+   A 10-stage decoupled pipeline. Bank configurations, merchant aliases, token dictionaries, and category rules are managed via declarative schemas (`bankRegistry.json`, `merchantAliases.json`, `categoryRules.json`). Bank detection employs a multi-tier hierarchy: sender header matching against the unified registry (`bankRegistry.json` covering 50+ financial institutions with dedicated icon assets in `src/assets/banks/`), bank signatures/footers, sanitized body matching, and universal linguistic grammar patterns (`<Name> Bank`, `Bank of <Name>`, `<Name> Card`). Merchant extraction enforces clause termination lookaheads across `through`, `thru`, `thro`, `using`, `on`, `via`, and payment rails. Category classification evaluates `categoryRules.json` via regex word boundaries (`\b${keyword}\b`), eliminating false-positive substring matches. Message filtering delegates through canonical `MessageFilter` heuristics.
+4. **Partitioned Category Taxonomy & Visual Asset System**:
+   Categories are cleanly partitioned into Expense (`EXPENSE_CATEGORIES`: 13 categories) and Income (`INCOME_CATEGORIES`: 14 categories). Every category across both partitions features dedicated 256x256 RGBA icons and 350x500 RGBA card backgrounds in `src/assets/categories/`, ensuring unique visual identity and color harmony even when category names coincide (e.g. `Other`).
+5. **On-Device Correction Learning**:
    Explicit merchant/category corrections are recorded through `LearningEngine` in the local merchant-category repository. Parser resolvers consult those mappings. The current implementation does not include confidence decay or token-pattern frequency learning.
-5. **Offline-First Processing**:
+6. **Offline-First Processing**:
    Extraction, spam classification, local correction learning, and ledger persistence run on-device. The typed model catalog and verified download/library service are groundwork only; the catalog is currently empty and no inference engine is configured. Model preferences are disabled by default. Telemetry is enabled only in `__DEV__` outside tests and targets a local Jaeger endpoint. The current pipeline includes the sender as a telemetry attribute; long strings are truncated, but phone-number redaction is not implemented.
+7. **Autonomous Background Ingestion (Headless JS)**:
+   When SpendWise is minimized, swiped away, or terminated, the native `SmsReceiver` and `NotificationListener` detect when the UI context is inactive (`lifecycleState != LifecycleState.RESUMED`) and dispatch tasks to `MessageHeadlessService`. Leveraging React Native's `HeadlessJsTaskService` and Android `WAKE_LOCK`, background messages trigger `MessageHeadlessTask` without requiring active UI activities. The pipeline autonomously parses the message, persists to SQLite via `react-native-quick-sqlite`, evaluates budget and smart alerts, and delivers actionable native notifications.
+8. **Native Notification System & Interactive Deep Linking**:
+   Notifications leverage Android SystemUI styling:
+   - **Monochrome Status & Header Badge**: An authentic alpha silhouette of the SpendWise wallet with rising vertical bars (`ic_notification`) displays in the status bar and header.
+   - **Category Visual Assets**: Large circular badges dynamically render category-specific iconography (`ic_cat_exp_*` and `ic_cat_inc_*`) with tailored color borders.
+   - **Report Digest Graphics**: Scheduled financial reports display designated graphical badges (`ic_report_daily` calendar, `ic_report_weekly` trend chart, `ic_report_monthly` donut summary) with bold metric keys and interactive actions (`View Analytics`, `View Ledger`).
+   - **Interactive Deep-Linking**: Tapping a transaction notification directly redirects the user into History and opens the transaction details modal; tapping review notifications opens the inline category confirmation modal.
+   - **Linked Duplicate Charges**: Definite duplicates are persisted as linked child records (`is_duplicate = 1`, `linked_to_id = parent_id`), updating parent duplicate counters in real-time and dispatching concise smart alerts without raw metadata keys.
 
 ### 1.3 Module ownership and known seams
 
@@ -93,7 +104,7 @@ graph TB
 | Application capabilities | `src/services/` | Organized by messaging, notifications, transactions, settings, security, and advisor capabilities. Two services currently read configured singleton dependencies from app composition. |
 | Concrete wiring | `src/app/composition/` | Selects parser, settings, learning, spam, security, and transaction repository adapters. |
 | Persistence and platform adapters | `src/database/`, `src/infrastructure/` | SQLite transaction operations stay in the transaction repository; settings, learning, and spam adapters live under infrastructure. |
-| Legacy presentation | `src/presentation/legacy/`, `src/hooks/` | Screens/hooks still import service singletons from app composition. Track the deferred work in the [UI replacement issue list](./UI_REPLACEMENT_ISSUES.md). |
+| Legacy presentation | `src/presentation/legacy/`, `src/hooks/` | Screens/hooks still import service singletons from app composition. Track the deferred work in the [UI replacement issue list](./v2.0%20-%20improvement_plan/v2.1/UI_REPLACEMENT_ISSUES.md). |
 | Saved-transaction notifications | `src/services/notifications/transactionSavedNotification.ts` | Localized provider currently imports React Native APIs directly; provider ownership/port is a follow-up. |
 | Local model library | `src/services/ai/modelLibraryService.ts`, `src/services/ai/modelRuntimeSelector.ts`, `src/infrastructure/ai/ModelArtifactManager.ts`, `src/presentation/legacy/screens/ModelLibraryScreen.tsx` | Verified catalog install/remove, task-slot assignment, deterministic mode, parser selector seam, and management screen are present. The catalog and adapter registry are empty until final model packages are supplied, so inference remains disabled. |
 
@@ -103,7 +114,7 @@ graph TB
 
 ### 2.1 Historical v1 class diagram (not current runtime)
 
-The following class model predates the shared application-use-case and repository boundaries. Use the current HLD above and [live message flow](./APP_MESSAGE_LISTENER_FLOW.md) for present-day call paths.
+The following class model predates the shared application-use-case and repository boundaries. Use the current HLD above and [live message flow](./v2.0%20-%20improvement_plan/v2.1/APP_MESSAGE_LISTENER_FLOW.md) for present-day call paths.
 
 ```mermaid
 classDiagram
@@ -220,7 +231,7 @@ classDiagram
 
 ### 2.2 Historical v1 processing diagram (not current runtime)
 
-This diagram is retained as a record of the earlier design. It shows AI fallback and dedup/persistence stages that do not match the current live runtime. The current parser/decision/persistence flow is documented in [live message flow](./APP_MESSAGE_LISTENER_FLOW.md).
+This diagram is retained as a record of the earlier design. It shows AI fallback and dedup/persistence stages that do not match the current live runtime. The current parser/decision/persistence flow is documented in [live message flow](./v2.0%20-%20improvement_plan/v2.1/APP_MESSAGE_LISTENER_FLOW.md).
 
 When a message arrives from either `SmsReceiver` or `NotificationListener`, it passes through a deterministic finite state pipeline:
 
@@ -282,16 +293,16 @@ The parser follows Clean Architecture principles with complete separation of con
 
 | Submodule | Location | Architectural Responsibility |
 | :--- | :--- | :--- |
-| **Config Tier** | `src/core/parser/config/` | Declarative bank/provider patterns, merchant aliases, category rules, and lexical keywords. Configured rules are examples of coverage, not a guarantee for all provider formats. |
+| **Config Tier** | `src/core/parser/config/` | Declarative unified bank registry (`bankRegistry.json` covering 50+ financial institutions with dedicated icon assets), merchant aliases, category rules, and lexical keywords. |
 | **Models Tier** | `src/core/parser/models/` | Strictly typed `StructuredExpense` entity, `Token` stream definitions, and `ConfidenceResult` contracts. |
 | **Normalizer Tier** | `src/core/parser/normalizer/` | Composable pipeline executing Unicode math font conversion (`0x1D400`–`0x1D7FF`), currency token unification (`INR`, `Rs.`, `₹` ➔ `INR`), keyword normalization, and whitespace cleanup. |
 | **Tokenizer Tier** | `src/core/parser/tokenizer/` | Lexical analyzer classifying character sequences into typed tokens (`AMOUNT`, `ACCOUNT`, `VPA`, `KEYWORD`, `DATE`, `REF_NUMBER`, `MERCHANT_HINT`, `WORD`, `SEPARATOR`). |
-| **Extractor Tier** | `src/core/parser/extractor/` | Targeted extraction units: `AmountExtractor`, `AccountExtractor`, `VpaExtractor`, `ReferenceExtractor`, `BalanceExtractor`, `BankExtractor`, `PaymentModeExtractor`, `RawMerchantExtractor`, unified by `EntityExtractor`. |
+| **Extractor Tier** | `src/core/parser/extractor/` | Targeted extraction units: `AmountExtractor`, `AccountExtractor`, `VpaExtractor`, `ReferenceExtractor`, `BalanceExtractor`, `BankExtractor` (multi-tier registry and structural grammar), `PaymentModeExtractor`, `RawMerchantExtractor` (lookahead clause termination for `through`/`thru`/`thro`), unified by `EntityExtractor`. |
 | **Resolver Tier** | `src/core/parser/resolver/` | Business heuristics: `MerchantResolver` (cleans UPI garbage, strips bank headers, matches alias registry), `TransactionResolver` (debit vs credit directionality priorities), and `CategoryResolver` (rule-based and learned category assignment). |
 | **Confidence Tier** | `src/core/parser/confidence/` | Parser confidence combines extraction/resolution signals and reports confirmation requirements. A separate transaction policy consumes parser evidence and classifier confidence. |
 | **Learning Tier** | `src/core/parser/learning/` | `LearningEngine` stores explicit merchant/category corrections through `ILearningRepository`; the standalone parser uses in-memory learning, while production composition selects the SQLite adapter in `src/infrastructure/persistence/sqlite/`. |
 | **AI Tier** | `src/core/parser/ai/` | `AIResolver` and an in-memory `AICache` define an optional inference boundary. AI is disabled by default and no inference handler/model is configured in app composition. |
-| **Filter Tier** | `src/core/parser/filter/` | Pre-parsing heuristic message filter (`MessageFilter`) rejecting non-financial alerts. |
+| **Filter Tier** | `src/core/parser/filter/` | Pre-parsing heuristic message filter (`MessageFilter`) rejecting non-financial alerts, with `src/core/parser/filters.ts` providing unified delegation. |
 | **Orchestrator** | `src/core/parser/orchestrator/` | Coordinates the 10-stage execution pipeline, assembling extracted and resolved entities into `StructuredExpense`. |
 | **Legacy Adapter** | `src/core/parser/parseMessage.ts` | Keeps `parseMessage()` for legacy callers and exposes structured synchronous and asynchronous parser entry points for ingestion. |
 
@@ -317,6 +328,43 @@ The parser follows Clean Architecture principles with complete separation of con
 * **Recent Apps Preview Obscuration (`FLAG_SECURE` & Privacy Shield)**: Configures `WindowManager.LayoutParams.FLAG_SECURE` in `MainActivity.kt` (`onCreate` and `onResume`) and renders an instant privacy veil in `SecurityGate.tsx` during `AppState` transitions. When locked, the underlying app content is isolated with `display: 'none'`, preventing view leakage or task switcher snapshots across OEM launchers.
 * **App Lifecycle Gate (`SecurityGate.tsx`)**: Listens to React Native `AppState` transitions with synchronous initial store hydration from SQLite. Auto-locks upon cold start and when backgrounded beyond the configurable auto-lock timeout (Immediately, 30s, 1m, 5m), with hardware `BackHandler` app-minimizing protection.
 * **PIN Management UI (`LockScreen.tsx`, `PinSetupModal.tsx`)**: High-performance interactive numpad, animated dot feedback, error shake animations, biometric concurrency guards, and single-touch device authentication.
+
+#### 6. Unified On-Device Learning & Suggestion Subsystem (`src/core/learning/`)
+* **Base Learning Contracts (`src/core/learning/contracts.ts`)**: Defines generic, decoupled abstractions `ILearningModel<TFeature, TOutput>` and `IModelRepository<TData>` enabling clean swappability and testability across on-device statistical learning components.
+* **Statistical Category Suggestion Engine (`src/core/learning/categories/`)**:
+  - Implements `CategoryLearningEngine` with zero regex patterns.
+  - Employs a multinomial probabilistic likelihood model over entity names, sender IDs, payment channels, and message word tokens to calculate normalized probability distributions across standard expense categories.
+  - Suggests the primary predicted category and a ranked list of alternative category suggestions (capped at 3 candidates) with confidence scores for one-tap UI switching.
+  - Learns continuously from user category confirmations and corrections via `learn()`, updating statistical feature weights in memory and SQLite without requiring regex code changes.
+* **Contextual Tag Prediction Engine (`src/core/learning/tags/`)**:
+  - Implements `TagLearningEngine` with statistical multi-label frequency association (zero regexes).
+  - Automatically predicts contextual tags (`UPI`, `Personal`, etc., capped at 3 tags) based on merchant, category, payment mode, and message token distributions.
+  - Continuously trains from user tag edits and confirmations.
+* **SQLite Model Persistence (`src/infrastructure/learning/`)**:
+  - `SQLiteCategoryLearningRepository` and `SQLiteTagLearningRepository` serialize model states into the SQLite `classifier_state` table (`category_learning_model` and `tag_learning_model` keys), preserving learned distributions across app restarts.
+* **Extended Transaction Domain Metadata (`src/types/expense.ts`, `src/database/expenseRepo.ts`)**:
+  - Every transaction supports `tags` (string array), `notes` (user note/memo), `billImageUri` (receipt or bill attachment), `referenceId` / `transactionId` (UPI reference ID or bank reference number), and immutable automatic `location` (`{ latitude, longitude, label? }`).
+
+#### 7. Visual Identity & Category Asset Architecture (`src/assets/categories/`)
+* **Dual Partition Taxonomy**: Organizes transaction flows into Expense (`EXPENSE_CATEGORIES`, 13 categories) and Income (`INCOME_CATEGORIES`, 14 categories) in `src/constants/appOptions.ts`.
+* **Transparent Standalone Icons**: 256x256 RGBA icons without background containers or squircles, allowing flexible rendering and badge overlays across light and dark theme surfaces.
+* **Thematic Header Background Scenes**: Dedicated 350x500 visual compositions representing conceptual activity or financial setting for each category, serving as the card header artwork.
+* **Color Harmonization**: `CATEGORY_THEMES` provides matching `primary`, `secondary`, and `cardBg` tokens to tie the card header artwork and body container together smoothly. Exposed via `getCategoryIcon()`, `getCategoryBg()`, `getCategoryTheme()`, and `getCategoryColor()`.
+
+#### 8. Native Notification Architecture & Scheduled Reports (`android/app/.../notification/`, `src/services/notifications/`)
+* **Dedicated Notification Channels**: Android notification manager creates three high-priority channels: `transactions` (real-time transaction status), `reports` (scheduled financial digests), and `alerts` (smart budget, high-value spend, and balance warnings).
+* **Category Badge Rendering**: Category artwork is rendered as an enlarged glyph centered on a soft, themed circular background badge with a matching category accent border ring (`createCircularBadge()`), providing high legibility in system notification cards.
+* **Streamlined Transaction Presentation**: Saved transaction notifications display clean directional amount indicators (`↗ ₹850.00` for outflow, `↙` for inflow) and the merchant name, keeping category visualization anchored in the large icon badge and banking details (account number, payment rails) isolated to expandable subtext.
+* **Brand Identity & Small Icon Compliance**: Adheres to modern Android notification iconography using a dedicated monochrome alpha-silhouette `ic_notification` for the status bar and header badge, while utilizing the full-color SpendWise brand emblem as the large icon for financial reports and budget alerts.
+* **Interactive Financial Reports**: Periodic digests (daily, weekly, monthly at 10:00 PM) leverage HTML/Spannable formatting (`Html.fromHtml`) with custom font weights, sizing, and semantic financial colors (`#0D652D` surplus, `#C5221F` deficit) rather than emoji clutter. Notifications include two interactive deep-link action buttons (`[ View Analytics ]` and `[ View Ledger ]`) routed via `MainActivity.kt` and `MessageModule.kt`.
+* **Direct Background Transaction Confirmation (`TransactionActionReceiver.kt`)**: When a transaction requires review, the expandable notification features an inline "Save" action button. Activating it writes directly to the local SQLite database from a native `BroadcastReceiver` without launching the React Native JS runtime or bringing the app to foreground.
+* **Scheduled Financial Reports & AlarmManager**: `ReportScheduler.kt` and `ReportAlarmReceiver.kt` schedule Daily, Weekly (Sunday), and Monthly reports at 10:00 PM (`22:00`). Upon firing, native receivers query the SQLite database for period spend, income, and top categories to post a summary digest. `BootReceiver.kt` reschedules active reports upon device reboot.
+* **Smart Real-Time Alerts**: Evaluates budget threshold boundaries (80%, 90%, 100%), high-value spend (≥ ₹10,000), low bank balance (< ₹2,000), and short-window identical charges.
+
+#### 9. Duplicate Transaction Linking Subsystem (`src/database/expenseRepo.ts`, `src/core/transactions/contracts.ts`)
+* **Non-Destructive Duplicate Preservation**: Duplicate transactions are never deleted or purged. Instead, duplicates store their parent transaction ID in `linked_to_id`.
+* **Ledger Filtering**: Main history queries (`GET_ALL_EXPENSES_SQL`, `GET_WINDOWED_EXPENSES_SQL`, `GET_EXPENSES_BY_CATEGORY_SQL`) automatically filter out child records with `AND (linked_to_id IS NULL OR linked_to_id = 0)`.
+* **Bidirectional Management**: Parent transaction cards display a `🔗 X Linked Duplicate(s)` badge. Inside the transaction modal, users can inspect linked messages, unlink ("Break Link") to instantly restore them to the main ledger, or link additional transactions via a searchable picker.
 
 ---
 
@@ -344,6 +392,7 @@ erDiagram
         string reference_id
         int is_invalid
         string trash_reason
+        int linked_to_id FK
         int created_at
     }
 
