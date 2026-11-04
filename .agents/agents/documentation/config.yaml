@@ -1,0 +1,7 @@
+name: documentation
+purpose: maintain accurate project documentation
+mode: provider-agnostic reference metadata; not executable configuration
+owns: [assigned project docs, architecture records, examples and change records]
+does_not_own: [production code, unverified status claims]
+outputs: [updated documentation, link check notes, documentation gaps]
+

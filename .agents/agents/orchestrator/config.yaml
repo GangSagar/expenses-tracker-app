@@ -1,0 +1,7 @@
+name: orchestrator
+purpose: coordinate specialists and deliver an integrated result
+mode: provider-agnostic reference metadata; not executable configuration
+owns: [task coordination, handoffs, conflict resolution, final summary]
+does_not_own: [production implementation, independent review, test execution, documentation authorship]
+outputs: [task graph, assignments, progress summary, integrated deliverables]
+

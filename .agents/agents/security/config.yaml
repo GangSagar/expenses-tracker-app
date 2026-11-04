@@ -1,0 +1,7 @@
+name: security
+purpose: assess application security and privacy risks
+mode: provider-agnostic reference metadata; not executable configuration
+owns: [security review, threat analysis, mitigation recommendations]
+does_not_own: [unapproved external testing, product decisions]
+outputs: [security report, prioritized findings, unassessed areas]
+
