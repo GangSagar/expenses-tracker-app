@@ -27,10 +27,9 @@ export function notifyTransactionReview(candidate: TransactionCandidate): void {
   const message = `${merchant} • Suggested: ${category}`;
 
   const detailLines = [
-    'SpendWise requires your confirmation to record this transaction:',
-    `• Amount: ${arrow} ${amount}`,
-    `• Merchant: ${merchant}`,
-    `• Suggested Category: ${category}`,
+    `Amount: ${arrow} ${amount}`,
+    `Merchant: ${merchant}`,
+    `Suggested Category: ${category}`,
   ];
   if (candidate.bank) {
     const acc = candidate.account ? ` XX${candidate.account.replace(/[^0-9]/g, '').slice(-4)}` : '';
@@ -39,7 +38,6 @@ export function notifyTransactionReview(candidate: TransactionCandidate): void {
   if (candidate.paymentMode && candidate.paymentMode !== 'unknown') {
     detailLines.push(`• Payment Mode: ${candidate.paymentMode.toUpperCase()}`);
   }
-  detailLines.push('Tap "Save" to record directly into history, or tap the notification to review in app.');
 
   const details = detailLines.join('\n');
   const candidateJson = JSON.stringify(candidate);

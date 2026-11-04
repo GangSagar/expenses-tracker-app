@@ -40,7 +40,7 @@ class TransactionActionReceiver : BroadcastReceiver() {
 
                 try {
                     val candidate = JSONObject(candidateJsonStr)
-                    val dbPath = context.getDatabasePath("expense_tracker.db")
+                    val dbPath = NotificationHelper.getDatabaseFile(context)
                     if (!dbPath.exists()) {
                         Log.e(TAG, "Database file does not exist at ${dbPath.absolutePath}")
                         return
@@ -93,7 +93,7 @@ class TransactionActionReceiver : BroadcastReceiver() {
                     val arrow = if (transactionType == "credit" || transactionType == "income") "↙" else "↗"
                     val formattedAmount = String.format("%.2f", amount)
                     val title = "$arrow ₹$formattedAmount"
-                    val message = "$merchant • $category"
+                    val message = merchant
                     val subtext = "Transaction confirmed and saved to history"
 
                     NotificationHelper.showSavedNotification(

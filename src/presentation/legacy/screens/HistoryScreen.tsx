@@ -16,6 +16,7 @@ import EditTransactionModal from '../components/EditTransactionModal';
 import CalendarModal from '../components/CalendarModal';
 import { getGroupedSections } from '../../../utils/dateHelpers';
 import { formatAmount } from '../../../utils/formatHelpers';
+import { getExpenseById } from '../../../database/expenseRepo';
 import commonStyles from '../styles/commonStyles';
 import styles from '../styles/HistoryScreenStyles';
 
@@ -33,8 +34,9 @@ const CATEGORIES: (Category | 'All')[] = Array.from(new Set(['All', ...APP_CATEG
 const SOURCES = ['All', 'sms', 'notification', 'manual'];
 const TYPES = ['All', 'debit', 'credit'];
 
-export default function HistoryScreen() {
+export default function HistoryScreen({ route }: any) {
   const { expenses, loadExpenses, updateExpense, linkedDuplicateCounts } = useExpenseStore();
+  const targetTransactionId = route?.params?.transactionId;
   
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -74,6 +76,16 @@ export default function HistoryScreen() {
   useEffect(() => {
     loadExpenses();
   }, [loadExpenses]);
+
+  useEffect(() => {
+    if (targetTransactionId) {
+      const match = expenses.find(e => e.id === targetTransactionId) || getExpenseById(targetTransactionId);
+      if (match) {
+        setEditingExpense(match);
+        setModalVisible(true);
+      }
+    }
+  }, [targetTransactionId, expenses]);
 
   // Filtered Expenses
   const filteredExpenses = useMemo(() => {

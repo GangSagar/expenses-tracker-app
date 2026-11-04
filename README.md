@@ -52,6 +52,8 @@ Most expense tracking apps either:
 ### 📩 Automatic SMS & Notification Tracking
 
 - Seamlessly extracts **amount**, **type** (debit / credit), **payment mode** (UPI, Card, ATM, Net Banking), **merchant name**, **bank name**, and **account number**.
+- **Autonomous Background Ingestion (Headless JS)**: Operates independently of whether SpendWise is open or closed. Background SMS and notification broadcasts wake `MessageHeadlessService` under an acquired Android `WAKE_LOCK`, parsing and recording entries directly to SQLite in real-time.
+- **Rich Native SystemUI Notifications**: Displays solid monochrome SpendWise wallet silhouette in the status bar and header (`ic_notification`), tailored circular category badges (`ic_cat_*`), scheduled report graphic badges (`ic_report_*`), and concise smart alert descriptions with one-tap deep linking into History or review modals.
 - Captures real-time push notifications from popular payment apps (Google Pay, PhonePe, Paytm, etc.).
 - Robust anti-spam filters automatically ignore OTPs, promotional SMS, cellular operator ads, and personal chats.
 
@@ -94,10 +96,10 @@ Most expense tracking apps either:
 
 ### 🔔 Native Interactive Notifications & Scheduled Reports
 
-- **Directional Cashflow Alerts**: Push alerts display amounts formatted with clear cashflow indicators (`↗` for debits/expenses, `↙` for credits/income) and category icon emblems.
+- **Directional Cashflow Alerts**: Push alerts display amounts formatted with clear cashflow indicators (`↗` for debits/expenses, `↙` for credits/income), clean merchant identification, and enlarged category artwork set on thematic circular tinted badges.
 - **Expandable Detail Isolation**: Bank name, masked account number, payment mode, and reference numbers are tucked into the expandable view, maintaining a clean notification shade.
 - **Background Review Action**: Review alerts feature an inline "Save" action button in the notification shade, committing directly to the SQLite ledger via a native Android BroadcastReceiver without needing to open the app.
-- **Scheduled Financial Reports**: Daily, Weekly (Sunday), and Monthly digests scheduled via native `AlarmManager` for **10:00 PM (`22:00`)**, summarizing period spending, income, and top categories.
+- **Scheduled Financial Reports**: Daily, Weekly (Sunday), and Monthly digests scheduled via native `AlarmManager` for **10:00 PM (`22:00`)**, featuring structured financial typography, semantic cashflow colors, SpendWise branding, and interactive deep-link action buttons (`View Analytics` and `View Ledger`).
 - **Smart Real-Time Alerts**: Proactive notifications for 80%, 90%, and 100% budget threshold crossings, high-value transactions (≥ ₹10,000), low bank balance warnings (< ₹2,000), and short-window duplicate charges.
 
 ### 🔗 Duplicate Transaction Linking & Management

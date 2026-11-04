@@ -99,14 +99,14 @@ deliver_message() {
     # 1. Real emulator telephony SMS
     echo -e "   ${BLUE}↳ Injecting via emulator telephony (SmsReceiver)...${NC}"
     adb -s "$dev" emu sms send "$sender" "$body" 2>/dev/null || true
+  else
+    # 2. Broadcast fallback with safe escaping and standard simulated coordinates
+    local safe_sender="${sender//\'/\'\\\'\'}"
+    local safe_body="${body//\'/\'\\\'\'}"
+    local sim_lat="${LATITUDE:-12.9716}"
+    local sim_lng="${LONGITUDE:-77.5946}"
+    adb -s "$dev" shell "am broadcast -p com.expensetracker -a com.expensetracker.SIMULATE_MESSAGE --es sender '$safe_sender' --es body '$safe_body' --es source '$type' --ef latitude $sim_lat --ef longitude $sim_lng" >/dev/null 2>&1 || true
   fi
-
-  # 2. Broadcast backup with safe escaping and standard simulated coordinates
-  local safe_sender="${sender//\'/\'\\\'\'}"
-  local safe_body="${body//\'/\'\\\'\'}"
-  local sim_lat="${LATITUDE:-12.9716}"
-  local sim_lng="${LONGITUDE:-77.5946}"
-  adb -s "$dev" shell "am broadcast -p com.expensetracker -a com.expensetracker.SIMULATE_MESSAGE --es sender '$safe_sender' --es body '$safe_body' --es source '$type' --ef latitude $sim_lat --ef longitude $sim_lng" >/dev/null 2>&1 || true
 
   echo -e "   ${GREEN}✔ Delivered to device!${NC} Listening for pipeline decision..."
 

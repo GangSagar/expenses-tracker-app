@@ -24,7 +24,7 @@ export function notifyTransactionSaved(transaction: SavedTransactionSummary): vo
 
   const merchant = transaction.merchant?.trim() || 'Transaction';
   const category = transaction.category?.trim() || 'Other';
-  const message = `${merchant} • ${category}`;
+  const message = merchant;
 
   // Subtext is only shown when notification is expanded
   const detailsParts: string[] = [];

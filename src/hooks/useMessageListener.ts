@@ -1,14 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { NativeEventEmitter, NativeModules } from 'react-native';
 import { IncomingMessage } from '../services/messaging/messageService';
-import { ingestLiveMessage } from '../services/transactions/transactionApplication';
-import { notifyTransactionReview } from '../services/notifications/transactionReviewNotification';
-import { evaluateTransactionAlerts } from '../services/notifications/alertNotificationService';
-import { settingsService } from '../app/composition';
+import { handleIncomingMessage } from '../services/messaging/incomingMessageHandler';
 import { useExpenseStore } from './useExpenses';
 
 const { MessageModule } = NativeModules;
 const messageEmitter = new NativeEventEmitter(MessageModule);
+
+const SMS_NOTIFICATION_PACKAGES = new Set([
+  'com.google.android.apps.messaging',
+  'com.samsung.android.messaging',
+  'com.android.mms',
+]);
 
 export function useMessageListener() {
   const addExpense = useExpenseStore(state => state.addExpense);
@@ -23,62 +26,21 @@ export function useMessageListener() {
     const processMessage = async (message: IncomingMessage) => {
       if (!isMounted) return;
       try {
-        const orchestrated = await ingestLiveMessage(message);
+        const result = await handleIncomingMessage(message);
         if (!isMounted) return;
-        const { candidate, decision } = orchestrated;
-        console.log(`Message from ${message.sender} decision: ${decision.kind} (${decision.reason})`);
 
-        switch (decision.kind) {
-          case 'auto_save': {
-            if (!candidate) return;
-            const saved = orchestrated.persistence;
-            if (!saved) return;
-            if (saved.status === 'saved') {
-              console.log(`Auto-saved expense to DB with ID: ${saved.transaction.id}`);
-              addExpense(saved.transaction, saved.repaymentUpdates);
-              try {
-                const preferences = settingsService.getAlertPreferences();
-                const monthlyBudget = Number(settingsService.getMonthlyBudgetLimit()) || 20000;
-                const now = new Date();
-                const monthlyTotal = useExpenseStore.getState().expenses
-                  .filter(e => {
-                    const d = new Date(e.timestamp);
-                    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && e.transactionType === 'debit';
-                  })
-                  .reduce((sum, e) => sum + e.amount, 0) + saved.transaction.amount;
-
-                evaluateTransactionAlerts(saved.transaction, {
-                  preferences,
-                  monthlyTotal,
-                  monthlyBudget,
-                });
-              } catch (err) {
-                console.warn('Failed to evaluate transaction alerts', err);
-              }
-            } else if (saved.status === 'possible_duplicate') {
-              const preferences = settingsService.getAlertPreferences();
-              evaluateTransactionAlerts(candidate as any, {
-                preferences,
-                monthlyTotal: 0,
-                monthlyBudget: 0,
-                isPossibleDuplicate: true,
-              });
-              queuePendingExpense(candidate);
-            } else if (saved.status === 'duplicate') {
-              console.log('Expense was not saved because it matched an existing transaction.');
-            } else {
-              console.error('Transaction decision was auto-save, but persistence failed:', saved.message);
-            }
+        switch (result.kind) {
+          case 'saved':
+            addExpense(result.transaction, result.repaymentUpdates);
             break;
-          }
-          case 'review': {
-            if (!candidate) return;
-            notifyTransactionReview(candidate);
-            queuePendingExpense(candidate);
+          case 'duplicate':
+            addExpense(result.transaction, []);
             break;
-          }
+          case 'review':
+            queuePendingExpense(result.candidate);
+            break;
           case 'reject':
-            console.log(`Rejected transaction: ${decision.reason}`);
+            console.log(`Rejected transaction: ${result.reason}`);
             break;
         }
       } catch (error) {
@@ -88,7 +50,49 @@ export function useMessageListener() {
 
     // Async parser enrichment must not reorder incoming repayment credits.
     let processingQueue = Promise.resolve();
+    const recentSmsBodies = new Map<string, number>();
+    const recentEventSignatures = new Map<string, number>();
+
     const enqueueMessage = (message: IncomingMessage) => {
+      const bodyClean = message.body.trim();
+      const now = Date.now();
+
+      // Suppress duplicate OS echo from default SMS apps if the native SMS was already received
+      if (
+        message.source === 'notification' &&
+        SMS_NOTIFICATION_PACKAGES.has(message.sender)
+      ) {
+        const lastSmsTime = recentSmsBodies.get(bodyClean);
+        if (lastSmsTime && now - lastSmsTime < 5000) {
+          console.log(`Suppressed SMS notification echo from ${message.sender}`);
+          return;
+        }
+      }
+
+      if (message.source === 'sms') {
+        recentSmsBodies.set(bodyClean, now);
+      }
+
+      // Suppress exact duplicate broadcast pulses within 400ms (e.g. multi-receiver echoes)
+      const eventSig = `${message.source}::${message.sender}::${bodyClean}`;
+      const lastSeen = recentEventSignatures.get(eventSig);
+      if (lastSeen && now - lastSeen < 400) {
+        return;
+      }
+      recentEventSignatures.set(eventSig, now);
+
+      // Clean old entries
+      if (recentEventSignatures.size > 50) {
+        for (const [k, v] of recentEventSignatures.entries()) {
+          if (now - v > 10000) recentEventSignatures.delete(k);
+        }
+      }
+      if (recentSmsBodies.size > 50) {
+        for (const [k, v] of recentSmsBodies.entries()) {
+          if (now - v > 10000) recentSmsBodies.delete(k);
+        }
+      }
+
       processingQueue = processingQueue.then(() => processMessage(message));
     };
     let releasePendingQueue: () => void = () => {};

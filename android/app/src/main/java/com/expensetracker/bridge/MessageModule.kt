@@ -44,18 +44,39 @@ class MessageModule(reactContext: ReactApplicationContext) :
                 com.expensetracker.location.LocationHelper.getCurrentLocation(context)
             }
 
-            if (reactContext == null || !reactContext.hasActiveReactInstance()) {
-                Log.d("ExpenseTracker", "React context inactive. Queuing message from $sender.")
-                PendingMessageStore.saveMessage(
-                    context = context,
-                    body = body,
-                    sender = sender,
-                    source = source,
-                    latitude = loc?.latitude,
-                    longitude = loc?.longitude,
-                    accuracy = loc?.accuracy,
-                    locationTimestamp = loc?.timestamp
-                )
+            val isForeground = reactContext != null &&
+                    reactContext.hasActiveReactInstance() &&
+                    reactContext.lifecycleState == com.facebook.react.common.LifecycleState.RESUMED
+
+            if (!isForeground) {
+                Log.d("ExpenseTracker", "App not in foreground. Starting MessageHeadlessService for $sender.")
+                try {
+                    val headlessIntent = Intent(context, MessageHeadlessService::class.java).apply {
+                        putExtra("body", body)
+                        putExtra("sender", sender)
+                        putExtra("source", source)
+                        if (loc != null) {
+                            putExtra("latitude", loc.latitude)
+                            putExtra("longitude", loc.longitude)
+                            loc.accuracy?.let { putExtra("accuracy", it) }
+                            loc.timestamp?.let { putExtra("locationTimestamp", it.toDouble()) }
+                        }
+                    }
+                    com.facebook.react.HeadlessJsTaskService.acquireWakeLockNow(context)
+                    context.startService(headlessIntent)
+                } catch (e: Exception) {
+                    Log.e("ExpenseTracker", "Failed to start headless task service; saving to pending queue", e)
+                    PendingMessageStore.saveMessage(
+                        context = context,
+                        body = body,
+                        sender = sender,
+                        source = source,
+                        latitude = loc?.latitude,
+                        longitude = loc?.longitude,
+                        accuracy = loc?.accuracy,
+                        locationTimestamp = loc?.timestamp
+                    )
+                }
                 return
             }
 
@@ -78,6 +99,31 @@ class MessageModule(reactContext: ReactApplicationContext) :
             reactContext
                 .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
                 .emit(EVENT_NAME, params)
+        }
+
+        fun handleNewIntent(intent: Intent?) {
+            intent ?: return
+            val action = intent.getStringExtra("NOTIFICATION_ACTION") ?: return
+            val reportType = intent.getStringExtra("REPORT_TYPE")
+            val transactionId = intent.getIntExtra("TRANSACTION_ID", -1)
+            val candidateJson = intent.getStringExtra("CANDIDATE_JSON")
+            val alertType = intent.getStringExtra("ALERT_TYPE")
+
+            val map = Arguments.createMap().apply {
+                putString("action", action)
+                if (reportType != null) putString("reportType", reportType)
+                if (transactionId != -1) putInt("transactionId", transactionId)
+                if (candidateJson != null) putString("candidateJson", candidateJson)
+                if (alertType != null) putString("alertType", alertType)
+            }
+
+            val module = instance
+            val reactContext = module?.reactApplicationContext
+            if (reactContext != null && reactContext.hasActiveReactInstance()) {
+                reactContext
+                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                    .emit("onNotificationAction", map)
+            }
         }
 
         fun emitTransactionSavedFromNotification(context: Context, jsonString: String) {
@@ -243,6 +289,40 @@ class MessageModule(reactContext: ReactApplicationContext) :
     fun scheduleFinancialReports() {
         val context = reactApplicationContext ?: return
         ReportScheduler.scheduleAll(context)
+    }
+
+    @ReactMethod
+    fun getInitialNotificationAction(promise: Promise) {
+        val activity = reactApplicationContext.currentActivity
+        val currentIntent = activity?.intent
+        val action = currentIntent?.getStringExtra("NOTIFICATION_ACTION")
+        val reportType = currentIntent?.getStringExtra("REPORT_TYPE")
+        val transactionId = currentIntent?.getIntExtra("TRANSACTION_ID", -1) ?: -1
+        val candidateJson = currentIntent?.getStringExtra("CANDIDATE_JSON")
+        val alertType = currentIntent?.getStringExtra("ALERT_TYPE")
+
+        val map = Arguments.createMap()
+        if (action != null) {
+            map.putString("action", action)
+            if (reportType != null) {
+                map.putString("reportType", reportType)
+            }
+            if (transactionId != -1) {
+                map.putInt("transactionId", transactionId)
+            }
+            if (candidateJson != null) {
+                map.putString("candidateJson", candidateJson)
+            }
+            if (alertType != null) {
+                map.putString("alertType", alertType)
+            }
+            currentIntent.removeExtra("NOTIFICATION_ACTION")
+            currentIntent.removeExtra("REPORT_TYPE")
+            currentIntent.removeExtra("TRANSACTION_ID")
+            currentIntent.removeExtra("CANDIDATE_JSON")
+            currentIntent.removeExtra("ALERT_TYPE")
+        }
+        promise.resolve(map)
     }
 
     @ReactMethod

@@ -18,9 +18,9 @@ export class BalanceExtractor {
       if (!isNaN(bal)) return bal;
     }
 
-    // 2. AvlBal: Rs<amount> (Bank of Baroda): "AvlBal: Rs1015.58" or "AvlBal:Rs1015.58"
+    // 2. Avail/Avl Bal: Rs<amount> (Bank of Baroda, ICICI): "AvlBal: Rs1015.58", "Avail Bal: Rs 1150.00"
     const avlBalColonMatch = text.match(
-      new RegExp(`\\bAvl\\s*Bal\\s*:\\s*${currencyPrefix}${numPattern}`, 'i')
+      new RegExp(`\\b(?:avail(?:able)?|avl)\\.?\\s*bal(?:ance)?\\s*:\\s*${currencyPrefix}${numPattern}`, 'i')
     );
     if (avlBalColonMatch) {
       const raw = avlBalColonMatch[1].replace(/,/g, '');
@@ -28,9 +28,9 @@ export class BalanceExtractor {
       if (!isNaN(bal)) return bal;
     }
 
-    // 3. Avl Bal <amount> (Bank of India, ICICI): "Avl Bal 1121.00" or "Avl Bal Rs. 2,667.87"
+    // 3. Avail/Avl Bal <amount> (Bank of India, ICICI): "Avl Bal 1121.00", "Avail Bal Rs 1150.00"
     const avlBalMatch = text.match(
-      new RegExp(`\\bAvl\\s*Bal\\s+${currencyPrefix}${numPattern}`, 'i')
+      new RegExp(`\\b(?:avail(?:able)?|avl)\\.?\\s*bal(?:ance)?\\s+${currencyPrefix}${numPattern}`, 'i')
     );
     if (avlBalMatch) {
       const raw = avlBalMatch[1].replace(/,/g, '');

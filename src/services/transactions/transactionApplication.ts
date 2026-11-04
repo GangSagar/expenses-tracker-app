@@ -47,8 +47,15 @@ function persistAndNotify(
   candidate: TransactionCandidate,
   match: () => ReturnType<typeof findDuplicate> | boolean,
   allowPossibleDuplicate = false,
+  linkDefiniteDuplicate = false,
 ) {
-  const result = persistAcceptedTransaction(candidate, transactionStorage, match, allowPossibleDuplicate);
+  const result = persistAcceptedTransaction(
+    candidate,
+    transactionStorage,
+    match,
+    allowPossibleDuplicate,
+    linkDefiniteDuplicate,
+  );
   if (result.status === 'saved') notifySavedBestEffort(result.transaction);
   return result;
 }
@@ -67,7 +74,7 @@ export async function ingestLiveMessage(message: IncomingMessage) {
   if (decision.kind !== 'auto_save' || !candidate) {
     return { candidate, decision, persistence: null };
   }
-  const persistence = persistAndNotify(candidate, () => duplicateLookup(candidate));
+  const persistence = persistAndNotify(candidate, () => duplicateLookup(candidate), false, true);
   return { candidate, decision, persistence };
 }
 

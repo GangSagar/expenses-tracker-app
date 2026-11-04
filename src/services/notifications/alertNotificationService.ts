@@ -63,7 +63,7 @@ export function evaluateTransactionAlerts(
   if (preferences.duplicateAlertsEnabled && isPossibleDuplicate) {
     const title = '⚠️ Possible Duplicate Charge';
     const message = `₹${transaction.amount} at ${transaction.merchant}`;
-    const details = `Identical charge detected within a short time window.\nTap to view and link as duplicate under the original message.`;
+    const details = 'Identical transaction detected and linked under the primary entry.';
     dispatchNativeAlert(Date.now() % 2147483647, title, message, details, 'duplicate');
     return;
   }
@@ -76,7 +76,7 @@ export function evaluateTransactionAlerts(
   ) {
     const title = '🚨 High-Value Debit Alert';
     const message = `↗ ₹${transaction.amount.toFixed(2)} at ${transaction.merchant}`;
-    const details = `An unusually large transaction occurred on your account.\nAmount: ₹${transaction.amount}\nMerchant: ${transaction.merchant}\nCategory: ${transaction.category}`;
+    const details = 'An unusually large expense was detected on your account. Review if unexpected.';
     dispatchNativeAlert(Date.now() % 2147483647, title, message, details, 'high_value');
   }
 
@@ -89,7 +89,7 @@ export function evaluateTransactionAlerts(
     const title = '⚠️ Low Account Balance';
     const bankName = transaction.bank ? `${transaction.bank} ` : '';
     const message = `${bankName}Balance: ₹${transaction.availableBalance.toFixed(2)}`;
-    const details = `Your available account balance is below ₹${preferences.lowBalanceThreshold}.\nCurrent Balance: ₹${transaction.availableBalance.toFixed(2)}`;
+    const details = 'Your available bank balance has fallen below your configured reserve threshold.';
     dispatchNativeAlert(Date.now() % 2147483647, title, message, details, 'low_balance');
   }
 
@@ -107,12 +107,12 @@ export function evaluateTransactionAlerts(
       const title = '⚠️ 90% Budget Limit Warning';
       const remaining = Math.max(0, monthlyBudget - monthlyTotal);
       const message = `Only ₹${remaining.toFixed(0)} left in this month's budget`;
-      const details = `You have utilized 90% of your monthly cap (₹${monthlyTotal.toFixed(0)} / ₹${monthlyBudget.toFixed(0)}).`;
+      const details = 'You have utilized 90% of your allocated monthly spending cap.';
       dispatchNativeAlert(9090, title, message, details, 'budget');
     } else if (ratio >= 0.8 && prevRatio < 0.8) {
       const title = '⚠️ 80% Budget Threshold Reached';
       const message = `Used 80% of ₹${monthlyBudget.toFixed(0)} monthly budget`;
-      const details = `Current monthly spending is ₹${monthlyTotal.toFixed(0)}. Keep an eye on non-essential spending.`;
+      const details = 'Current monthly spending has crossed 80% of your allocated cap.';
       dispatchNativeAlert(9080, title, message, details, 'budget');
     }
   }

@@ -33,7 +33,7 @@ describe('Transaction Notification Services', () => {
       expect(NativeModules.MessageModule.showSavedNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           title: '↗ ₹450.00',
-          message: 'Zomato • Food & Dining',
+          message: 'Zomato',
           subtext: 'HDFC XX1234 • Via UPI • Ref: UPI-987654',
           categorySlug: 'food_dining',
           transactionType: 'debit',
@@ -57,7 +57,7 @@ describe('Transaction Notification Services', () => {
       expect(NativeModules.MessageModule.showSavedNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           title: '↙ ₹50000.00',
-          message: 'Acme Corp • Salary',
+          message: 'Acme Corp',
           subtext: 'ICICI XX9988',
           categorySlug: 'salary',
           transactionType: 'credit',
@@ -90,8 +90,7 @@ describe('Transaction Notification Services', () => {
       expect(NativeModules.MessageModule.showReviewNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Review Needed • ↗ ₹850.00',
-          message: 'Unknown POS • Suggested: Shopping',
-          details: expect.stringContaining('SpendWise requires your confirmation'),
+          message: 'Unknown POS • Suggested: Shopping', 
           categorySlug: 'shopping',
           transactionType: 'debit',
           candidateJson: expect.stringContaining('"amount":850'),

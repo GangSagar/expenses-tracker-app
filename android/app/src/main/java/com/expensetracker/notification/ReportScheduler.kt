@@ -29,7 +29,7 @@ object ReportScheduler {
 
     private fun getSetting(context: Context, key: String, defaultValue: String): String {
         return try {
-            val dbPath = context.getDatabasePath("expense_tracker.db")
+            val dbPath = NotificationHelper.getDatabaseFile(context)
             if (!dbPath.exists()) return defaultValue
             val db = SQLiteDatabase.openDatabase(dbPath.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
             val cursor = db.rawQuery("SELECT value FROM settings WHERE key = ? LIMIT 1", arrayOf(key))

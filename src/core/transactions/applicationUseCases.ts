@@ -24,7 +24,7 @@ import {
 
 export type PersistenceResult =
   | { status: 'saved'; transaction: PersistedTransaction; repaymentUpdates: SplitSettlementUpdate[] }
-  | { status: 'duplicate'; match?: DedupMatch }
+  | { status: 'duplicate'; match?: DedupMatch; transaction?: PersistedTransaction }
   | { status: 'possible_duplicate'; match: DedupMatch }
   | { status: 'failed'; stage: 'processing' | 'persistence'; message: string };
 
@@ -36,11 +36,23 @@ export function persistAcceptedTransaction(
   repository: TransactionRepository,
   findMatch: () => DuplicateLookupResult = () => null,
   allowPossibleDuplicate = false,
+  linkDefiniteDuplicate = false,
 ): PersistenceResult {
   try {
     const match = findMatch();
     if (match === true) return { status: 'duplicate' };
     if (match && typeof match === 'object' && match.kind === 'definite') {
+      if (linkDefiniteDuplicate) {
+        const parentId = match.existingTransactionId;
+        const duplicateCandidate = {
+          ...candidate,
+          splits: ensureSplitIds(candidate.splits),
+          isDuplicate: true,
+          linkedToId: parentId,
+        };
+        const persisted = repository.insert(duplicateCandidate);
+        return { status: 'duplicate', match, transaction: persisted };
+      }
       return { status: 'duplicate', match };
     }
     if (match && typeof match === 'object' && match.kind === 'possible' && !allowPossibleDuplicate) {

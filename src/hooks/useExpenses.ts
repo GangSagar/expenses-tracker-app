@@ -93,6 +93,16 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   addExpense: (expense, updates = []) => {
+    if (expense.isDuplicate && expense.linkedToId) {
+      const parentId = expense.linkedToId;
+      set(state => ({
+        linkedDuplicateCounts: {
+          ...state.linkedDuplicateCounts,
+          [parentId]: (state.linkedDuplicateCounts[parentId] || 0) + 1,
+        },
+      }));
+      return;
+    }
     set(state => ({
       expenses: [
         expense,
