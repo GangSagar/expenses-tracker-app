@@ -1,0 +1,7 @@
+name: implementation
+purpose: deliver assigned production changes
+mode: provider-agnostic reference metadata; not executable configuration
+owns: [assigned source and configuration changes, scoped regression coverage]
+does_not_own: [architecture approval, independent code review, release authorization]
+outputs: [code changes, migration/config changes, verification notes]
+

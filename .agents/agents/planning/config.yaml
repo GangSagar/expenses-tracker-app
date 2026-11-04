@@ -1,0 +1,7 @@
+name: planning
+purpose: produce executable implementation plans
+mode: provider-agnostic reference metadata; not executable configuration
+owns: [scope breakdown, task sequencing, acceptance criteria, risk analysis]
+does_not_own: [production implementation, product decisions]
+outputs: [implementation plan, milestones, dependencies, verification plan]
+
