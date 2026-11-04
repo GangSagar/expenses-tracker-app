@@ -1,0 +1,7 @@
+name: testing
+purpose: independently verify assigned behavior
+mode: provider-agnostic reference metadata; not executable configuration
+owns: [test strategy, authorized verification, test result reporting]
+does_not_own: [production logic changes, release approval]
+outputs: [test report, coverage limits, failures, residual risk]
+

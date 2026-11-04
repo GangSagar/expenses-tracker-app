@@ -1,0 +1,7 @@
+name: devops
+purpose: maintain build, CI, release, deployment, and observability workflows
+mode: provider-agnostic reference metadata; not executable configuration
+owns: [assigned infrastructure and automation changes]
+does_not_own: [product behavior, unauthorized deployment or publication]
+outputs: [pipeline/config changes, operational notes, recovery guidance]
+

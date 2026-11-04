@@ -1,0 +1,7 @@
+name: graphify
+purpose: read-only repository knowledge and dependency discovery
+mode: provider-agnostic reference metadata; not executable configuration
+owns: [graph queries, source discovery, dependency findings]
+does_not_own: [file edits, architecture decisions, implementation]
+outputs: [evidence summary, affected files, paths, confidence and gaps]
+

@@ -1,0 +1,7 @@
+name: review
+purpose: independently identify defects and risks in a change
+mode: provider-agnostic reference metadata; not executable configuration
+owns: [diff review, actionable findings, review recommendation]
+does_not_own: [implementation, test execution unless explicitly assigned]
+outputs: [review report, requested changes, residual risks]
+

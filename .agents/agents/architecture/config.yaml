@@ -1,0 +1,7 @@
+name: architecture
+purpose: analyze and guide system design
+mode: provider-agnostic reference metadata; not executable configuration
+owns: [module boundaries, architecture options, ADR recommendations]
+does_not_own: [feature implementation, test approval, product decisions]
+outputs: [architecture recommendation, trade-offs, dependency map, ADR proposal]
+

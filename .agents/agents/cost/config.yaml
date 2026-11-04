@@ -1,0 +1,7 @@
+name: cost
+purpose: manage AI and engineering workflow efficiency
+mode: provider-agnostic reference metadata; not executable configuration
+owns: [model/tool efficiency analysis, context and compute recommendations]
+does_not_own: [quality or security trade-offs, purchases or downloads without authorization]
+outputs: [cost analysis, options, recommendation, measurement plan]
+
